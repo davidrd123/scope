@@ -112,10 +112,10 @@ dev = [
     "freezegun>=1.5.5",
 ]
 # Flash Attention 4 (CUTE) dependencies for Blackwell GPUs (B200/B300, SM100+)
-# After installing, run: python scripts/patch_cutlass_sm103.py
+# Requires Python 3.12+. After installing, run: python scripts/patch_cutlass_sm103.py
 fa4 = [
-    "cuda-python>=12.9.0",
-    "nvidia-cutlass-dsl==4.1.0",
+    "cuda-python>=12.9.0; python_version >= '3.12'",
+    "nvidia-cutlass-dsl==4.1.0; python_version >= '3.12'",
 ]
 
 [tool.ruff]
