@@ -5,6 +5,13 @@ Patch nvidia-cutlass-dsl to support SM103 (B300/B300A) architecture.
 FA4 (Flash Attention 4) with CUTE DSL only officially supports sm_100a/sm_100f.
 The B300 uses sm_103, which requires patching the arch validation checks.
 
+⚠️  WARNING: nvidia-cutlass-dsl conflicts with PyTorch's inductor!
+    The `cutlass` module shadows torch._inductor's cutlass utilities.
+    FA4 deps must be uninstalled to run normal pipelines on B300.
+
+    To uninstall:
+        uv pip uninstall nvidia-cutlass-dsl cuda-python cuda-bindings cuda-pathfinder
+
 Usage:
     python scripts/patch_cutlass_sm103.py
 
