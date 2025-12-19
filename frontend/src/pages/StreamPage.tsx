@@ -12,6 +12,7 @@ import { useVideoSource } from "../hooks/useVideoSource";
 import { useWebRTCStats } from "../hooks/useWebRTCStats";
 import { usePipeline } from "../hooks/usePipeline";
 import { useStreamState } from "../hooks/useStreamState";
+import { useStreamRecorder } from "../hooks/useStreamRecorder";
 import {
   PIPELINES,
   getPipelineDefaultMode,
@@ -134,6 +135,13 @@ export function StreamPage() {
     updateVideoTrack,
     sendParameterUpdate,
   } = useWebRTC();
+
+  const {
+    canRecord,
+    isRecording,
+    recordingDuration,
+    toggleRecording,
+  } = useStreamRecorder(remoteStream);
 
   // Computed loading state - true when downloading models, loading pipeline, or connecting WebRTC
   const isLoading = isDownloading || isPipelineLoading || isConnecting;
@@ -880,6 +888,10 @@ export function StreamPage() {
               currentPromptItems={promptItems}
               transitionSteps={transitionSteps}
               temporalInterpolationMethod={temporalInterpolationMethod}
+              canRecord={canRecord}
+              isRecording={isRecording}
+              recordingDuration={recordingDuration}
+              onRecordToggle={toggleRecording}
               onPromptSubmit={text => {
                 // Update the left panel's prompt state to reflect current timeline prompt
                 const prompts = [{ text, weight: 100 }];

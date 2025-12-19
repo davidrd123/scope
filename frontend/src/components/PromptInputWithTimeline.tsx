@@ -20,6 +20,10 @@ interface PromptInputWithTimelineProps {
   disabled?: boolean;
   isStreaming?: boolean;
   isVideoPaused?: boolean;
+  canRecord?: boolean;
+  isRecording?: boolean;
+  recordingDuration?: number;
+  onRecordToggle?: () => void;
   timelineRef?: React.RefObject<{
     getCurrentTimelinePrompt: () => string;
   } | null>;
@@ -55,6 +59,10 @@ export function PromptInputWithTimeline({
   disabled = false,
   isStreaming = false,
   isVideoPaused = false,
+  canRecord = false,
+  isRecording = false,
+  recordingDuration = 0,
+  onRecordToggle,
   timelineRef,
   selectedPrompt: _selectedPrompt = null,
   onPromptEdit,
@@ -558,6 +566,10 @@ export function PromptInputWithTimeline({
         onPromptSelect={handlePromptSelect}
         onPromptEdit={handlePromptEdit}
         onLivePromptSubmit={onLivePromptSubmit}
+        canRecord={canRecord}
+        isRecording={isRecording}
+        recordingDuration={recordingDuration}
+        onRecordToggle={onRecordToggle}
         isCollapsed={isCollapsed}
         onCollapseToggle={onCollapseToggle}
         settings={settings}

@@ -159,6 +159,10 @@ interface PromptTimelineProps {
   onScrollToTime?: (scrollFn: (time: number) => void) => void;
   isStreaming?: boolean;
   isLoading?: boolean;
+  canRecord?: boolean;
+  isRecording?: boolean;
+  recordingDuration?: number;
+  onRecordToggle?: () => void;
 }
 
 export function PromptTimeline({
@@ -185,6 +189,10 @@ export function PromptTimeline({
   onScrollToTime,
   isStreaming = false,
   isLoading = false,
+  canRecord = false,
+  isRecording = false,
+  recordingDuration = 0,
+  onRecordToggle,
 }: PromptTimelineProps) {
   const timelineRef = useRef<HTMLDivElement>(null);
   const [timelineWidth, setTimelineWidth] = useState(800);
@@ -679,6 +687,25 @@ export function PromptTimeline({
             >
               <Upload className="h-4 w-4 mr-1" />
               Export
+            </Button>
+            <Button
+              onClick={onRecordToggle}
+              disabled={
+                disabled ||
+                isLoading ||
+                (!canRecord && !isRecording) ||
+                !onRecordToggle
+              }
+              size="sm"
+              variant="outline"
+              title={isRecording ? "Stop recording" : "Start recording"}
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${isRecording ? "bg-red-500 animate-pulse" : "bg-red-500/70"}`}
+              />
+              {isRecording
+                ? `Recording ${formatTime(recordingDuration)}`
+                : "Record"}
             </Button>
             <div className="relative">
               <input
