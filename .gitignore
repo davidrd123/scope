@@ -16,6 +16,30 @@ src/scope/core/pipelines/**/*.mp4
 
 notes/
 
+# Video files
+*.mp4
+*.mov
+*.mkv
+*.webm
+*.avi
+*.m4v
+*.mpg
+*.mpeg
+*.MP4
+*.MOV
+*.MKV
+*.WEBM
+*.AVI
+*.M4V
+*.MPG
+*.MPEG
+
+# Cloned repos
+StreamDiffusionV2/
+realtime-video/
+xDiT/
+flash-attention/
+
 # Cursor IDE files
 .cursorrules
 .cursorignore
