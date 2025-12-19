@@ -118,7 +118,6 @@ class EmbeddingBlendingBlock(ModularPipelineBlocks):
 
         if state.get("init_cache", False):
             components.embedding_blender.reset()
-            block_state._previous_embeds_signature = None
             block_state.conditioning_embeds = None
             block_state.current_prompts = None
 
@@ -130,18 +129,10 @@ class EmbeddingBlendingBlock(ModularPipelineBlocks):
         )
         transition = block_state.transition
 
-        # Detect if conditioning changed by comparing signatures
-        current_signature = None
-        if embeds_list is not None and embeds_weights is not None:
-            # Create signature: (length, weights tuple)
-            # This is cheap and avoids storing tensor references
-            current_signature = (len(embeds_list), tuple(embeds_weights))
-
-        previous_signature = getattr(block_state, "_previous_embeds_signature", None)
-        conditioning_changed = current_signature != previous_signature
-
-        # Update stored signature for next comparison
-        block_state._previous_embeds_signature = current_signature
+        # Conditioning is considered updated when TextConditioningBlock provides
+        # a fresh set of embeddings. When prompts haven't changed, that block
+        # intentionally does not re-emit embeddings to avoid extra work.
+        conditioning_changed = embeds_list is not None and embeds_weights is not None
 
         # Initialize flag
         block_state.conditioning_embeds_updated = False

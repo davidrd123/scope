@@ -731,6 +731,16 @@ class FrameProcessor:
 
                 transition = call_params.get("transition")
                 if not transition_active or transition is None:
+                    target_prompts = None
+                    if isinstance(transition, dict):
+                        target_prompts = transition.get("target_prompts")
+                    elif transition is not None and hasattr(
+                        transition, "target_prompts"
+                    ):
+                        target_prompts = getattr(transition, "target_prompts", None)
+
+                    if target_prompts is not None:
+                        self.parameters["prompts"] = target_prompts
                     self.parameters.pop("transition", None)
 
             processing_time = time.time() - start_time
