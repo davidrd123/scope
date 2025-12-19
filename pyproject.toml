@@ -61,6 +61,7 @@ dependencies = [
 daydream-scope = "scope.server.app:main"
 build = "scope.server.build:main"
 download_models = "scope.server.download_models:main"
+render_timeline = "scope.cli.render_timeline:main"
 
 [project.urls]
 Homepage = "https://github.com/daydreamlive/scope"
