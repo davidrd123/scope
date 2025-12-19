@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 TemporalInterpolationMethod = Literal["linear", "slerp"]
 
 # Quality presets for offline rendering
-# Priority: CLI flags > timeline settings > preset defaults
+# Priority: CLI flags > preset > timeline defaults
 PRESETS: dict[str, dict] = {
     "preview": {
         "description": "Fast iteration, low VRAM (~32GB)",
@@ -253,7 +253,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--preset",
         choices=list(PRESETS.keys()),
         default=None,
-        help="Quality preset (preview, standard, quality, highres, max). CLI flags override preset values.",
+        help="Quality preset (preview, standard, quality, highres, max). Overrides timeline settings; CLI flags override preset.",
     )
     parser.add_argument(
         "--list-presets",
@@ -410,12 +410,12 @@ def render_timeline(argv: list[str] | None = None) -> int:
             raise SystemExit("--fps must be > 0")
         target_frames = int(math.ceil(end_time * fps))
 
-        # Resolve settings: CLI flags > timeline settings > preset defaults
+        # Resolve settings: CLI flags > preset > timeline defaults
         preset = PRESETS.get(args.preset, {}) if args.preset else {}
 
         resolution_raw = settings_raw.get("resolution") or {}
-        height = args.height or resolution_raw.get("height") or preset.get("height")
-        width = args.width or resolution_raw.get("width") or preset.get("width")
+        height = args.height or preset.get("height") or resolution_raw.get("height")
+        width = args.width or preset.get("width") or resolution_raw.get("width")
         if height is None or width is None:
             raise SystemExit(
                 "Missing resolution: provide --height/--width, --preset, or include settings.resolution in timeline"
@@ -423,8 +423,8 @@ def render_timeline(argv: list[str] | None = None) -> int:
         _validate_resolution(int(height), int(width))
 
         denoising_steps = (
-            settings_raw.get("denoisingSteps")
-            or preset.get("denoising_steps")
+            preset.get("denoising_steps")
+            or settings_raw.get("denoisingSteps")
             or [1000, 750, 500, 250]
         )
         if args.denoising_steps is not None:
@@ -444,18 +444,21 @@ def render_timeline(argv: list[str] | None = None) -> int:
         kv_cache_attention_bias = (
             args.kv_cache_attention_bias
             if args.kv_cache_attention_bias is not None
-            else settings_raw.get("kvCacheAttentionBias")
-            or preset.get("kv_cache_attention_bias", 0.3)
+            else preset.get("kv_cache_attention_bias")
+            or settings_raw.get("kvCacheAttentionBias")
+            or 0.3
         )
         kv_cache_num_frames = args.kv_cache_num_frames or preset.get("kv_cache_num_frames")
 
-        quantization = settings_raw.get("quantization")
+        # Quantization: CLI > preset > timeline
         if args.quantization == "none":
             quantization = None
         elif args.quantization == "fp8_e4m3fn":
             quantization = "fp8_e4m3fn"
-        elif args.quantization is None and "quantization" in preset:
+        elif "quantization" in preset:
             quantization = preset["quantization"]
+        else:
+            quantization = settings_raw.get("quantization")
 
         frames_per_call = 3  # krea-realtime-video defaults (num_frame_per_block)
         est_calls = int(math.ceil(target_frames / frames_per_call))
@@ -528,18 +531,18 @@ def render_timeline(argv: list[str] | None = None) -> int:
     target_frames = int(math.ceil(end_time * fps))
     logger.info("Timeline duration=%.3fs target_frames=%d fps=%d", end_time, target_frames, fps)
 
-    # Resolve render settings: CLI flags > timeline settings > preset defaults
+    # Resolve render settings: CLI flags > preset > timeline defaults
     preset = PRESETS.get(args.preset, {}) if args.preset else {}
 
     height = (
         args.height
-        or (settings.resolution.height if settings.resolution else None)
         or preset.get("height")
+        or (settings.resolution.height if settings.resolution else None)
     )
     width = (
         args.width
-        or (settings.resolution.width if settings.resolution else None)
         or preset.get("width")
+        or (settings.resolution.width if settings.resolution else None)
     )
     seed = args.seed if args.seed is not None else (settings.seed or 42)
     manage_cache = (
@@ -555,8 +558,8 @@ def render_timeline(argv: list[str] | None = None) -> int:
     _validate_resolution(height, width)
 
     denoising_steps = (
-        settings.denoisingSteps
-        or preset.get("denoising_steps")
+        preset.get("denoising_steps")
+        or settings.denoisingSteps
         or [1000, 750, 500, 250]
     )
     if args.denoising_steps is not None:
@@ -569,19 +572,21 @@ def render_timeline(argv: list[str] | None = None) -> int:
     kv_cache_attention_bias = (
         args.kv_cache_attention_bias
         if args.kv_cache_attention_bias is not None
-        else settings.kvCacheAttentionBias
-        or preset.get("kv_cache_attention_bias", 0.3)
+        else preset.get("kv_cache_attention_bias")
+        or (settings.kvCacheAttentionBias if settings.kvCacheAttentionBias is not None else 0.3)
     )
 
     kv_cache_num_frames = args.kv_cache_num_frames or preset.get("kv_cache_num_frames")
 
-    quantization = settings.quantization
+    # Quantization: CLI > preset > timeline
     if args.quantization == "none":
         quantization = None
     elif args.quantization == "fp8_e4m3fn":
         quantization = "fp8_e4m3fn"
-    elif args.quantization is None and "quantization" in preset:
+    elif "quantization" in preset:
         quantization = preset["quantization"]
+    else:
+        quantization = settings.quantization
 
     # Lazy imports: keep module import light, and make failures more actionable.
     try:

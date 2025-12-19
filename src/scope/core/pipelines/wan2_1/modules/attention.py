@@ -1,5 +1,6 @@
 # Modified from https://github.com/guandeh17/Self-Forcing
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
+import os
 import platform
 
 import torch
@@ -17,6 +18,24 @@ def is_b200_gpu():
         return False
     device_name = torch.cuda.get_device_name(0).lower()
     return "b200" in device_name
+
+
+def is_blackwell_gpu():
+    if not torch.cuda.is_available():
+        return False
+    major, _minor = torch.cuda.get_device_capability(0)
+    return major >= 10
+
+
+flash_attn_4_varlen_func = None
+FLASH_ATTN_4_AVAILABLE = False
+if os.getenv("DISABLE_FLASH_ATTENTION_4", "0") == "0":
+    try:
+        from flash_attn.cute import flash_attn_varlen_func as flash_attn_4_varlen_func
+
+        FLASH_ATTN_4_AVAILABLE = is_blackwell_gpu()
+    except Exception:
+        pass
 
 FLASH_ATTN_3_AVAILABLE = False
 
@@ -66,7 +85,11 @@ __all__ = [
 
 print("flash attn 2 available", FLASH_ATTN_2_AVAILABLE)
 print("flash attn 3 available", FLASH_ATTN_3_AVAILABLE)
+print("flash attn 4 (cute) available", FLASH_ATTN_4_AVAILABLE)
 print("sage attn available", SAGEATTN_AVAILABLE)
+
+# Track which attention backend was used (for one-time runtime logging)
+_attention_backend_logged = False
 
 
 def flash_attention(
@@ -97,7 +120,7 @@ def flash_attention(
     deterministic:  bool. If True, slightly slower and uses more memory.
     dtype:          torch.dtype. Apply when dtype of q/k/v is not float16/bfloat16.
     """
-    if not FLASH_ATTN_3_AVAILABLE:
+    if not FLASH_ATTN_3_AVAILABLE and not FLASH_ATTN_4_AVAILABLE:
         return flash_attn_func(
             q,
             k,
@@ -139,13 +162,42 @@ def flash_attention(
     if q_scale is not None:
         q = q * q_scale
 
-    if version is not None and version == 3 and not FLASH_ATTN_3_AVAILABLE:
-        warnings.warn(
-            "Flash attention 3 is not available, use flash attention 2 instead."
-        )
+    if version is not None:
+        if version == 4 and not FLASH_ATTN_4_AVAILABLE:
+            warnings.warn(
+                "Flash attention 4 (cute) is not available, use flash attention 3/2 instead."
+            )
+        if version == 3 and not FLASH_ATTN_3_AVAILABLE:
+            warnings.warn(
+                "Flash attention 3 is not available, use flash attention 2 instead."
+            )
 
     # apply attention
-    if (version is None or version == 3) and FLASH_ATTN_3_AVAILABLE:
+    global _attention_backend_logged
+    if (version is None or version == 4) and FLASH_ATTN_4_AVAILABLE:
+        if not _attention_backend_logged:
+            print("Using Flash Attention 4 (CUTE) for Blackwell/SM100")
+            _attention_backend_logged = True
+        window_size_fa4 = (None, None) if window_size == (-1, -1) else window_size
+        x = flash_attn_4_varlen_func(
+            q=q,
+            k=k,
+            v=v,
+            cu_seqlens_q=torch.cat([q_lens.new_zeros([1]), q_lens])
+            .cumsum(0, dtype=torch.int32)
+            .to(q.device, non_blocking=True),
+            cu_seqlens_k=torch.cat([k_lens.new_zeros([1]), k_lens])
+            .cumsum(0, dtype=torch.int32)
+            .to(q.device, non_blocking=True),
+            softmax_scale=softmax_scale,
+            causal=causal,
+            window_size=window_size_fa4,
+            deterministic=deterministic,
+        ).unflatten(0, (b, lq))
+    elif (version is None or version == 3) and FLASH_ATTN_3_AVAILABLE:
+        if not _attention_backend_logged:
+            print("Using Flash Attention 3 for Hopper/SM90")
+            _attention_backend_logged = True
         # Note: dropout_p, window_size are not supported in FA3 now.
         x = flash_attn_interface.flash_attn_varlen_func(
             q=q,
@@ -165,6 +217,9 @@ def flash_attention(
         ).unflatten(0, (b, lq))
     else:
         assert FLASH_ATTN_2_AVAILABLE
+        if not _attention_backend_logged:
+            print("Using Flash Attention 2 (fallback)")
+            _attention_backend_logged = True
         x = flash_attn.flash_attn_varlen_func(
             q=q,
             k=k,
@@ -220,7 +275,7 @@ def attention(
         out = out.transpose(1, 2).contiguous().to(og_dtype)
         return out
 
-    elif FLASH_ATTN_2_AVAILABLE or FLASH_ATTN_3_AVAILABLE:
+    elif FLASH_ATTN_2_AVAILABLE or FLASH_ATTN_3_AVAILABLE or FLASH_ATTN_4_AVAILABLE:
         return flash_attention(
             q=q,
             k=k,
