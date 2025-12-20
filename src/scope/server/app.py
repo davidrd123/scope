@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .download_models import download_models
+from .download_progress_manager import download_progress_manager
 from .logs_config import (
     cleanup_old_logs,
     ensure_logs_dir,
@@ -268,10 +269,18 @@ async def root():
     if not frontend_dist.exists():
         return {"message": "Scope API - Frontend not built"}
 
-    # Serve the frontend index.html
+    # Serve the frontend index.html with no-cache headers
+    # This ensures clients like Electron alway fetch the latest HTML (which references hashed assets)
     index_file = frontend_dist / "index.html"
     if index_file.exists():
-        return FileResponse(index_file)
+        return FileResponse(
+            index_file,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
     return {"message": "Scope API - Frontend index.html not found"}
 
@@ -480,10 +489,23 @@ async def list_lora_files():
 
 @app.get("/api/v1/models/status")
 async def get_model_status(pipeline_id: str):
-    """Check if models for a pipeline are downloaded."""
+    """Check if models for a pipeline are downloaded and get download progress."""
     try:
+        progress = download_progress_manager.get_progress(pipeline_id)
+
+        # If download is in progress, always report as not downloaded
+        if progress and progress.get("is_downloading"):
+            return {"downloaded": False, "progress": progress}
+
+        # Check if files actually exist
         downloaded = models_are_downloaded(pipeline_id)
-        return ModelStatusResponse(downloaded=downloaded)
+
+        # Clean up progress if download is complete
+        if downloaded and progress:
+            download_progress_manager.clear_progress(pipeline_id)
+            progress = None
+
+        return {"downloaded": downloaded, "progress": progress}
     except Exception as e:
         logger.error(f"Error checking model status: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -496,17 +518,35 @@ async def download_pipeline_models(request: DownloadModelsRequest):
         if not request.pipeline_id:
             raise HTTPException(status_code=400, detail="pipeline_id is required")
 
+        pipeline_id = request.pipeline_id
+
+        # Check if download already in progress
+        existing_progress = download_progress_manager.get_progress(pipeline_id)
+        if existing_progress and existing_progress.get("is_downloading"):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Download already in progress for {pipeline_id}",
+            )
+
         # Download in a background thread to avoid blocking
         import threading
 
         def download_in_background():
-            download_models(pipeline_id=request.pipeline_id)
+            """Run download in background thread."""
+            try:
+                download_models(pipeline_id)
+                download_progress_manager.mark_complete(pipeline_id)
+            except Exception as e:
+                logger.error(f"Error downloading models for {pipeline_id}: {e}")
+                download_progress_manager.clear_progress(pipeline_id)
 
         thread = threading.Thread(target=download_in_background)
         thread.daemon = True
         thread.start()
 
-        return {"message": f"Model download started for {request.pipeline_id}"}
+        return {"message": f"Model download started for {pipeline_id}"}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error starting model download: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -551,8 +591,10 @@ async def get_current_logs():
             )
 
         # Read the entire file into memory to avoid Content-Length issues
-        # with actively written log files
-        log_content = log_file_path.read_text(encoding="utf-8")
+        # with actively written log files.
+        # Use errors='replace' to handle non-UTF-8 bytes gracefully (e.g., Windows-1252
+        # characters from subprocess output or exception messages on Windows).
+        log_content = log_file_path.read_text(encoding="utf-8", errors="replace")
 
         # Return as a text response with proper headers for download
         return Response(
@@ -584,9 +626,17 @@ async def serve_frontend(request: Request, path: str):
         return FileResponse(file_path)
 
     # Fallback to index.html for SPA routing
+    # This ensures clients like Electron alway fetch the latest HTML (which references hashed assets)
     index_file = frontend_dist / "index.html"
     if index_file.exists():
-        return FileResponse(index_file)
+        return FileResponse(
+            index_file,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
     raise HTTPException(status_code=404, detail="Frontend index.html not found")
 

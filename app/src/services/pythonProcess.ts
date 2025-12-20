@@ -80,6 +80,10 @@ export class ScopePythonProcessService implements PythonProcessService {
       env: {
         ...process.env,
         PATH: enhancedPath,
+        PYTHONUNBUFFERED: '1',
+        // Use UV_PROJECT_ENVIRONMENT to use .venv from userData (writable)
+        // while running source code from resources (read-only)
+        UV_PROJECT_ENVIRONMENT: paths.venvPath,
       },
     });
 

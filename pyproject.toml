@@ -1,6 +1,6 @@
 [project]
 name = "daydream-scope"
-version = "0.1.0a10"
+version = "0.1.0a12"
 description = "A tool for running and customizing real-time, interactive generative AI pipelines and models"
 readme = "README.md"
 requires-python = ">=3.10.12"
@@ -46,7 +46,7 @@ dependencies = [
     "flash-attn==2.8.3; sys_platform == 'linux' or sys_platform == 'win32'",
     "sageattention==2.2.0; (sys_platform == 'linux' and python_version == '3.10') or sys_platform == 'win32'",
     "safetensors>=0.6.2",
-    "huggingface_hub[hf_xet]>=0.25.0",
+    "huggingface_hub>=0.25.0",
     "peft>=0.17.1",
     "torchcodec==0.7.0",
     "torchao==0.13.0",
