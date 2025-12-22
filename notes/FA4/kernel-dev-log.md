@@ -496,6 +496,7 @@ Expected improvement from Kernel B (Amdahl's law estimate):
   - If FlexAttention is 60-70% of total time
   - And we achieve 2-4x speedup on bias path
   - End-to-end improvement: ~1.5x to 2.1x
+  - Update (post real profiling): this was optimistic for 480x832; see “FINE-GRAINED PROFILING” for current bottleneck shares.
 
 KERNEL B: COMPLETE (2025-12-22)
 -------------------------------
@@ -617,9 +618,11 @@ Why 20% FPS gain > Amdahl prediction (Codex synthesis):
   - Actual: 20% observed
   - Extra gain from: (1) no padding overhead, (2) less flex_attention compile/dispatch cost
   - Conclusion: We got TWO wins - faster kernel + removed Lq→Lk padding waste
+  - Update (post fine-grained profiling): kernel B is a smaller share of `self_attn` than the “kernel-only” view; future Amdahl estimates should use the fine-grained breakdown.
 
 PRIORITY RANKING (Codex consensus, 2025-12-22)
 ----------------------------------------------
+Note: superseded by “UPDATED PRIORITY RANKING (post-fine-grained-profiling)” below.
 
 1. **p_bias vs p_recompute accounting** (highest leverage, lowest effort)
    - Turns every decision from "maybe" into Amdahl calculation
@@ -711,22 +714,22 @@ Breakdown within `self_attn` (159.3s outer, 65000 calls):
 **Key findings:**
 
 1. **QKV + RoPE dominate non-kernel time: 58.2s** (more than attention kernel at 43.7s!)
-   - `qkv_projection`: 33.1s (Linear + RMSNorm) - 20.8% of self_attn
-   - `rope_apply`: 25.1s (causal_rope_apply with allocations) - 15.8% of self_attn
+   - `qkv_projection`: 33.1s (already fused `to_qkv` GEMM + q/k RMSNorm) - 20.8% of self_attn
+   - `rope_apply`: 25.1s (`causal_rope_apply`; float64 upcast + allocations) - 15.8% of self_attn
 
 2. **transpose_contiguous is NOT the bottleneck**: only 8.6s (5.4%)
    - Initial hypothesis was wrong - memory layout conversion is cheap
    - The real cost is compute (QKV projection) and RoPE allocations
 
 3. **Optimization targets (by impact):**
-   - QKV projection fusion: 33.1s potential
+   - QKV + RMSNorm optimization: 33.1s potential
    - RoPE fusion/optimization: 25.1s potential
    - These are **compute-bound**, not memory-copy bound
 
-4. **CUTE/FA4 upside is larger than expected:**
-   - FA4 can fuse QKV projection into the attention kernel
-   - Could save 33.1s (QKV) + kernel speedup in one shot
-   - This makes B1 (CUTE score_mod) even more attractive
+4. **FA4/CUTE upside is real but bounded (in this profile):**
+   - FA4/CUTE can replace the FlexAttention `score_mod` path with a varlen backend (supports true `Lq != Lk`, avoids `max(Lq,Lk)` padding tax).
+   - FA4/CUTE attention does **not** fuse QKV projection or RoPE; those remain separate kernels unless we build a new fused operator.
+   - Amdahl sanity-check: even a 2× speedup of `self_attn_kv_bias` (27.4% share) is only ~16% faster `self_attn` at this resolution/workload.
 
 5. **cache_update is negligible**: 3.3s (2.1%) - no optimization needed
 
@@ -737,16 +740,15 @@ UPDATED PRIORITY RANKING (post-fine-grained-profiling)
 
 2. ~~Memory overhead investigation~~ → **DONE** - identified QKV (33.1s) + RoPE (25.1s) as main targets
 
-3. **B1: FA4/CUTE for Kernel B** (HIGHEST PRIORITY - larger upside than expected)
-   - FA4 can fuse QKV projection + attention in one kernel
-   - Potential savings: 33.1s (QKV) + 43.7s kernel → could be 50%+ faster
-   - Blocked on cuda-python deps - UNBLOCK THIS FIRST
-   - Even without QKV fusion, CUTE kernel alone could be 1.5-2x faster than Triton
-
-4. **RoPE optimization** (secondary target)
+3. **RoPE optimization** (HIGH PRIORITY)
    - 25.1s (15.8% of self_attn) - significant but harder to optimize
    - `causal_rope_apply` uses view_as_real + flatten + cat - lots of allocations
-   - Could explore fused RoPE kernels (Triton or CUDA)
+   - Likely win: fused RoPE kernel (Triton/CUDA) staying in fp32/bf16 (no float64 upcast)
+
+4. **B1: FA4/CUTE score_mod for Kernel B** (HIGH PRIORITY once deps are unblocked)
+   - Goal: replace bias-path FlexAttention `score_mod` with FA4/CUTE `flash_attn_varlen_func(score_mod=..., aux_tensors=...)`.
+   - Expectation: measure in situ vs current Triton Kernel B; don’t assume >1.2–1.3× without data.
+   - Blocked on cuda-python deps - UNBLOCK THIS FIRST.
 
 5. ~~**Kernel A optimization**~~ → **DEPRIORITIZED**
    - Only 5.4s (3.4% of self_attn), 11% of attention kernel time

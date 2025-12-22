@@ -277,9 +277,10 @@ def get_block_mask(
 
 
 def causal_rope_apply(x, grid_sizes, freqs, start_frame=0):
+    """Optimized RoPE using sin/cos directly (no float64, no complex math)."""
     n, c = x.size(2), x.size(3) // 2
 
-    # split freqs
+    # split freqs (freqs is complex: real=cos, imag=sin)
     freqs = freqs.split([c - 2 * (c // 3), c // 3, c // 3], dim=1)
 
     # loop over samples
@@ -288,10 +289,7 @@ def causal_rope_apply(x, grid_sizes, freqs, start_frame=0):
     for i, (f, h, w) in enumerate(grid_sizes.tolist()):
         seq_len = f * h * w
 
-        # precompute multipliers
-        x_i = torch.view_as_complex(
-            x[i, :seq_len].to(torch.float64).reshape(seq_len, n, -1, 2)
-        )
+        # Build freqs_i: (seq_len, 1, c) complex tensor
         freqs_i = torch.cat(
             [
                 freqs[0][start_frame : start_frame + f]
@@ -303,13 +301,27 @@ def causal_rope_apply(x, grid_sizes, freqs, start_frame=0):
             dim=-1,
         ).reshape(seq_len, 1, -1)
 
-        # apply rotary embedding
-        x_i = torch.view_as_real(x_i * freqs_i).flatten(2)
+        # Extract cos/sin from complex freqs (stays in float32)
+        cos = freqs_i.real.to(x.dtype)  # (seq_len, 1, c)
+        sin = freqs_i.imag.to(x.dtype)  # (seq_len, 1, c)
+
+        # Reshape x to access pairs: (seq_len, n, c, 2)
+        x_i = x[i, :seq_len].reshape(seq_len, n, -1, 2)
+
+        # Apply rotation without complex math:
+        # x0_new = x0 * cos - x1 * sin
+        # x1_new = x0 * sin + x1 * cos
+        x0, x1 = x_i[..., 0], x_i[..., 1]  # (seq_len, n, c)
+        x0_new = x0 * cos - x1 * sin
+        x1_new = x0 * sin + x1 * cos
+
+        # Stack and flatten back to (seq_len, n, 2*c)
+        x_i = torch.stack([x0_new, x1_new], dim=-1).flatten(2)
         x_i = torch.cat([x_i, x[i, seq_len:]])
 
         # append to collection
         output.append(x_i)
-    return torch.stack(output).type_as(x)
+    return torch.stack(output)
 
 
 class CausalWanSelfAttention(nn.Module):
