@@ -4,6 +4,10 @@ Triton kernels for optimized attention.
 Kernel B: Piecewise bias attention for KV-cache sampling.
 - 10.7% faster than flex_attention on B=1, H=16, Lq=4680, Lk=9360, D=128
 - Applies log(beta) bias to past-frame tokens to mitigate error accumulation
+
+Tuning results (B200, shape B=1 H=16 Lq=4680 Lk=9360 D=128):
+- Best: BLOCK_M=64 BLOCK_N=64 warps=8 stages=2 -> 1.022 ms
+- Pattern: smaller tiles + 8 warps + 2 stages wins on B200
 """
 
 import torch
@@ -11,13 +15,34 @@ import triton
 import triton.language as tl
 
 
+# Check if we're on B200/Blackwell (compute capability >= 10.0)
+def _is_b200():
+    if not torch.cuda.is_available():
+        return False
+    props = torch.cuda.get_device_properties(0)
+    return props.major >= 10
+
+
+# B200-optimized config (from tuning sweep)
+_B200_CONFIG = triton.Config(
+    {'BLOCK_M': 64, 'BLOCK_N': 64},
+    num_warps=8,
+    num_stages=2,
+)
+
+
 def get_kernel_b_configs():
     """Autotune configs for Kernel B."""
+    # On B200, use pinned config (skip autotune overhead)
+    if _is_b200():
+        return [_B200_CONFIG]
+
+    # Fallback: full autotune for other architectures
     configs = []
     for BLOCK_M in [64, 128]:
         for BLOCK_N in [64, 128]:
             for num_warps in [4, 8]:
-                for num_stages in [2, 3, 4]:
+                for num_stages in [2, 3]:  # Skip stages=4 (often OOM)
                     configs.append(
                         triton.Config(
                             {'BLOCK_M': BLOCK_M, 'BLOCK_N': BLOCK_N},

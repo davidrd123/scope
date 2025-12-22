@@ -808,3 +808,24 @@ Commits this session:
   - 4b5edc5: Add development notes and update gitignore
   - 78b835c: Optimize RoPE: remove float64 upcast, use sin/cos directly
   - b12e1cb: Add RoPE optimization doc for review
+
+Notes:
+  - Added a tiny Kernel B tuning harness: scripts/tune_kernel_b.py (sweep BLOCK_M/BLOCK_N/warps/stages for B200 shape).
+  - First run hit OOM on shared memory for BLOCK_M=128/BLOCK_N=128/warps=8/stages=3; harness now skips invalid configs.
+
+Kernel B tuning results (B200, 2025-12-22):
+  Shape: B=1 H=16 Lq=4680 Lk=9360 D=128 dtype=bf16
+  frame_seqlen=1560 current_block_start=4680 beta=0.3
+
+  | Config | Time |
+  |--------|------|
+  | BLOCK_M=64 BLOCK_N=64 warps=8 stages=2 | **1.022 ms** (winner) |
+  | BLOCK_M=128 BLOCK_N=64 warps=4 stages=2 | 1.054 ms |
+  | BLOCK_M=64 BLOCK_N=64 warps=8 stages=3 | 1.068 ms |
+  | BLOCK_M=64 BLOCK_N=64 warps=4 stages=3 | 1.196 ms |
+  | BLOCK_M=128 BLOCK_N=128 warps=8 stages=2 | 1.254 ms |
+
+  Pattern: smaller tiles (64×64) + 8 warps + 2 stages wins on B200 for this shape.
+
+  Action: Pinned winning config for B200 (compute capability >= 10) in triton_attention.py.
+  Commit: (pending)
