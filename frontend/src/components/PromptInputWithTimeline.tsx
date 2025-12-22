@@ -39,6 +39,7 @@ interface PromptInputWithTimelineProps {
   externalSelectedPromptId?: string | null;
   settings?: SettingsState;
   onSettingsImport?: (settings: Partial<SettingsState>) => void;
+  onTimelineFileNameChange?: (fileName: string) => void;
   onPlayPauseRef?: React.RefObject<(() => Promise<void>) | null>;
   onVideoPlayingCallbackRef?: React.RefObject<(() => void) | null>;
   onResetCache?: () => void;
@@ -76,6 +77,7 @@ export function PromptInputWithTimeline({
   externalSelectedPromptId = null,
   settings,
   onSettingsImport,
+  onTimelineFileNameChange,
   onPlayPauseRef,
   onVideoPlayingCallbackRef,
   onResetCache,
@@ -574,6 +576,7 @@ export function PromptInputWithTimeline({
         onCollapseToggle={onCollapseToggle}
         settings={settings}
         onSettingsImport={onSettingsImport}
+        onTimelineFileNameChange={onTimelineFileNameChange}
         onScrollToTime={scrollFn => setScrollToTimeFn(() => scrollFn)}
         isStreaming={isStreaming}
         isLoading={isLoading}

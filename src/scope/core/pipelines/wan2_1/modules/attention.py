@@ -1,10 +1,32 @@
 # Modified from https://github.com/guandeh17/Self-Forcing
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
+import logging
 import os
 import platform
+from pathlib import Path
 
 import torch
-from flash_attn import flash_attn_func
+import flash_attn as _flash_attn
+
+logger = logging.getLogger(__name__)
+
+
+def _extend_flash_attn_path() -> None:
+    try:
+        base_path = Path(__file__).resolve()
+    except Exception:
+        return
+    for parent in base_path.parents:
+        candidate = parent / "flash-attention" / "flash_attn"
+        if candidate.is_dir():
+            candidate_str = str(candidate)
+            if candidate_str not in _flash_attn.__path__:
+                _flash_attn.__path__.insert(0, candidate_str)
+            break
+
+
+_extend_flash_attn_path()
+flash_attn_func = _flash_attn.flash_attn_func
 
 
 def is_hopper_gpu():
@@ -59,7 +81,7 @@ if not FLASH_ATTN_3_AVAILABLE and platform.system() != "Windows":
         pass
 
 try:
-    import flash_attn
+    flash_attn = _flash_attn
 
     FLASH_ATTN_2_AVAILABLE = True
 except ModuleNotFoundError:
@@ -83,10 +105,7 @@ __all__ = [
     "SAGEATTN_AVAILABLE",
 ]
 
-print("flash attn 2 available", FLASH_ATTN_2_AVAILABLE)
-print("flash attn 3 available", FLASH_ATTN_3_AVAILABLE)
-print("flash attn 4 (cute) available", FLASH_ATTN_4_AVAILABLE)
-print("sage attn available", SAGEATTN_AVAILABLE)
+logger.info(f"Attention backends: FA2={FLASH_ATTN_2_AVAILABLE}, FA3={FLASH_ATTN_3_AVAILABLE}, FA4={FLASH_ATTN_4_AVAILABLE}, Sage={SAGEATTN_AVAILABLE}")
 
 # Track which attention backend was used (for one-time runtime logging)
 _attention_backend_logged = False
@@ -176,9 +195,10 @@ def flash_attention(
     global _attention_backend_logged
     if (version is None or version == 4) and FLASH_ATTN_4_AVAILABLE:
         if not _attention_backend_logged:
-            print("Using Flash Attention 4 (CUTE) for Blackwell/SM100")
+            logger.info("Using Flash Attention 4 (CUTE) for Blackwell/SM100+")
             _attention_backend_logged = True
         window_size_fa4 = (None, None) if window_size == (-1, -1) else window_size
+        # FA4 (CUTE) doesn't support deterministic parameter
         x = flash_attn_4_varlen_func(
             q=q,
             k=k,
@@ -192,11 +212,13 @@ def flash_attention(
             softmax_scale=softmax_scale,
             causal=causal,
             window_size=window_size_fa4,
-            deterministic=deterministic,
-        ).unflatten(0, (b, lq))
+        )
+        if isinstance(x, tuple):
+            x = x[0]
+        x = x.unflatten(0, (b, lq))
     elif (version is None or version == 3) and FLASH_ATTN_3_AVAILABLE:
         if not _attention_backend_logged:
-            print("Using Flash Attention 3 for Hopper/SM90")
+            logger.info("Using Flash Attention 3 for Hopper/SM90")
             _attention_backend_logged = True
         # Note: dropout_p, window_size are not supported in FA3 now.
         x = flash_attn_interface.flash_attn_varlen_func(
@@ -218,7 +240,7 @@ def flash_attention(
     else:
         assert FLASH_ATTN_2_AVAILABLE
         if not _attention_backend_logged:
-            print("Using Flash Attention 2 (fallback)")
+            logger.info("Using Flash Attention 2")
             _attention_backend_logged = True
         x = flash_attn.flash_attn_varlen_func(
             q=q,
@@ -259,8 +281,11 @@ def attention(
     fa_version=None,
     # og_dtype=torch.bfloat16,
 ):
+    global _attention_backend_logged
     if SAGEATTN_AVAILABLE:
-        # print("Using sageattention")
+        if not _attention_backend_logged:
+            logger.info("Using SageAttention")
+            _attention_backend_logged = True
         attn_mask = None
 
         og_dtype = q.dtype
@@ -292,6 +317,9 @@ def attention(
             version=fa_version,
         )
     else:
+        if not _attention_backend_logged:
+            logger.info("Using PyTorch SDPA (no optimized attention available)")
+            _attention_backend_logged = True
         if q_lens is not None or k_lens is not None:
             warnings.warn(
                 "Padding mask is disabled when using scaled_dot_product_attention. It can have a significant impact on performance."

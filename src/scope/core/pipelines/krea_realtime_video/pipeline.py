@@ -153,7 +153,10 @@ class KreaRealtimeVideoPipeline(Pipeline, LoRAEnabledPipeline):
         # does not work properly
         self.state.set("current_start_frame", 0)
         self.state.set("manage_cache", True)
-        self.state.set("kv_cache_attention_bias", DEFAULT_KV_CACHE_ATTENTION_BIAS)
+        kv_cache_attention_bias = getattr(
+            config, "kv_cache_attention_bias", DEFAULT_KV_CACHE_ATTENTION_BIAS
+        )
+        self.state.set("kv_cache_attention_bias", kv_cache_attention_bias)
 
         self.state.set("height", config.height)
         self.state.set("width", config.width)

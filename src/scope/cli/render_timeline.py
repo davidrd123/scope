@@ -639,6 +639,7 @@ def render_timeline(argv: list[str] | None = None) -> int:
         "height": int(height),
         "width": int(width),
         "seed": int(seed),
+        "kv_cache_attention_bias": float(kv_cache_attention_bias),
     }
     if model_config is not None:
         config_dict["model_config"] = model_config
@@ -651,6 +652,7 @@ def render_timeline(argv: list[str] | None = None) -> int:
     compile_enabled = args.compile
     if compile_enabled is None and device.type == "cuda" and torch.cuda.is_available():
         name = torch.cuda.get_device_name(device.index or 0).lower()
+        # Auto-enable compile on Hopper (H100) only - Blackwell has issues
         compile_enabled = any(x in name for x in ("h100", "hopper"))
 
     quantization_enum = None

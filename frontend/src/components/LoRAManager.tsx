@@ -1,4 +1,17 @@
 import { useState, useEffect } from "react";
+
+// Fallback for non-secure contexts (HTTP on non-localhost)
+const generateId = (): string => {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback UUID v4 implementation
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
 import { Button } from "./ui/button";
 import { SliderWithInput } from "./ui/slider-with-input";
 import {
@@ -61,7 +74,7 @@ export function LoRAManager({
 
   const handleAddLora = () => {
     const newLora: LoRAConfig = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       path: "",
       scale: 1.0,
       mergeMode: loraMergeStrategy,

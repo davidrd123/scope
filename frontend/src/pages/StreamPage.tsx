@@ -33,6 +33,10 @@ import { sendLoRAScaleUpdates } from "../utils/loraHelpers";
 // This allows useVideoSource to detect the flag change and trigger reinitialization
 const VIDEO_REINITIALIZE_DELAY_MS = 100;
 
+function getTimelineBaseName(fileName: string): string {
+  return fileName.replace(/\.[^/.]+$/, "");
+}
+
 function buildLoRAParams(
   loras?: LoRAConfig[],
   strategy?: LoraMergeStrategy
@@ -91,6 +95,7 @@ export function StreamPage() {
   const [timelinePrompts, setTimelinePrompts] = useState<TimelinePrompt[]>([]);
   const [timelineCurrentTime, setTimelineCurrentTime] = useState(0);
   const [isTimelinePlaying, setIsTimelinePlaying] = useState(false);
+  const [timelineFileBase, setTimelineFileBase] = useState<string | null>(null);
 
   // External control of timeline selection
   const [externalSelectedPromptId, setExternalSelectedPromptId] = useState<
@@ -144,7 +149,7 @@ export function StreamPage() {
     isRecording,
     recordingDuration,
     toggleRecording,
-  } = useStreamRecorder(remoteStream);
+  } = useStreamRecorder(remoteStream, { filenameBase: timelineFileBase });
 
   // Computed loading state - true when downloading models, loading pipeline, or connecting WebRTC
   const isLoading = isDownloading || isPipelineLoading || isConnecting;
@@ -908,6 +913,9 @@ export function StreamPage() {
               isRecording={isRecording}
               recordingDuration={recordingDuration}
               onRecordToggle={toggleRecording}
+              onTimelineFileNameChange={fileName =>
+                setTimelineFileBase(getTimelineBaseName(fileName))
+              }
               onPromptSubmit={text => {
                 // Update the left panel's prompt state to reflect current timeline prompt
                 const prompts = [{ text, weight: 100 }];

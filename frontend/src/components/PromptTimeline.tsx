@@ -156,6 +156,7 @@ interface PromptTimelineProps {
   onCollapseToggle?: (collapsed: boolean) => void;
   settings?: SettingsState;
   onSettingsImport?: (settings: Partial<SettingsState>) => void;
+  onTimelineFileNameChange?: (fileName: string) => void;
   onScrollToTime?: (scrollFn: (time: number) => void) => void;
   isStreaming?: boolean;
   isLoading?: boolean;
@@ -186,6 +187,7 @@ export function PromptTimeline({
   onCollapseToggle,
   settings,
   onSettingsImport,
+  onTimelineFileNameChange,
   onScrollToTime,
   isStreaming = false,
   isLoading = false,
@@ -451,6 +453,7 @@ export function PromptTimeline({
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
+      const fileName = file.name;
 
       const reader = new FileReader();
       reader.onload = e => {
@@ -499,6 +502,10 @@ export function PromptTimeline({
               onSettingsImport(timelineData.settings);
             }
 
+            if (onTimelineFileNameChange) {
+              onTimelineFileNameChange(fileName);
+            }
+
             // Automatically move playhead to beginning after import
             onTimeChange?.(0);
 
@@ -523,6 +530,7 @@ export function PromptTimeline({
     [
       onPromptsChange,
       onSettingsImport,
+      onTimelineFileNameChange,
       resetTimelineUI,
       onTimeChange,
       _onPromptSubmit,

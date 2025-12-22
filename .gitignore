@@ -14,7 +14,6 @@ output.mp4
 
 src/scope/core/pipelines/**/*.mp4
 
-notes/
 
 # Video files
 *.mp4

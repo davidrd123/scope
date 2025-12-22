@@ -34,7 +34,15 @@ function formatTimestampForFilename(date: Date): string {
   return `${yyyy}-${mm}-${dd}-${hh}${min}${ss}`;
 }
 
-export function useStreamRecorder(stream: MediaStream | null) {
+type StreamRecorderOptions = {
+  filenameBase?: string | null;
+};
+
+export function useStreamRecorder(
+  stream: MediaStream | null,
+  options: StreamRecorderOptions = {}
+) {
+  const preferredFilenameBase = options.filenameBase ?? null;
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
 
@@ -127,7 +135,10 @@ export function useStreamRecorder(stream: MediaStream | null) {
 
       const mimeType = recorder.mimeType || preferredMimeType;
       const extension = getFileExtension(mimeType);
-      const filename = `recording-${formatTimestampForFilename(new Date())}.${extension}`;
+      const preferredBase = preferredFilenameBase?.trim();
+      const filenameBase =
+        preferredBase || `recording-${formatTimestampForFilename(new Date())}`;
+      const filename = `${filenameBase}.${extension}`;
 
       if (!chunks.length) {
         toast.error("No recording data", {
@@ -175,7 +186,7 @@ export function useStreamRecorder(stream: MediaStream | null) {
       const elapsedSeconds = Math.floor((performance.now() - startTime) / 1000);
       setRecordingDuration(elapsedSeconds);
     }, 250);
-  }, [canRecord, clearDurationTimer, stopRecording, stream]);
+  }, [canRecord, clearDurationTimer, preferredFilenameBase, stopRecording, stream]);
 
   const toggleRecording = useCallback(() => {
     if (isRecording) {
@@ -239,4 +250,3 @@ export function useStreamRecorder(stream: MediaStream | null) {
     toggleRecording,
   };
 }
-

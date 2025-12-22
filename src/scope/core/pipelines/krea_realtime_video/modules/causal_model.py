@@ -1,6 +1,9 @@
 # Modified from https://github.com/krea-ai/realtime-video
 import functools
+import logging
 import math
+import os
+from collections import defaultdict
 
 import torch
 import torch.nn as nn
@@ -13,6 +16,41 @@ from torch.nn.attention.flex_attention import (
 )
 
 from scope.core.pipelines.wan2_1.modules.attention import attention
+
+logger = logging.getLogger(__name__)
+
+# Simple profiler for timing operations
+# Note: Profiling is incompatible with torch.compile - disable if compile is enabled
+_PROFILE_ENABLED = os.getenv("PROFILE_ATTENTION", "0") == "1"
+_profile_times = defaultdict(float)
+_profile_counts = defaultdict(int)
+_profile_call_count = 0
+
+
+def _should_profile():
+    """Check if profiling should run (disabled during torch.compile tracing)."""
+    if not _PROFILE_ENABLED:
+        return False
+    # torch.compiler.is_compiling() returns True during dynamo tracing
+    if hasattr(torch, "compiler") and hasattr(torch.compiler, "is_compiling"):
+        if torch.compiler.is_compiling():
+            return False
+    return True
+
+
+def profile_report():
+    """Print profiling report."""
+    if not _profile_times:
+        return
+    total = sum(_profile_times.values())
+    logger.info("=== Attention Profiling Report ===")
+    for name, time_ms in sorted(_profile_times.items(), key=lambda x: -x[1]):
+        count = _profile_counts[name]
+        pct = 100 * time_ms / total if total > 0 else 0
+        logger.info(f"  {name}: {time_ms:.1f}ms ({pct:.1f}%) [{count} calls, {time_ms/count:.2f}ms/call]")
+    logger.info(f"  TOTAL: {total:.1f}ms")
+
+
 from .model import (
     WAN_CROSSATTENTION_CLASSES,
     MLPProj,
@@ -655,6 +693,13 @@ class CausalWanAttentionBlock(nn.Module):
         # assert e[0].dtype == torch.float32
 
         # self-attention
+        _do_profile = _should_profile()
+        if _do_profile:
+            torch.cuda.synchronize()
+            start = torch.cuda.Event(enable_timing=True)
+            end = torch.cuda.Event(enable_timing=True)
+            start.record()
+
         y = self.self_attn(
             (
                 self.norm1(x).unflatten(dim=1, sizes=(num_frames, frame_seqlen))
@@ -671,30 +716,61 @@ class CausalWanAttentionBlock(nn.Module):
             kv_cache_attention_bias,
         )
 
+        if _do_profile:
+            end.record()
+            torch.cuda.synchronize()
+            _profile_times["self_attn"] += start.elapsed_time(end)
+            _profile_counts["self_attn"] += 1
+
         # with amp.autocast(dtype=torch.float32):
         x = x + (y.unflatten(dim=1, sizes=(num_frames, frame_seqlen)) * e[2]).flatten(
             1, 2
         )
 
-        # cross-attention & ffn function
-        def cross_attn_ffn(x, context, context_lens, e, crossattn_cache=None):
-            x = x + self.cross_attn(
-                self.norm3(x), context, context_lens, crossattn_cache=crossattn_cache
-            )
-            y = self.ffn(
-                (
-                    self.norm2(x).unflatten(dim=1, sizes=(num_frames, frame_seqlen))
-                    * (1 + e[4])
-                    + e[3]
-                ).flatten(1, 2)
-            )
-            # with amp.autocast(dtype=torch.float32):
-            x = x + (
-                y.unflatten(dim=1, sizes=(num_frames, frame_seqlen)) * e[5]
-            ).flatten(1, 2)
-            return x
+        # cross-attention
+        if _do_profile:
+            start2 = torch.cuda.Event(enable_timing=True)
+            end2 = torch.cuda.Event(enable_timing=True)
+            start2.record()
 
-        x = cross_attn_ffn(x, context, context_lens, e, crossattn_cache)
+        x = x + self.cross_attn(
+            self.norm3(x), context, context_lens, crossattn_cache=crossattn_cache
+        )
+
+        if _do_profile:
+            end2.record()
+            torch.cuda.synchronize()
+            _profile_times["cross_attn"] += start2.elapsed_time(end2)
+            _profile_counts["cross_attn"] += 1
+
+        # ffn
+        if _do_profile:
+            start3 = torch.cuda.Event(enable_timing=True)
+            end3 = torch.cuda.Event(enable_timing=True)
+            start3.record()
+
+        y = self.ffn(
+            (
+                self.norm2(x).unflatten(dim=1, sizes=(num_frames, frame_seqlen))
+                * (1 + e[4])
+                + e[3]
+            ).flatten(1, 2)
+        )
+        # with amp.autocast(dtype=torch.float32):
+        x = x + (
+            y.unflatten(dim=1, sizes=(num_frames, frame_seqlen)) * e[5]
+        ).flatten(1, 2)
+
+        if _do_profile:
+            end3.record()
+            torch.cuda.synchronize()
+            _profile_times["ffn"] += start3.elapsed_time(end3)
+            _profile_counts["ffn"] += 1
+
+            global _profile_call_count
+            _profile_call_count += 1
+            if _profile_call_count % 1000 == 0:
+                profile_report()
         return x
 
 
