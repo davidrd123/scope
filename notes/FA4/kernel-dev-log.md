@@ -56,6 +56,29 @@ Bias cutoff (Kernel B)
   - `kv_idx < (Lk - block_size)` (exclude current block)
 - For `Lk=9360` and `block_size=4680`: biased region is `kv_idx ∈ [1560, 4680)` (2 frames).
 
+Microbench snapshot (current)
+| Path | Shape | Time/call | Notes |
+|---|---|---:|---|
+| Kernel A (block_mask / recompute) | `L=9360` (6 frames) | 1.239 ms | flex path, `BLOCK_M=128`, `BLOCK_N=64` |
+| Kernel B (bias / sampling) | `Lq=4680`, `Lk=9360` | 0.776 ms | flex path, `BLOCK_M=64`, `BLOCK_N=64` |
+
+Near-term plan (codex2 note; worth keeping)
+- Integrate the “~10% better” Triton result for the recompute path first, then focus effort on Kernel B (bias sampling).
+- Kernel B candidate that avoids FlexAttention:
+  - FA4/CUTE exposes `flash_attn_varlen_func(..., score_mod=..., aux_tensors=...)` in the CUTE interface (see `flash-attention.bak/flash_attn/cute/interface.py`).
+  - Existing examples to copy/adapt:
+    - `flash-attention.bak/tests/cute/score_mod_definitions.py` (uses comparisons + `cute.where`)
+    - `flash-attention.bak/tests/cute/test_score_mod_varlen.py` (varlen test harness)
+  - Proposed integration point: replace the bias-path `flex_attention(..., score_mod=...)` at `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py:550` with an FA4/CUTE call when available, keeping FlexAttention as fallback.
+  - Use `aux_tensors` (e.g., frame_seqlen, cache_current_block_start, log_scale) to avoid recompiling the kernel each call.
+- Add path-level counters so other agents can compute `p_bias` vs `p_recompute` directly:
+  - `self_attn_block_mask` (recompute / block_mask path)
+  - `self_attn_kv_bias` (bias score_mod path)
+  - `self_attn_kv_plain` (bias disabled → `attention(...)` fast path)
+- Constraints to remember:
+  - Score-mod backward (`score_mod_bwd`) only matters if grads are enabled; inference-only can ignore.
+  - FA4/CUTE signatures vary across versions; guard for missing kwargs (ties back to “Robust FA4 Wrapper” TODO).
+
 Gotchas (read before optimizing)
 - Mixed tiles / alignment matters: if frame/block boundaries cut through kernel tiles, you pay per-element masking/branching.
 - Padding can help alignment but can also hide true scaling and add FLOPs; for microbench, use `scripts/bench_blockwise_attn.py --no-pad-q-to-k` when measuring `Lq != Lk`.

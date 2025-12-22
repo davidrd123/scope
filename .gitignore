@@ -38,6 +38,14 @@ StreamDiffusionV2/
 realtime-video/
 xDiT/
 flash-attention/
+flash-attention.bak/
+docs.md/
+nmoe/
+
+# Test/generated files
+timeline-*.json
+notes/**/*.log
+notes/**/bench-*.json
 
 # Cursor IDE files
 .cursorrules
