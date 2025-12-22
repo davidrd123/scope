@@ -295,11 +295,24 @@ def rope_triton(x, cos, sin, seq_len):
 
 ## Phase 3 Implementation Plan
 
+**Key lesson from Phase 2.6 (Codex1):** Anything "broadcasty" in PyTorch fragments into multiple kernels and loses. Phase 3 only pays off if the entire RoPE math (and ideally the 3-way lookup) stays inside one Triton kernel.
+
 **Goal:** Single Triton kernel that:
 1. Takes `x[B, L, H, D]` and 3 freqs tables (not pre-materialized cos/sin)
 2. Computes `(f_idx, h_idx, w_idx)` from token index inside kernel
 3. Looks up cos/sin from 3 small tables, applies rotation
 4. Returns rotated output in-place or to output buffer
+
+### Step 0: Even lower-risk baseline (from Codex1)
+
+Before writing any new kernel, try FlashAttention's existing Triton rotary:
+```python
+from flash_attn.ops.triton.rotary import apply_rotary
+# with interleaved=True and existing cos/sin from get_rope_cos_sin()
+```
+Location: `flash-attention.bak/flash_attn/ops/triton/rotary.py`
+
+**Why:** Validates Triton plumbing and gives performance floor before custom kernel.
 
 ### Step 1: Simplest working kernel (use pre-materialized cos/sin)
 
@@ -324,6 +337,10 @@ Modify kernel to:
   ```
 - Load cos/sin from 3 tables, apply to 3 chunks of C
 
+**Correctness trap (Codex1):** Must match original `cat(...).reshape(...)` order:
+- W is fastest (innermost), then H, then F
+- Chunk sizes for D=128: 22/21/21 pairs (c0=22, c1=21, c2=21)
+
 **Complexity:** Integer division in kernel, 3 separate loads per token.
 
 ### Step 3: Optimize memory access
@@ -331,6 +348,10 @@ Modify kernel to:
 - Consider storing freqs as real cos/sin (not complex) at model init
 - Coalesce loads if possible
 - Tune BLOCK_L for L=1560 (likely 128 or 256)
+
+**Additional optimizations (Codex1):**
+- **Triton doesn't want complex:** Pass real cos/sin tensors (keep as fp32 on GPU), cast output back to bf16/fp16. Avoid rebuilding bf16 cos/sin tables in Python.
+- **Rotate Q and K in one shot:** Share the same cos/sin lookup between Q and K to avoid paying launch overhead twice per step. Could fuse into single kernel call or at least share precomputed tables.
 
 ### Validation
 
