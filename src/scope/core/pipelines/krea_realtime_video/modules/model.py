@@ -28,10 +28,12 @@ def sinusoidal_embedding_1d(dim, position):
 # @amp.autocast(enabled=False)
 def rope_params(max_seq_len, dim, theta=10000):
     assert dim % 2 == 0
+    # Use float32 (complex64) instead of float64 (complex128) to reduce cast overhead
+    # when extracting cos/sin for bf16/fp16 inputs
     freqs = torch.outer(
-        torch.arange(max_seq_len),
+        torch.arange(max_seq_len, dtype=torch.float32),
         1.0 / torch.pow(theta,
-                        torch.arange(0, dim, 2).to(torch.float64).div(dim)))
+                        torch.arange(0, dim, 2, dtype=torch.float32).div(dim)))
     freqs = torch.polar(torch.ones_like(freqs), freqs)
     return freqs
 

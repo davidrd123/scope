@@ -144,7 +144,8 @@ def _pad_tensor_for_flex_attention(
 
 def rope_params_riflex(max_seq_len, dim, theta=10000, k=0, L_test=None):
     assert dim % 2 == 0
-    omega = 1.0 / torch.pow(theta, torch.arange(0, dim, 2).to(torch.float64).div(dim))
+    # Use float32 (complex64) instead of float64 (complex128) to reduce cast overhead
+    omega = 1.0 / torch.pow(theta, torch.arange(0, dim, 2, dtype=torch.float32).div(dim))
     if k is not None:
         print("Doing riflex w/ ltest", L_test)
         omega[k - 1] = 0.9 * 2 * torch.pi / L_test

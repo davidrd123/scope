@@ -120,7 +120,115 @@ cos, sin = get_rope_cos_sin(freqs_split, f, h, w, start_frame, x.dtype, x.device
 - First call per unique `(f, h, w, start_frame)` still builds, but subsequent calls are free
 - In steady state with fixed resolution: near 100% cache hit rate
 
-## Future Optimizations (Phase 3)
+## Phase 2.5: Use float32 (complex64) instead of float64 (complex128)
 
-1. **Triton kernel** - fuse entire RoPE into single kernel, no intermediate tensors
-2. **Pre-compute cos/sin at init** - store as separate tensors instead of complex
+**Commit:** (pending)
+
+**Insight from Codex1:** `freqs` was built as complex128 (float64) in `rope_params()`, so `freqs_i.real/imag` are float64 → casting to bf16 every call moves 2x more data than needed.
+
+**Fix:** Changed `rope_params()` and `rope_params_riflex()` to use `torch.float32`:
+
+```python
+# Before
+torch.arange(0, dim, 2).to(torch.float64).div(dim)
+
+# After
+torch.arange(0, dim, 2, dtype=torch.float32).div(dim)
+```
+
+This makes `freqs` complex64, so `.real/.imag` are float32 → smaller cast to bf16.
+
+**Cache reuse note (Codex1):** Q and K share the same (f,h,w,start_frame) key within a step, so cache helps there. Across steps, `start_frame` is monotonic so don't expect huge reuse unless restructuring callsite.
+
+## Phase 3: Triton Kernel (Future)
+
+Fuse entire RoPE into single kernel, no intermediate tensors.
+
+**Kernel sketch from Codex2:**
+
+```python
+@triton.jit
+def rope_kernel(
+    X_ptr, OUT_ptr,
+    COS_ptr, SIN_ptr,
+    stride_xb, stride_xl, stride_xh, stride_xd,
+    stride_ob, stride_ol, stride_oh, stride_od,
+    stride_cos_l, stride_cos_c,
+    stride_sin_l, stride_sin_c,
+    L, H, C,
+    BLOCK_L: tl.constexpr, BLOCK_C: tl.constexpr,
+):
+    pid_bh = tl.program_id(0)  # 0..B*H
+    pid_l = tl.program_id(1)   # 0..ceil(L/BLOCK_L)
+
+    b = pid_bh // H
+    h = pid_bh - b * H
+
+    offs_l = pid_l * BLOCK_L + tl.arange(0, BLOCK_L)
+    offs_c = tl.arange(0, BLOCK_C)
+
+    mask_l = offs_l < L
+    mask_c = offs_c < C
+    mask = mask_l[:, None] & mask_c[None, :]
+
+    x_base = X_ptr + b * stride_xb + h * stride_xh
+    o_base = OUT_ptr + b * stride_ob + h * stride_oh
+
+    # cos/sin: [L, C]
+    cos = tl.load(
+        COS_ptr + offs_l[:, None] * stride_cos_l + offs_c[None, :] * stride_cos_c,
+        mask=mask, other=0.0,
+    )
+    sin = tl.load(
+        SIN_ptr + offs_l[:, None] * stride_sin_l + offs_c[None, :] * stride_sin_c,
+        mask=mask, other=0.0,
+    )
+
+    # x: [L, D] where D = 2*C (pairwise)
+    x0 = tl.load(
+        x_base + offs_l[:, None] * stride_xl + (2 * offs_c)[None, :] * stride_xd,
+        mask=mask, other=0.0,
+    )
+    x1 = tl.load(
+        x_base + offs_l[:, None] * stride_xl + (2 * offs_c + 1)[None, :] * stride_xd,
+        mask=mask, other=0.0,
+    )
+
+    y0 = x0 * cos - x1 * sin
+    y1 = x0 * sin + x1 * cos
+
+    tl.store(
+        o_base + offs_l[:, None] * stride_ol + (2 * offs_c)[None, :] * stride_od,
+        y0, mask=mask,
+    )
+    tl.store(
+        o_base + offs_l[:, None] * stride_ol + (2 * offs_c + 1)[None, :] * stride_od,
+        y1, mask=mask,
+    )
+
+
+def rope_triton(x, cos, sin, seq_len):
+    """Wrapper: x is [B, L, H, D], cos/sin: [seq_len, C]"""
+    B, L, H, D = x.shape
+    C = D // 2
+    out = x.clone()  # preserve tail if seq_len < L
+
+    BLOCK_L, BLOCK_C = 128, 64  # BLOCK_C=64 matches D=128 heads
+    grid = (B * H, triton.cdiv(seq_len, BLOCK_L))
+    rope_kernel[grid](
+        x, out,
+        cos, sin,
+        x.stride(0), x.stride(1), x.stride(2), x.stride(3),
+        out.stride(0), out.stride(1), out.stride(2), out.stride(3),
+        cos.stride(0), cos.stride(1),
+        sin.stride(0), sin.stride(1),
+        seq_len, H, C,
+        BLOCK_L=BLOCK_L, BLOCK_C=BLOCK_C,
+    )
+    return out
+```
+
+**Notes:**
+- BLOCK_C=64 matches D=128 heads (C=64)
+- BLOCK_L=128 or 64 is a reasonable start
+- Can tune for L=1560, H=16, D=128
