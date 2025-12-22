@@ -600,10 +600,17 @@ CURRENT STATE SUMMARY (2025-12-22)
 | p_bias vs p_recompute | ❓ UNKNOWN | Needs real-run profiling |
 
 Real-world validation (2025-12-22):
-  - Before (flex_attention): ~15 FPS
-  - After (Triton Kernel B): ~18 FPS
-  - **End-to-end speedup: 20%**
+  - 320x576: Before ~15 FPS → After ~18 FPS (**20% speedup**)
+  - 480x832: ~7.5 FPS (with Triton Kernel B)
   - Note: Better than 10.7% microbench because bias path runs 4x/frame
+
+Resolution scaling reference:
+  | Resolution | tokens/frame | vs 320p | Observed FPS |
+  |------------|--------------|---------|--------------|
+  | 320x576    | 720          | 1.0x    | ~18 FPS      |
+  | 384x672    | 1008         | 1.4x    | TBD          |
+  | 416x736    | 1196         | 1.6x    | TBD          |
+  | 480x832    | 1560         | 2.1x    | ~7.5 FPS     |
 
 Commits this session:
   - 55eef9d: Add Triton Kernel B: 10.7% faster than flex_attention
