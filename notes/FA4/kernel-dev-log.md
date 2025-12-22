@@ -518,4 +518,88 @@ Implementation:
   - Wrapper: triton_kernel_b()
   - Test: uv run python scripts/triton_sdpa.py --kernel-b
 
-Next: Integration into causal_model.py, then Kernel A (block_mask/recompute)
+KERNEL B: INTEGRATED (2025-12-22)
+----------------------------------
+
+Triton Kernel B is now the default for the KV-cache bias path.
+
+Integration details:
+  - Commit: 2d132dc "Integrate Triton Kernel B into KV-cache attention path"
+  - Location: src/scope/core/kernels/triton_attention.py
+  - Integration point: causal_model.py:576-586
+  - Feature flag: USE_TRITON_KERNEL_B=1 (default on), set =0 to use flex_attention
+
+Key improvements over flex_attention:
+  - 10.7% faster (1.023 ms vs 1.144 ms)
+  - No padding needed (Triton handles Lq != Lk natively)
+  - Simpler code path (no score_mod compilation overhead)
+
+Fallback: If USE_TRITON_KERNEL_B=0, reverts to flex_attention with padding.
+
+UNDERSTANDING CUTE vs TRITON (Codex synthesis)
+----------------------------------------------
+
+**CUTE is not a new algorithm, it's a different backend for the same operations.**
+
+Where each backend fits in causal_model.py:
+
+| Path | Current Backend | CUTE Alternative |
+|------|-----------------|------------------|
+| Kernel B (bias, line 576) | **Triton** (10.7% win) | flash_attn_varlen_func(..., score_mod=..., aux_tensors=...) |
+| Kernel A (recompute, line 407/467) | flex_attention + BlockMask | block-sparse tensors or mask_mod (deeper integration) |
+| Plain path (bias=1.0, line 606) | FA2/FA4 via attention() | Already on FA path |
+
+Why CUTE for Kernel B could be even faster:
+  - Native CUDA (vs Triton's compilation)
+  - aux_tensors avoids recompilation per call
+  - Supports true Lq != Lk without padding
+
+Why CUTE for Kernel A is harder:
+  - Needs compile-time block sparsity (like BlockMask)
+  - Would require rebuilding blockwise path around block-sparse tensors
+  - Not a simple backend swap
+
+CUTE is blocked on: `cuda-python` package (ModuleNotFoundError: No module named 'cuda')
+Fix: `uv sync --group fa4` (but known conflict with PyTorch inductor)
+
+OPEN QUESTIONS (for future sessions)
+------------------------------------
+
+1. **Is Kernel A worth pursuing?**
+   - Codex2: "Only if profiling shows recompute still dominates a meaningful slice of total time."
+   - Sparsity is modest (~25% in 6-frame/3-frame-block case)
+   - flex_attention's compile-time BlockMask is a big structural advantage
+
+2. **Measure p_bias vs p_recompute in real runs**
+   - Critical for Amdahl's law: which path dominates?
+   - If p_bias >> p_recompute, Kernel B win is mostly captured
+   - Add profiling counters: self_attn_block_mask, self_attn_kv_bias, self_attn_kv_plain
+
+3. **Codex "two dense calls" trick for Kernel A**
+   - With local_attn_size=6 and num_frame_per_block=3, blockwise-causal is just 2 semantic blocks
+   - Could compute as two dense FA calls:
+     - Block 0: 4680×4680 (self-attention within current block)
+     - Block 1: 4680×9360 (cross-attention to all visible history)
+   - Route both to FA2/FA4, skip FlexAttention/BlockMask entirely
+   - Avoids the "runtime masking loses to compile-time sparsity" trap
+
+4. **B1: CUTE DSL score_mod**
+   - Potentially faster than Triton (native CUDA)
+   - Reference patterns: flash-attention.bak/tests/cute/score_mod_definitions.py
+   - Blocked on cuda-python deps
+
+CURRENT STATE SUMMARY (2025-12-22)
+----------------------------------
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Kernel B (Triton) | ✅ INTEGRATED | Default, 10.7% faster |
+| B1 (CUTE score_mod) | ⏸️ BLOCKED | Needs cuda-python |
+| Kernel A (Triton) | ❌ FAILED | Runtime masking loses to BlockMask |
+| Kernel A (two dense calls) | 📋 PROPOSED | Untested, may bypass BlockMask |
+| p_bias vs p_recompute | ❓ UNKNOWN | Needs real-run profiling |
+
+Commits this session:
+  - 55eef9d: Add Triton Kernel B: 10.7% faster than flex_attention
+  - 2d132dc: Integrate Triton Kernel B into KV-cache attention path
+  - 4b5edc5: Add development notes and update gitignore
