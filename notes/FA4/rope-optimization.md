@@ -353,6 +353,12 @@ Modify kernel to:
 - **Triton doesn't want complex:** Pass real cos/sin tensors (keep as fp32 on GPU), cast output back to bf16/fp16. Avoid rebuilding bf16 cos/sin tables in Python.
 - **Rotate Q and K in one shot:** Share the same cos/sin lookup between Q and K to avoid paying launch overhead twice per step. Could fuse into single kernel call or at least share precomputed tables.
 
+**DeepResearch insights (2025-12-22):**
+- **In-place, no clone:** Don't `out = x.clone()` for tail preservation. Kernel just doesn't write for `t >= seq_len`.
+- **Amortize index math:** Compute `f_idx/h_idx/w_idx` once per BLOCK_L tile, reuse across all C chunks. Don't recompute per chunk.
+- **Fuse Q+K:** One kernel takes two pointers (Q and K), applies same cos/sin in one pass. Cuts launch overhead, improves cos/sin cache locality.
+- **Before optimizing:** Run Nsight Compute on current path to see if compute-bound or memory-bound. If memory-bound, Triton has headroom; if compute-bound, need FA4/CUTE.
+
 ### Validation
 
 For each step:
