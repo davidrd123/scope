@@ -763,29 +763,34 @@ ROPE OPTIMIZATION (2025-12-22)
 -------------------------------
 
 Status
-- ✅ Phase 1 implemented: remove float64 upcast + avoid complex multiply (use sin/cos directly)
-  - Commit: `78b835c`
-  - Notes: `notes/FA4/rope-optimization.md`
-  - TODO: re-run fine-grained profiling to quantify the new `rope_apply` share (numbers above were captured pre-Phase-1).
+- ✅ Phase 1: remove float64 upcast + avoid complex multiply (use sin/cos directly) — `78b835c`
+- ✅ Phase 2: cache `(cos, sin)` by `(device, dtype, f, h, w, start_frame, c)` — `eb280ba`
+- ✅ Phase 2.5: generate RoPE freqs as complex64 (float32) to reduce cast overhead — `eba19ce`
+- Notes: `notes/FA4/rope-optimization.md`
+- Post-change profiling snapshot:
+  - `rope_apply` timer: 0.48ms → 0.42ms per call (~12.5% faster)
+  - Share of `self_attn`: 15.8% → ~14.0%
+  - Interpretation: real win but not a step-function; remaining cost is dominated by `freqs_i` materialization and memory traffic.
 
 **Why RoPE before FA4:**
 - RoPE is 25.1s (15.8% of self_attn) - significant target
 - Pure Triton - no new dependencies, no risk to working setup
 - FA4/CUTE has cuda-python dep issues - tackle after banking RoPE win
 
-**Current RoPE implementation (post-Phase-1):**
+**Current RoPE implementation (post-Phase-2.5):**
 - `rope_apply`: src/scope/core/pipelines/krea_realtime_video/modules/model.py:40-67
 - `causal_rope_apply`: src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py:279-312
 - Problems:
-  1. Rebuilds `freqs_i` every call via torch.cat + expand
-  2. Still materializes large per-token `cos/sin` tensors (via `.real/.imag` + `.to(x.dtype)`)
-  3. Many intermediate allocations (mainly from `cat`/`reshape`, and the `cos/sin` casts)
+  1. Still materializes a per-token `(cos, sin)` table via `torch.cat([...]).reshape(...)` (on cache miss).
+  2. In streaming, `start_frame` is monotonic, so cache reuse is limited across steps; main guaranteed reuse is within a call (Q and K share the same key).
+  3. The concatenated table replicates values across `(f, h, w)` structure; this is memory-traffic-heavy for an otherwise tiny amount of math.
 
 **Optimization strategy:**
 
-1. **Cache `cos/sin` expansions (next “no-kernel” win)**
-   - Cache by `(device, dtype, f, h, w, start_frame)` so Q and K can share the same `cos/sin` within a step.
-   - Note: `start_frame` is usually monotonic in streaming, so cross-step cache hit rate may be low; the main guaranteed win is avoiding duplicate work between Q and K.
+1. **Phase 2.6: avoid `freqs_i` materialization (next “no-kernel” win)**
+   - Reshape `x[:seq_len]` to `(f, h, w, n, c, 2)` and apply RoPE in three channel chunks (temporal/height/width) using broadcast `cos/sin`.
+   - Removes `torch.cat + reshape` entirely and avoids reading a fully materialized `(seq_len, c)` table.
+   - See `notes/FA4/rope-optimization.md`.
 
 2. **Triton RoPE kernel**
    - Fuse: load Q/K → apply rotation in registers → store
@@ -807,6 +812,8 @@ Commits this session:
   - 2d132dc: Integrate Triton Kernel B into KV-cache attention path
   - 4b5edc5: Add development notes and update gitignore
   - 78b835c: Optimize RoPE: remove float64 upcast, use sin/cos directly
+  - eb280ba: Add RoPE cos/sin caching (Phase 2)
+  - eba19ce: Use float32 (complex64) for RoPE freqs to reduce cast overhead
   - b12e1cb: Add RoPE optimization doc for review
 
 Notes:
@@ -828,4 +835,22 @@ Kernel B tuning results (B200, 2025-12-22):
   Pattern: smaller tiles (64×64) + 8 warps + 2 stages wins on B200 for this shape.
 
   Action: Pinned winning config for B200 (compute capability >= 10) in triton_attention.py.
-  Commit: (pending)
+  Commit: d18e7d7
+
+RoPE Phase 2.6 attempt (2025-12-22) - ROLLED BACK:
+  Idea: Broadcast per-axis cos/sin to avoid (seq_len, C) materialization
+  Result: FPS dropped 18.6-18.8 → 17 (regression)
+  Lesson: Traded memory traffic for kernel launch overhead - wrong tradeoff on GPU.
+          3 separate rotation blocks + concat added more overhead than cache-based approach.
+          Complex broadcast patterns less efficient than simple contiguous ops.
+  Conclusion: Cache-based Phase 2.5 is sweet spot before Triton fusion.
+  See: notes/FA4/rope-optimization.md for full details.
+
+RoPE Phase 3 planning (2025-12-22):
+  Status: Plan written, implementation pending
+  Approach: 3-step incremental development
+    Step 1: Simple Triton kernel with pre-materialized cos/sin (derisk Triton mechanics)
+    Step 2: Fuse 3-way lookup into kernel (compute f_idx/h_idx/w_idx in-kernel)
+    Step 3: Optimize memory access patterns
+  Target file: src/scope/core/kernels/triton_rope.py (new)
+  See: notes/FA4/rope-optimization.md for full plan
