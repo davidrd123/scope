@@ -399,7 +399,8 @@ class CausalWanSelfAttention(nn.Module):
                 v = self.v(x).view(b, s, n, d)
             return q, k, v
 
-        q, k, v = qkv_fn(x)
+        with _ProfileBlock("qkv_projection"):
+            q, k, v = qkv_fn(x)
 
         if kv_cache is None or block_mask is not None:
             # if it is teacher forcing training?
@@ -536,12 +537,13 @@ class CausalWanSelfAttention(nn.Module):
             # frame_seqlen = math.prod(grid_sizes[0][1:]).item() # torch compile doesn't like this
             frame_seqlen = self.frame_seq_length
             current_start_frame = current_start // frame_seqlen
-            roped_query = causal_rope_apply(
-                q, grid_sizes, freqs, start_frame=current_start_frame
-            ).type_as(v)
-            roped_key = causal_rope_apply(
-                k, grid_sizes, freqs, start_frame=current_start_frame
-            ).type_as(v)
+            with _ProfileBlock("rope_apply"):
+                roped_query = causal_rope_apply(
+                    q, grid_sizes, freqs, start_frame=current_start_frame
+                ).type_as(v)
+                roped_key = causal_rope_apply(
+                    k, grid_sizes, freqs, start_frame=current_start_frame
+                ).type_as(v)
 
             current_end = current_start + roped_query.shape[1]
             sink_tokens = self.sink_size * frame_seqlen
@@ -553,51 +555,53 @@ class CausalWanSelfAttention(nn.Module):
                 and (current_end > kv_cache["global_end_index"])
                 and (num_new_tokens + kv_cache["local_end_index"] > kv_cache_size)
             ):
-                # Calculate the number of new tokens added in this step
-                # Shift existing cache content left to discard oldest tokens
-                # Clone the source slice to avoid overlapping memory error
-                num_evicted_tokens = (
-                    num_new_tokens + kv_cache["local_end_index"] - kv_cache_size
-                )
-                num_rolled_tokens = (
-                    kv_cache["local_end_index"] - num_evicted_tokens - sink_tokens
-                )
-                kv_cache["k"][:, sink_tokens : sink_tokens + num_rolled_tokens] = (
-                    kv_cache["k"][
-                        :,
-                        sink_tokens + num_evicted_tokens : sink_tokens
-                        + num_evicted_tokens
-                        + num_rolled_tokens,
-                    ].clone()
-                )
-                kv_cache["v"][:, sink_tokens : sink_tokens + num_rolled_tokens] = (
-                    kv_cache["v"][
-                        :,
-                        sink_tokens + num_evicted_tokens : sink_tokens
-                        + num_evicted_tokens
-                        + num_rolled_tokens,
-                    ].clone()
-                )
-                # Insert the new keys/values at the end
-                local_end_index = (
-                    kv_cache["local_end_index"]
-                    + current_end
-                    - kv_cache["global_end_index"]
-                    - num_evicted_tokens
-                )
-                local_start_index = local_end_index - num_new_tokens
-                kv_cache["k"][:, local_start_index:local_end_index] = roped_key
-                kv_cache["v"][:, local_start_index:local_end_index] = v
+                with _ProfileBlock("cache_eviction"):
+                    # Calculate the number of new tokens added in this step
+                    # Shift existing cache content left to discard oldest tokens
+                    # Clone the source slice to avoid overlapping memory error
+                    num_evicted_tokens = (
+                        num_new_tokens + kv_cache["local_end_index"] - kv_cache_size
+                    )
+                    num_rolled_tokens = (
+                        kv_cache["local_end_index"] - num_evicted_tokens - sink_tokens
+                    )
+                    kv_cache["k"][:, sink_tokens : sink_tokens + num_rolled_tokens] = (
+                        kv_cache["k"][
+                            :,
+                            sink_tokens + num_evicted_tokens : sink_tokens
+                            + num_evicted_tokens
+                            + num_rolled_tokens,
+                        ].clone()
+                    )
+                    kv_cache["v"][:, sink_tokens : sink_tokens + num_rolled_tokens] = (
+                        kv_cache["v"][
+                            :,
+                            sink_tokens + num_evicted_tokens : sink_tokens
+                            + num_evicted_tokens
+                            + num_rolled_tokens,
+                        ].clone()
+                    )
+                    # Insert the new keys/values at the end
+                    local_end_index = (
+                        kv_cache["local_end_index"]
+                        + current_end
+                        - kv_cache["global_end_index"]
+                        - num_evicted_tokens
+                    )
+                    local_start_index = local_end_index - num_new_tokens
+                    kv_cache["k"][:, local_start_index:local_end_index] = roped_key
+                    kv_cache["v"][:, local_start_index:local_end_index] = v
             else:
-                # Assign new keys/values directly up to current_end
-                local_end_index = (
-                    kv_cache["local_end_index"]
-                    + current_end
-                    - kv_cache["global_end_index"]
-                )
-                local_start_index = local_end_index - num_new_tokens
-                kv_cache["k"][:, local_start_index:local_end_index] = roped_key
-                kv_cache["v"][:, local_start_index:local_end_index] = v
+                with _ProfileBlock("cache_update"):
+                    # Assign new keys/values directly up to current_end
+                    local_end_index = (
+                        kv_cache["local_end_index"]
+                        + current_end
+                        - kv_cache["global_end_index"]
+                    )
+                    local_start_index = local_end_index - num_new_tokens
+                    kv_cache["k"][:, local_start_index:local_end_index] = roped_key
+                    kv_cache["v"][:, local_start_index:local_end_index] = v
 
             kv_start_idx = max(0, local_end_index - self.max_attention_size)
             cached_k = kv_cache["k"][:, kv_start_idx:local_end_index]
@@ -619,11 +623,15 @@ class CausalWanSelfAttention(nn.Module):
                 if USE_TRITON_KERNEL_B and _triton_kernel_b is not None:
                     # Triton Kernel B: 10.7% faster, no padding needed
                     # Input: (B, L, H, D) -> (B, H, L, D)
+                    with _ProfileBlock("transpose_contiguous"):
+                        Q_t = roped_query.transpose(2, 1).contiguous()
+                        K_t = cached_k.transpose(2, 1).contiguous()
+                        V_t = cached_v.transpose(2, 1).contiguous()
                     with _ProfileBlock("self_attn_kv_bias"):
                         x = _triton_kernel_b(
-                            Q=roped_query.transpose(2, 1).contiguous(),
-                            K=cached_k.transpose(2, 1).contiguous(),
-                            V=cached_v.transpose(2, 1).contiguous(),
+                            Q=Q_t,
+                            K=K_t,
+                            V=V_t,
                             frame_seqlen=frame_seqlen,
                             current_block_start=cache_current_block_start,
                             log_bias=log_scale,
@@ -684,8 +692,9 @@ class CausalWanSelfAttention(nn.Module):
             kv_cache["local_end_index"] = local_end_index
 
         # output
-        x = x.flatten(2)
-        x = self.o(x)
+        with _ProfileBlock("output_projection"):
+            x = x.flatten(2)
+            x = self.o(x)
         return x
 
 

@@ -652,6 +652,13 @@ Real-world profiling with `PROFILE_ATTENTION=1 uv run daydream-scope`:
 | cross_attn | 19.8s | 13.9% | 34720 | 0.57 |
 | self_attn_block_mask | 3.0s | 2.1% | 6880 | 0.44 |
 
+NOTE on `% of Total`:
+- `self_attn_kv_bias` / `self_attn_block_mask` are **nested inside** `self_attn (outer)`.
+- The profiler prints `% of Total` using `sum(_profile_times.values())`, so these percentages **double-count** nested timers.
+- Use:
+  - **Top-level share**: compare `self_attn (outer)` vs `cross_attn` vs `ffn`.
+  - **Within self_attn breakdown**: compare `self_attn_kv_bias` / `self_attn_block_mask` vs `self_attn (outer)`.
+
 **p_bias vs p_recompute (attention kernel time only):**
 | Path | % of Attention Kernel Time |
 |------|---------------------------|
@@ -661,20 +668,19 @@ Real-world profiling with `PROFILE_ATTENTION=1 uv run daydream-scope`:
 
 **Key insights:**
 
-1. **Kernel A is NOT worth pursuing** - only 10.5% of attention kernel time, 2.1% of total
-   - Even a 2x speedup on Kernel A would only save ~1% of total time
+1. **Kernel A is NOT worth pursuing** - only 10.5% of attention-kernel time
+   - Also small within `self_attn (outer)`: `3.0s / 73.3s ≈ 4.1%` of self-attn time in this profile
    - Confirms the Codex recommendation to deprioritize Kernel A
 
 2. **Kernel B optimization was the right target** - 89.5% of attention kernel time
-   - The 10.7% Kernel B speedup translates to ~9.5% attention kernel speedup
-   - Explains the 20% FPS gain (larger than naive Amdahl estimate)
+   - Kernel B is also a meaningful slice of self-attn time: `25.6s / 73.3s ≈ 34.9%`
 
-3. **NEW: Memory overhead dominates self-attention**
+3. **NEW: Non-attention-call cost dominates self-attention**
    - self_attn outer: 73.3s
-   - self_attn inner (kernels): 25.6s + 3.0s = 28.6s
-   - **Gap: 44.7s (61% of self_attn time is NOT in kernels!)**
-   - Likely culprits: `.transpose(2, 1).contiguous()` calls (3x per attention)
-   - This is a new optimization target for future work
+   - attention calls (measured inside `self_attn_*` blocks): 25.6s + 3.0s = 28.6s
+   - **Gap: 44.7s (61% of self_attn time is outside attention calls)**
+   - Most likely sources: QKV projection + RMSNorm, RoPE (`causal_rope_apply`), KV-cache maintenance (evict/shift), output projection.
+   - Note: `.transpose(...).contiguous()` for Q/K/V is already *inside* `self_attn_kv_bias` / `self_attn_block_mask` timers in the current instrumentation.
 
 4. **Call count ratio confirms architecture understanding**
    - self_attn_kv_bias: 27840 calls (4x per frame, bias path)
@@ -694,7 +700,7 @@ UPDATED PRIORITY RANKING (post-profiling)
 
 2. **Memory overhead reduction** (NEW - highest leverage)
    - 44.7s of 73.3s self_attn time is NOT in kernels
-   - Investigate: transpose/contiguous overhead, tensor allocation
+   - Investigate: qkv/rope/output costs, kv-cache maintenance, tensor allocation
    - Potential: fuse operations, avoid redundant copies
 
 3. **B1: FA4/CUTE score_mod for Kernel B**
