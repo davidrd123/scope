@@ -63,6 +63,42 @@ def profile_report():
         logger.info(f"  {name}: {time_ms:.1f}ms ({pct:.1f}%) [{count} calls, {time_ms/count:.2f}ms/call]")
     logger.info(f"  TOTAL: {total:.1f}ms")
 
+    # Compute p_bias vs p_recompute
+    bias_time = _profile_times.get("self_attn_kv_bias", 0)
+    recompute_time = _profile_times.get("self_attn_block_mask", 0)
+    plain_time = _profile_times.get("self_attn_kv_plain", 0)
+    attn_total = bias_time + recompute_time + plain_time
+    if attn_total > 0:
+        logger.info("=== p_bias vs p_recompute ===")
+        logger.info(f"  p_bias (Kernel B):     {100 * bias_time / attn_total:.1f}%")
+        logger.info(f"  p_recompute (Kernel A): {100 * recompute_time / attn_total:.1f}%")
+        logger.info(f"  p_plain (FA path):     {100 * plain_time / attn_total:.1f}%")
+
+
+class _ProfileBlock:
+    """Context manager for profiling a code block."""
+    __slots__ = ('name', 'start_event', 'end_event')
+
+    def __init__(self, name: str):
+        self.name = name
+        self.start_event = None
+        self.end_event = None
+
+    def __enter__(self):
+        if _should_profile():
+            self.start_event = torch.cuda.Event(enable_timing=True)
+            self.end_event = torch.cuda.Event(enable_timing=True)
+            self.start_event.record()
+        return self
+
+    def __exit__(self, *args):
+        if self.start_event is not None:
+            self.end_event.record()
+            torch.cuda.synchronize()
+            elapsed_ms = self.start_event.elapsed_time(self.end_event)
+            _profile_times[self.name] += elapsed_ms
+            _profile_counts[self.name] += 1
+
 
 from .model import (
     WAN_CROSSATTENTION_CLASSES,
@@ -417,12 +453,13 @@ class CausalWanSelfAttention(nn.Module):
                     dim=1,
                 )
 
-                attn_out = flex_attention(
-                    query=padded_roped_query.transpose(2, 1),
-                    key=padded_roped_key.transpose(2, 1),
-                    value=padded_v.transpose(2, 1),
-                    block_mask=block_mask,
-                )
+                with _ProfileBlock("self_attn_block_mask"):
+                    attn_out = flex_attention(
+                        query=padded_roped_query.transpose(2, 1),
+                        key=padded_roped_key.transpose(2, 1),
+                        value=padded_v.transpose(2, 1),
+                        block_mask=block_mask,
+                    )
                 if padded_length > 0:
                     attn_out = attn_out[:, :, :-padded_length]
                 x = attn_out.transpose(2, 1)
@@ -477,15 +514,16 @@ class CausalWanSelfAttention(nn.Module):
                     dim=1,
                 )
 
-                attn_out = flex_attention(
-                    query=padded_roped_query.transpose(2, 1).contiguous(),
-                    key=padded_roped_key.transpose(2, 1).contiguous(),
-                    value=padded_v.transpose(2, 1).contiguous(),
-                    block_mask=block_mask,
-                    kernel_options={
-                        "BLOCKS_ARE_CONTIGUOUS": True,
-                    },
-                )
+                with _ProfileBlock("self_attn_block_mask"):
+                    attn_out = flex_attention(
+                        query=padded_roped_query.transpose(2, 1).contiguous(),
+                        key=padded_roped_key.transpose(2, 1).contiguous(),
+                        value=padded_v.transpose(2, 1).contiguous(),
+                        block_mask=block_mask,
+                        kernel_options={
+                            "BLOCKS_ARE_CONTIGUOUS": True,
+                        },
+                    )
                 if padded_length > 0:
                     attn_out = attn_out[:, :, :-padded_length]
                 x = attn_out.transpose(2, 1)
@@ -576,14 +614,15 @@ class CausalWanSelfAttention(nn.Module):
                 if USE_TRITON_KERNEL_B and _triton_kernel_b is not None:
                     # Triton Kernel B: 10.7% faster, no padding needed
                     # Input: (B, L, H, D) -> (B, H, L, D)
-                    x = _triton_kernel_b(
-                        Q=roped_query.transpose(2, 1).contiguous(),
-                        K=cached_k.transpose(2, 1).contiguous(),
-                        V=cached_v.transpose(2, 1).contiguous(),
-                        frame_seqlen=frame_seqlen,
-                        current_block_start=cache_current_block_start,
-                        log_bias=log_scale,
-                    ).transpose(2, 1)  # (B, H, L, D) -> (B, L, H, D)
+                    with _ProfileBlock("self_attn_kv_bias"):
+                        x = _triton_kernel_b(
+                            Q=roped_query.transpose(2, 1).contiguous(),
+                            K=cached_k.transpose(2, 1).contiguous(),
+                            V=cached_v.transpose(2, 1).contiguous(),
+                            frame_seqlen=frame_seqlen,
+                            current_block_start=cache_current_block_start,
+                            log_bias=log_scale,
+                        ).transpose(2, 1)  # (B, H, L, D) -> (B, L, H, D)
                 else:
                     # Fallback: flex_attention with padding
                     kv_len = cached_k.shape[1]
@@ -623,16 +662,18 @@ class CausalWanSelfAttention(nn.Module):
                             score,
                         )
 
-                    x = flex_attention(
-                        query=padded_roped_query.transpose(2, 1).contiguous(),
-                        key=padded_k.transpose(2, 1).contiguous(),
-                        value=padded_v.transpose(2, 1).contiguous(),
-                        score_mod=score_mod,
-                    )[:, :, :q_len].transpose(2, 1)
+                    with _ProfileBlock("self_attn_kv_bias"):
+                        x = flex_attention(
+                            query=padded_roped_query.transpose(2, 1).contiguous(),
+                            key=padded_k.transpose(2, 1).contiguous(),
+                            value=padded_v.transpose(2, 1).contiguous(),
+                            score_mod=score_mod,
+                        )[:, :, :q_len].transpose(2, 1)
             else:
                 # Use original Flash/Sage Attention path when bias is disabled (1.0)
                 # This preserves the original behavior and avoids flex_attention overhead
-                x = attention(roped_query, cached_k, cached_v)
+                with _ProfileBlock("self_attn_kv_plain"):
+                    x = attention(roped_query, cached_k, cached_v)
 
             kv_cache["global_end_index"] = current_end
             kv_cache["local_end_index"] = local_end_index
