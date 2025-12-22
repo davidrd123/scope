@@ -97,8 +97,30 @@ git checkout HEAD~1 -- \
   src/scope/core/pipelines/krea_realtime_video/modules/model.py
 ```
 
-## Future Optimizations (Phase 2)
+## Phase 2: Caching (Added)
 
-1. **Cache freqs_i** by `(f, h, w, start_frame)` - avoid repeated cat+expand
-2. **Triton kernel** - fuse entire RoPE into single kernel, no intermediate tensors
-3. **Pre-compute cos/sin** - store as separate tensors at init instead of complex
+**Commit:** (pending)
+
+Added LRU cache for `(cos, sin)` tensors to avoid rebuilding `freqs_i` on every call.
+
+**Cache implementation:**
+- Location: `src/scope/core/pipelines/krea_realtime_video/modules/model.py`
+- Key: `(device, dtype, f, h, w, start_frame, c)`
+- Value: `(cos, sin)` tensors of shape `(seq_len, 1, c)`
+- Max entries: 32 (~30MB at 1560 tokens/frame)
+
+**Usage:**
+```python
+# In both rope_apply and causal_rope_apply:
+cos, sin = get_rope_cos_sin(freqs_split, f, h, w, start_frame, x.dtype, x.device, c)
+```
+
+**Expected additional savings:**
+- Cache hits skip the expensive `torch.cat + expand + reshape` on every call
+- First call per unique `(f, h, w, start_frame)` still builds, but subsequent calls are free
+- In steady state with fixed resolution: near 100% cache hit rate
+
+## Future Optimizations (Phase 3)
+
+1. **Triton kernel** - fuse entire RoPE into single kernel, no intermediate tensors
+2. **Pre-compute cos/sin at init** - store as separate tensors instead of complex

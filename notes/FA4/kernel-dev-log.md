@@ -759,28 +759,33 @@ UPDATED PRIORITY RANKING (post-fine-grained-profiling)
    - Only 8.6s (5.4%) - initial hypothesis was wrong
    - Memory layout conversion is cheap on B200
 
-ROPE OPTIMIZATION PLAN (2025-12-22)
-------------------------------------
+ROPE OPTIMIZATION (2025-12-22)
+-------------------------------
+
+Status
+- ✅ Phase 1 implemented: remove float64 upcast + avoid complex multiply (use sin/cos directly)
+  - Commit: `78b835c`
+  - Notes: `notes/FA4/rope-optimization.md`
+  - TODO: re-run fine-grained profiling to quantify the new `rope_apply` share (numbers above were captured pre-Phase-1).
 
 **Why RoPE before FA4:**
 - RoPE is 25.1s (15.8% of self_attn) - significant target
 - Pure Triton - no new dependencies, no risk to working setup
 - FA4/CUTE has cuda-python dep issues - tackle after banking RoPE win
 
-**Current RoPE implementation (inefficient):**
+**Current RoPE implementation (post-Phase-1):**
 - `rope_apply`: src/scope/core/pipelines/krea_realtime_video/modules/model.py:40-67
 - `causal_rope_apply`: src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py:279-312
 - Problems:
   1. Rebuilds `freqs_i` every call via torch.cat + expand
-  2. Uses float64 + complex math (view_as_complex, view_as_real)
-  3. Many intermediate allocations (flatten, cat)
+  2. Still materializes large per-token `cos/sin` tensors (via `.real/.imag` + `.to(x.dtype)`)
+  3. Many intermediate allocations (mainly from `cat`/`reshape`, and the `cos/sin` casts)
 
 **Optimization strategy:**
 
-1. **Cache frequency tensor**
-   - Key by `(grid_sizes, start_frame)` or similar
-   - One-time compute per unique shape, reuse across calls
-   - Memory cost: negligible (freqs are small)
+1. **Cache `cos/sin` expansions (next “no-kernel” win)**
+   - Cache by `(device, dtype, f, h, w, start_frame)` so Q and K can share the same `cos/sin` within a step.
+   - Note: `start_frame` is usually monotonic in streaming, so cross-step cache hit rate may be low; the main guaranteed win is avoiding duplicate work between Q and K.
 
 2. **Triton RoPE kernel**
    - Fuse: load Q/K → apply rotation in registers → store
@@ -788,9 +793,9 @@ ROPE OPTIMIZATION PLAN (2025-12-22)
    - Stay in float32/bfloat16 (no float64 upcast)
 
 3. **Expected savings:**
-   - Current: 25.1s (0.48ms/call × 52160 calls)
-   - Target: 5-10s (50-75% reduction)
-   - End-to-end: ~10-15% of self_attn time saved
+   - Baseline was: 25.1s (0.48ms/call × 52160 calls) in the pre-Phase-1 profile
+   - Target: cut RoPE by an additional ~30–60% via caching and/or a fused kernel
+   - End-to-end impact depends on post-Phase-1 shares; re-profile first
 
 **Reference implementations:**
 - vLLM has Triton RoPE: https://github.com/vllm-project/vllm/blob/main/vllm/model_executor/layers/rotary_embedding.py
@@ -801,3 +806,5 @@ Commits this session:
   - 55eef9d: Add Triton Kernel B: 10.7% faster than flex_attention
   - 2d132dc: Integrate Triton Kernel B into KV-cache attention path
   - 4b5edc5: Add development notes and update gitignore
+  - 78b835c: Optimize RoPE: remove float64 upcast, use sin/cos directly
+  - b12e1cb: Add RoPE optimization doc for review

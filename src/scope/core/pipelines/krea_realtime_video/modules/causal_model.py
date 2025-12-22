@@ -110,6 +110,7 @@ from .model import (
     MLPProj,
     WanLayerNorm,
     WanRMSNorm,
+    get_rope_cos_sin,
     rope_apply,
     rope_params,
     sinusoidal_embedding_1d,
@@ -277,11 +278,11 @@ def get_block_mask(
 
 
 def causal_rope_apply(x, grid_sizes, freqs, start_frame=0):
-    """Optimized RoPE using sin/cos directly (no float64, no complex math)."""
+    """Optimized RoPE using cached sin/cos (no float64, no complex math)."""
     n, c = x.size(2), x.size(3) // 2
 
     # split freqs (freqs is complex: real=cos, imag=sin)
-    freqs = freqs.split([c - 2 * (c // 3), c // 3, c // 3], dim=1)
+    freqs_split = freqs.split([c - 2 * (c // 3), c // 3, c // 3], dim=1)
 
     # loop over samples
     output = []
@@ -289,21 +290,10 @@ def causal_rope_apply(x, grid_sizes, freqs, start_frame=0):
     for i, (f, h, w) in enumerate(grid_sizes.tolist()):
         seq_len = f * h * w
 
-        # Build freqs_i: (seq_len, 1, c) complex tensor
-        freqs_i = torch.cat(
-            [
-                freqs[0][start_frame : start_frame + f]
-                .view(f, 1, 1, -1)
-                .expand(f, h, w, -1),
-                freqs[1][:h].view(1, h, 1, -1).expand(f, h, w, -1),
-                freqs[2][:w].view(1, 1, w, -1).expand(f, h, w, -1),
-            ],
-            dim=-1,
-        ).reshape(seq_len, 1, -1)
-
-        # Extract cos/sin from complex freqs (stays in float32)
-        cos = freqs_i.real.to(x.dtype)  # (seq_len, 1, c)
-        sin = freqs_i.imag.to(x.dtype)  # (seq_len, 1, c)
+        # Get cached cos/sin (builds on cache miss)
+        cos, sin = get_rope_cos_sin(
+            freqs_split, f, h, w, start_frame, x.dtype, x.device, c
+        )
 
         # Reshape x to access pairs: (seq_len, n, c, 2)
         x_i = x[i, :seq_len].reshape(seq_len, n, -1, 2)

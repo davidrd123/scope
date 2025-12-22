@@ -36,29 +36,93 @@ def rope_params(max_seq_len, dim, theta=10000):
     return freqs
 
 
+# RoPE cos/sin cache - avoids rebuilding freqs_i every call
+# Key: (device, dtype, f, h, w, start_frame, c)
+# Value: (cos, sin) tensors
+_ROPE_CACHE: dict = {}
+_ROPE_CACHE_ORDER: list = []
+_ROPE_CACHE_MAX = 32  # ~30MB max at 1560 tokens/frame
+
+
+def _rope_cache_key(device, dtype, f, h, w, start_frame, c):
+    return (str(device), dtype, f, h, w, start_frame, c)
+
+
+def _rope_cache_get(key):
+    if key in _ROPE_CACHE:
+        # Refresh LRU order
+        _ROPE_CACHE_ORDER.remove(key)
+        _ROPE_CACHE_ORDER.append(key)
+        return _ROPE_CACHE[key]
+    return None
+
+
+def _rope_cache_put(key, value):
+    _ROPE_CACHE[key] = value
+    _ROPE_CACHE_ORDER.append(key)
+    if len(_ROPE_CACHE_ORDER) > _ROPE_CACHE_MAX:
+        old = _ROPE_CACHE_ORDER.pop(0)
+        _ROPE_CACHE.pop(old, None)
+
+
+def get_rope_cos_sin(freqs, f, h, w, start_frame, dtype, device, c):
+    """
+    Get cached (cos, sin) for RoPE, building on cache miss.
+
+    Args:
+        freqs: Complex tensor tuple from freqs.split() - (freqs[0], freqs[1], freqs[2])
+        f, h, w: Grid dimensions
+        start_frame: Starting frame index (0 for rope_apply)
+        dtype: Target dtype (bf16/fp16)
+        device: Target device
+        c: x.size(3)//2 after freq split
+
+    Returns:
+        (cos, sin): Tensors of shape (seq_len, 1, c)
+    """
+    key = _rope_cache_key(device, dtype, f, h, w, start_frame, c)
+    cached = _rope_cache_get(key)
+    if cached is not None:
+        return cached
+
+    # Cache miss - build freqs_i
+    seq_len = f * h * w
+    freqs_i = torch.cat(
+        [
+            freqs[0][start_frame : start_frame + f]
+            .view(f, 1, 1, -1)
+            .expand(f, h, w, -1),
+            freqs[1][:h].view(1, h, 1, -1).expand(f, h, w, -1),
+            freqs[2][:w].view(1, 1, w, -1).expand(f, h, w, -1),
+        ],
+        dim=-1,
+    ).reshape(seq_len, 1, -1)
+
+    # Extract cos/sin and convert to target dtype
+    cos = freqs_i.real.to(device=device, dtype=dtype)
+    sin = freqs_i.imag.to(device=device, dtype=dtype)
+
+    _rope_cache_put(key, (cos, sin))
+    return cos, sin
+
+
 # @amp.autocast(enabled=False)
 def rope_apply(x, grid_sizes, freqs):
-    """Optimized RoPE using sin/cos directly (no float64, no complex math)."""
+    """Optimized RoPE using cached sin/cos (no float64, no complex math)."""
     n, c = x.size(2), x.size(3) // 2
 
     # split freqs (freqs is complex: real=cos, imag=sin)
-    freqs = freqs.split([c - 2 * (c // 3), c // 3, c // 3], dim=1)
+    freqs_split = freqs.split([c - 2 * (c // 3), c // 3, c // 3], dim=1)
 
     # loop over samples
     output = []
     for i, (f, h, w) in enumerate(grid_sizes.tolist()):
         seq_len = f * h * w
 
-        # Build freqs_i: (seq_len, 1, c) complex tensor
-        freqs_i = torch.cat([
-            freqs[0][:f].view(f, 1, 1, -1).expand(f, h, w, -1),
-            freqs[1][:h].view(1, h, 1, -1).expand(f, h, w, -1),
-            freqs[2][:w].view(1, 1, w, -1).expand(f, h, w, -1)
-        ], dim=-1).reshape(seq_len, 1, -1)
-
-        # Extract cos/sin from complex freqs (stays in float32)
-        cos = freqs_i.real.to(x.dtype)  # (seq_len, 1, c)
-        sin = freqs_i.imag.to(x.dtype)  # (seq_len, 1, c)
+        # Get cached cos/sin (builds on cache miss, start_frame=0 for rope_apply)
+        cos, sin = get_rope_cos_sin(
+            freqs_split, f, h, w, 0, x.dtype, x.device, c
+        )
 
         # Reshape x to access pairs: (seq_len, n, c, 2)
         x_i = x[i, :seq_len].reshape(seq_len, n, -1, 2)
