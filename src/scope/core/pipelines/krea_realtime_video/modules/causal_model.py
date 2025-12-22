@@ -1,4 +1,5 @@
 # Modified from https://github.com/krea-ai/realtime-video
+import atexit
 import functools
 import logging
 import math
@@ -73,6 +74,10 @@ def profile_report():
         logger.info(f"  p_bias (Kernel B):     {100 * bias_time / attn_total:.1f}%")
         logger.info(f"  p_recompute (Kernel A): {100 * recompute_time / attn_total:.1f}%")
         logger.info(f"  p_plain (FA path):     {100 * plain_time / attn_total:.1f}%")
+
+
+# Register atexit handler to print profiling report on exit
+atexit.register(profile_report)
 
 
 class _ProfileBlock:

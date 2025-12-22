@@ -638,6 +638,74 @@ PRIORITY RANKING (Codex consensus, 2025-12-22)
    - Only meaningful if it beats flex_attention in situ
    - Upside capped by p_recompute fraction
 
+PROFILING RESULTS (2025-12-22)
+-------------------------------
+
+Real-world profiling with `PROFILE_ATTENTION=1 uv run daydream-scope`:
+
+**Full breakdown:**
+| Component | Time | % of Total | Calls | ms/call |
+|-----------|------|------------|-------|---------|
+| self_attn (outer) | 73.3s | 51.2% | 34720 | 2.11 |
+| self_attn_kv_bias | 25.6s | 17.9% | 27840 | 0.92 |
+| ffn | 21.4s | 14.9% | 34720 | 0.62 |
+| cross_attn | 19.8s | 13.9% | 34720 | 0.57 |
+| self_attn_block_mask | 3.0s | 2.1% | 6880 | 0.44 |
+
+**p_bias vs p_recompute (attention kernel time only):**
+| Path | % of Attention Kernel Time |
+|------|---------------------------|
+| p_bias (Kernel B) | **89.5%** |
+| p_recompute (Kernel A) | **10.5%** |
+| p_plain (FA path) | 0.0% |
+
+**Key insights:**
+
+1. **Kernel A is NOT worth pursuing** - only 10.5% of attention kernel time, 2.1% of total
+   - Even a 2x speedup on Kernel A would only save ~1% of total time
+   - Confirms the Codex recommendation to deprioritize Kernel A
+
+2. **Kernel B optimization was the right target** - 89.5% of attention kernel time
+   - The 10.7% Kernel B speedup translates to ~9.5% attention kernel speedup
+   - Explains the 20% FPS gain (larger than naive Amdahl estimate)
+
+3. **NEW: Memory overhead dominates self-attention**
+   - self_attn outer: 73.3s
+   - self_attn inner (kernels): 25.6s + 3.0s = 28.6s
+   - **Gap: 44.7s (61% of self_attn time is NOT in kernels!)**
+   - Likely culprits: `.transpose(2, 1).contiguous()` calls (3x per attention)
+   - This is a new optimization target for future work
+
+4. **Call count ratio confirms architecture understanding**
+   - self_attn_kv_bias: 27840 calls (4x per frame, bias path)
+   - self_attn_block_mask: 6880 calls (1x per frame, recompute path)
+   - Ratio: 4:1 matches expected bias:recompute split
+
+**Profiling methodology:**
+- Environment: `PROFILE_ATTENTION=1`
+- Uses CUDA events with torch.cuda.synchronize() per call
+- Overhead: ~15-17% FPS reduction during profiling (sync breaks async pipeline)
+- Results are relative percentages, valid despite overhead
+
+UPDATED PRIORITY RANKING (post-profiling)
+-----------------------------------------
+
+1. ~~p_bias vs p_recompute accounting~~ → **DONE** (p_bias=89.5%, p_recompute=10.5%)
+
+2. **Memory overhead reduction** (NEW - highest leverage)
+   - 44.7s of 73.3s self_attn time is NOT in kernels
+   - Investigate: transpose/contiguous overhead, tensor allocation
+   - Potential: fuse operations, avoid redundant copies
+
+3. **B1: FA4/CUTE score_mod for Kernel B**
+   - Could be another step-function if FA4 >> Triton
+   - Blocked on cuda-python deps
+
+4. ~~**Kernel A optimization**~~ → **DEPRIORITIZED**
+   - Only 10.5% of attention kernel time
+   - Max possible gain: ~1% of total time
+   - Not worth the engineering effort
+
 Commits this session:
   - 55eef9d: Add Triton Kernel B: 10.7% faster than flex_attention
   - 2d132dc: Integrate Triton Kernel B into KV-cache attention path
