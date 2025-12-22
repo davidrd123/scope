@@ -608,9 +608,35 @@ Resolution scaling reference:
   | Resolution | tokens/frame | vs 320p | Observed FPS |
   |------------|--------------|---------|--------------|
   | 320x576    | 720          | 1.0x    | ~18 FPS      |
-  | 384x672    | 1008         | 1.4x    | TBD          |
-  | 416x736    | 1196         | 1.6x    | TBD          |
+  | 384x672    | 1008         | 1.4x    | ~13 FPS      |
+  | 416x736    | 1196         | 1.6x    | ~10.4 FPS    |
   | 480x832    | 1560         | 2.1x    | ~7.5 FPS     |
+
+Why 20% FPS gain > Amdahl prediction (Codex synthesis):
+  - Amdahl: 10.7% on 69% share → ~7-8% expected
+  - Actual: 20% observed
+  - Extra gain from: (1) no padding overhead, (2) less flex_attention compile/dispatch cost
+  - Conclusion: We got TWO wins - faster kernel + removed Lq→Lk padding waste
+
+PRIORITY RANKING (Codex consensus, 2025-12-22)
+----------------------------------------------
+
+1. **p_bias vs p_recompute accounting** (highest leverage, lowest effort)
+   - Turns every decision from "maybe" into Amdahl calculation
+   - Add counters: self_attn_block_mask, self_attn_kv_bias, self_attn_kv_plain
+
+2. **B1: FA4/CUTE score_mod for Kernel B**
+   - Could be another step-function if FA4 >> Triton on these shapes
+   - Blocked on cuda-python deps
+
+3. **Kernel A optimization** (only if p_recompute is large)
+   - Runtime masking loses to compile-time BlockMask (proven in M4)
+   - Resolution scaling data suggests Kernel A matters more at higher res
+   - "Two dense calls" trick may bypass BlockMask entirely
+
+4. **Kernel A via Triton** (lowest priority)
+   - Only meaningful if it beats flex_attention in situ
+   - Upside capped by p_recompute fraction
 
 Commits this session:
   - 55eef9d: Add Triton Kernel B: 10.7% faster than flex_attention
