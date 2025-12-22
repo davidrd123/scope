@@ -757,6 +757,44 @@ UPDATED PRIORITY RANKING (post-fine-grained-profiling)
    - Only 8.6s (5.4%) - initial hypothesis was wrong
    - Memory layout conversion is cheap on B200
 
+ROPE OPTIMIZATION PLAN (2025-12-22)
+------------------------------------
+
+**Why RoPE before FA4:**
+- RoPE is 25.1s (15.8% of self_attn) - significant target
+- Pure Triton - no new dependencies, no risk to working setup
+- FA4/CUTE has cuda-python dep issues - tackle after banking RoPE win
+
+**Current RoPE implementation (inefficient):**
+- `rope_apply`: src/scope/core/pipelines/krea_realtime_video/modules/model.py:40-67
+- `causal_rope_apply`: src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py:279-312
+- Problems:
+  1. Rebuilds `freqs_i` every call via torch.cat + expand
+  2. Uses float64 + complex math (view_as_complex, view_as_real)
+  3. Many intermediate allocations (flatten, cat)
+
+**Optimization strategy:**
+
+1. **Cache frequency tensor**
+   - Key by `(grid_sizes, start_frame)` or similar
+   - One-time compute per unique shape, reuse across calls
+   - Memory cost: negligible (freqs are small)
+
+2. **Triton RoPE kernel**
+   - Fuse: load Q/K → apply rotation in registers → store
+   - No intermediate tensors (view_as_complex, view_as_real, flatten, cat all gone)
+   - Stay in float32/bfloat16 (no float64 upcast)
+
+3. **Expected savings:**
+   - Current: 25.1s (0.48ms/call × 52160 calls)
+   - Target: 5-10s (50-75% reduction)
+   - End-to-end: ~10-15% of self_attn time saved
+
+**Reference implementations:**
+- vLLM has Triton RoPE: https://github.com/vllm-project/vllm/blob/main/vllm/model_executor/layers/rotary_embedding.py
+- xFormers has fused RoPE
+- FlashAttention repo has examples
+
 Commits this session:
   - 55eef9d: Add Triton Kernel B: 10.7% faster than flex_attention
   - 2d132dc: Integrate Triton Kernel B into KV-cache attention path
