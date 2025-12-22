@@ -693,24 +693,69 @@ NOTE on `% of Total`:
 - Overhead: ~15-17% FPS reduction during profiling (sync breaks async pipeline)
 - Results are relative percentages, valid despite overhead
 
-UPDATED PRIORITY RANKING (post-profiling)
------------------------------------------
+FINE-GRAINED PROFILING (2025-12-22)
+------------------------------------
+
+Breakdown within `self_attn` (159.3s outer, 65000 calls):
+
+| Component | Time | % of self_attn | Calls | ms/call |
+|-----------|------|----------------|-------|---------|
+| **self_attn_kv_bias** (kernel) | 43.7s | 27.4% | 52160 | 0.84 |
+| **qkv_projection** | 33.1s | 20.8% | 65000 | 0.51 |
+| **rope_apply** | 25.1s | 15.8% | 52160 | 0.48 |
+| output_projection | 13.2s | 8.3% | 65000 | 0.20 |
+| transpose_contiguous | 8.6s | 5.4% | 52160 | 0.16 |
+| self_attn_block_mask | 5.4s | 3.4% | 12840 | 0.42 |
+| cache_update | 3.3s | 2.1% | 52160 | 0.06 |
+
+**Key findings:**
+
+1. **QKV + RoPE dominate non-kernel time: 58.2s** (more than attention kernel at 43.7s!)
+   - `qkv_projection`: 33.1s (Linear + RMSNorm) - 20.8% of self_attn
+   - `rope_apply`: 25.1s (causal_rope_apply with allocations) - 15.8% of self_attn
+
+2. **transpose_contiguous is NOT the bottleneck**: only 8.6s (5.4%)
+   - Initial hypothesis was wrong - memory layout conversion is cheap
+   - The real cost is compute (QKV projection) and RoPE allocations
+
+3. **Optimization targets (by impact):**
+   - QKV projection fusion: 33.1s potential
+   - RoPE fusion/optimization: 25.1s potential
+   - These are **compute-bound**, not memory-copy bound
+
+4. **CUTE/FA4 upside is larger than expected:**
+   - FA4 can fuse QKV projection into the attention kernel
+   - Could save 33.1s (QKV) + kernel speedup in one shot
+   - This makes B1 (CUTE score_mod) even more attractive
+
+5. **cache_update is negligible**: 3.3s (2.1%) - no optimization needed
+
+UPDATED PRIORITY RANKING (post-fine-grained-profiling)
+-------------------------------------------------------
 
 1. ~~p_bias vs p_recompute accounting~~ → **DONE** (p_bias=89.5%, p_recompute=10.5%)
 
-2. **Memory overhead reduction** (NEW - highest leverage)
-   - 44.7s of 73.3s self_attn time is NOT in kernels
-   - Investigate: qkv/rope/output costs, kv-cache maintenance, tensor allocation
-   - Potential: fuse operations, avoid redundant copies
+2. ~~Memory overhead investigation~~ → **DONE** - identified QKV (33.1s) + RoPE (25.1s) as main targets
 
-3. **B1: FA4/CUTE score_mod for Kernel B**
-   - Could be another step-function if FA4 >> Triton
-   - Blocked on cuda-python deps
+3. **B1: FA4/CUTE for Kernel B** (HIGHEST PRIORITY - larger upside than expected)
+   - FA4 can fuse QKV projection + attention in one kernel
+   - Potential savings: 33.1s (QKV) + 43.7s kernel → could be 50%+ faster
+   - Blocked on cuda-python deps - UNBLOCK THIS FIRST
+   - Even without QKV fusion, CUTE kernel alone could be 1.5-2x faster than Triton
 
-4. ~~**Kernel A optimization**~~ → **DEPRIORITIZED**
-   - Only 10.5% of attention kernel time
+4. **RoPE optimization** (secondary target)
+   - 25.1s (15.8% of self_attn) - significant but harder to optimize
+   - `causal_rope_apply` uses view_as_real + flatten + cat - lots of allocations
+   - Could explore fused RoPE kernels (Triton or CUDA)
+
+5. ~~**Kernel A optimization**~~ → **DEPRIORITIZED**
+   - Only 5.4s (3.4% of self_attn), 11% of attention kernel time
    - Max possible gain: ~1% of total time
    - Not worth the engineering effort
+
+6. ~~**transpose_contiguous optimization**~~ → **NOT NEEDED**
+   - Only 8.6s (5.4%) - initial hypothesis was wrong
+   - Memory layout conversion is cheap on B200
 
 Commits this session:
   - 55eef9d: Add Triton Kernel B: 10.7% faster than flex_attention
