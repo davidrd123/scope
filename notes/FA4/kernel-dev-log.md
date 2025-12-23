@@ -6,17 +6,21 @@ Purpose
 - DeepResearch mapping + recommended sequencing: `notes/FA4/DeepResearch/summary.md`
 
 Current status (2025-12-23)
+- **B1: FA4/CUTE score_mod COMPLETE**: **20.8-21.4 FPS** (+0.6-1.2 FPS, +3-6%)
+  - Kernel B: 0.540ms (FA4) vs 1.022ms (Triton) = **1.89x faster**
+  - Commit: `c19d828`
+  - Env var: `SCOPE_KV_BIAS_BACKEND=fa4|triton|flex` (default: triton)
+  - Deps: `nvidia-cutlass-dsl>=4.3.3`, `apache-tvm-ffi`
+  - Details: `notes/FA4/phase4-fa4-score-mod.md`
+  - Test script: `scripts/test_fa4_kv_bias.py`
 - **RoPE Phase 3 Step 2 COMPLETE**: v2 fused kernel achieves **20.2 FPS** (fixed 17.8 FPS regression from v1 padding overhead)
   - v2 uses unified 64-pair arange (no per-chunk padding)
   - 2.2x faster than Step 0 baseline in microbench
   - Tag: `v0.3.0-phase3-step2`
   - Details: `notes/FA4/phase3-triton-rope.md`
-- **FA4/CUTE deps UNBLOCKED**: `cuda-python==12.9.5` + `nvidia-cutlass-dsl==4.1.0` installed via `uv sync --group fa4`
-  - No conflict with PyTorch inductor
-  - Ready for B1 (CUTE score_mod) experiment
 - Kernel B (KV-cache bias): Triton integrated + pinned for B200; real runs show ~20% FPS uplift at 320x576; profiling shows `p_bias≈89.5%` of **attention-kernel** time (Kernel A is small).
 - Fine-grained `self_attn` breakdown (targeting "what moves the needle"): `self_attn_kv_bias` 27.4%, `qkv_projection` 20.8%, `rope_apply` 15.8%, `self_attn_block_mask` 3.4% → kernel work needs to shift toward RoPE/QKV (and/or a much faster Kernel B backend).
-- Next bets (highest upside per effort): (1) ~~RoPE fusion~~ **DONE**, (2) FA4/CUTE `score_mod` for Kernel B (deps unblocked, ready to try), (3) RoPE Step 3 tuning (BLOCK_M/H, Q+K fusion).
+- Next bets (highest upside per effort): (1) ~~RoPE fusion~~ **DONE**, (2) ~~FA4/CUTE score_mod~~ **DONE**, (3) Make FA4 the default backend, (4) RoPE Step 3 tuning (BLOCK_M/H, Q+K fusion), (5) Update pyproject.toml with FA4 deps.
 
 Amdahl cheat sheet (based on latest fine-grained profile; assumes `self_attn≈51%` of total step time)
 - 2× `self_attn_kv_bias` (~14% of total) → ~7–8% faster end-to-end
