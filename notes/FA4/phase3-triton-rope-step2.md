@@ -2,17 +2,16 @@
 
 ## Status (2025-12-23)
 
-**IMPLEMENTED BUT REGRESSED**: Kernel works correctly but causes 20 → 17.8 FPS regression.
+**COMPLETE**: v2 kernel fixes regression. **20.2 FPS** achieved.
 
-- **Kernel:** `src/scope/core/kernels/triton_rope_fused.py`
+- **Kernel:** `src/scope/core/kernels/triton_rope_fused.py` (v1 + v2)
 - **Integration:** Fast path in `rope_apply()` and `causal_rope_apply()`
-- **Disable flag:** `SCOPE_DISABLE_TRITON_ROPE_FUSED=1` (use this until fixed)
+- **Default:** v2 kernel (unified 64-pair, no padding)
+- **A/B switch:** `SCOPE_TRITON_ROPE_FUSED_IMPL=v1|v2`
 
-**Root cause:** Power-of-2 padding. Triton `tl.arange()` requires power-of-2 ranges:
-- Actual: C0=22, C1=21, C2=21 (64 pairs)
-- Padded: 32, 32, 32 (96 pairs) = **50% more work**
+**v1 regression cause:** Power-of-2 padding (22/21/21 → 32/32/32 = 96 pairs, 50% extra work)
 
-**Fix needed:** Channel tiling or different approach to avoid padding overhead.
+**v2 fix:** C=64 is already power-of-2. Uses unified `tl.arange(0, 64)` with masks.
 
 ---
 
@@ -191,6 +190,25 @@ Add NVTX ranges around the benchmark loops for NSYS capture.
 - Correctness: match `rope_ref()` within bf16 tolerance (current max err ~0.03125).
 - No full-tensor clones for the padded case in inference mode.
 - End-to-end `rope_apply/causal_rope_apply` time improves materially vs Phase 2.5/Step 0 wrapper.
+
+## Phase3_02 Diagnosis + v2 Direction (current state)
+
+Phase3_02’s diagnosis matches what’s actually in `src/scope/core/kernels/triton_rope_fused.py:86`: the current fused kernel pads each chunk to
+`32/32/32`, so it’s effectively doing **96 pairs worth of work** (plus much bigger live tensors) to rotate **64 pairs**. On B200 (SM100) this is a
+very believable way to end up **reg/occupancy‑limited** and lose end‑to‑end FPS, even if a microbench “looks ok”.
+
+Proposed v2 plan:
+
+- Core idea: for `D=128`, `C=64` is already power‑of‑two. Use a unified `rk = 0..63` and select time/height/width lanes via masks; do **not** pad
+  each chunk.
+- `tl.reshape + tl.split/tl.join` is low risk: we already rely on the same pattern in the vendored FlashAttention rotary kernel
+  (`src/scope/core/kernels/triton_rotary.py:70`), so the Triton version in this stack supports it.
+- Start with `BLOCK_M=8 / BLOCK_H=2` mirroring FA’s rotary tiling for `rotary_dim <= 128`; treat `BLOCK_M` as the tuning knob (try `8/16/32`) after
+  correctness is solid.
+- Keep the old (“padded”) kernel behind an env var for one A/B iteration to prove the regression lever; then default to v2 and delete the padded path
+  once it’s clearly worse.
+- Gotcha: for masked loads when `rk` is outside a chunk, keep indices “sane” (e.g. `idx1/idx2 = tl.where(mask, idx, 0)`) to avoid any risk of
+  masked OOB addressing on older Triton builds.
 
 ## Open Questions
 

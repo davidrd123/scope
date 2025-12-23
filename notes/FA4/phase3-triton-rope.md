@@ -90,43 +90,43 @@ Simple Triton kernel that rotates `x` using pre-materialized `cos/sin`:
 - Triton (flash-attn rotary): **0.129 ms**
 - Result: Triton is slower here; Step 1 is not a win.
 
-### Step 2 (fuse 3-way lookup) - IMPLEMENTED, REGRESSION (2025-12-23)
+### Step 2 (fuse 3-way lookup) - COMPLETE (2025-12-23)
 
-**Status:** Implemented and integrated, but causes FPS regression (20 → 17.8 FPS). Disabled by default pending fix.
+**Status:** v2 kernel fixes regression. **20.2 FPS** (matches/exceeds Step 0 baseline).
 
 **Files created/modified:**
-- Created: `src/scope/core/kernels/triton_rope_fused.py` (kernel + wrapper)
+- Created: `src/scope/core/kernels/triton_rope_fused.py` (v1 + v2 kernels + wrapper)
 - Modified: `model.py` and `causal_model.py` to add fused fast path
 - Feature flags:
-  - `SCOPE_DISABLE_TRITON_ROPE_FUSED=1` - disable fused path (use this for now)
+  - `SCOPE_DISABLE_TRITON_ROPE_FUSED=1` - disable fused path
   - `SCOPE_TRITON_ROPE_FUSED_STRICT=1` - crash instead of fallback
-  - `SCOPE_TRITON_ROPE_FUSED_BLOCK_L/NUM_WARPS/NUM_STAGES` - tuning
+  - `SCOPE_TRITON_ROPE_FUSED_IMPL=v1|v2` - kernel selection (default v2)
+  - `SCOPE_TRITON_ROPE_FUSED_BLOCK_M/BLOCK_H` - v2 tuning (default 8/2)
 
-**What was fixed:**
-- Clone issue: Uses `empty_like()` + tiny tail copy instead of `x.clone()` for padded case
-- Power-of-2: Pads chunk sizes (22/21/21 → 32/32/32) with masks for Triton `arange`
+**v1 (regressed):**
+- Padded chunk sizes 22/21/21 → 32/32/32 = 96 pairs (50% extra work)
+- Full pipeline: 20 → 17.8 FPS (11% regression)
 
-**Root cause of regression:**
-Power-of-2 padding overhead. Processing 96 pairs instead of 64 = **50% more work**.
+**v2 (fixed):**
+- Key insight: C=64 is already power-of-2
+- Uses unified `tl.arange(0, 64)` with masks to select from 3 axis tables
+- FlashAttn-style tiling: BLOCK_M=8, BLOCK_H=2
+- Uses `tl.split/tl.join` for rotation (proven in triton_rotary.py)
 
-**Microbench (misleading):**
-| Case | Step 0 | Step 2 | Speedup |
-|------|--------|--------|---------|
-| Unpadded (L=4680) | 0.126 ms | 0.121 ms | 4% |
-| Padded (L=4736) | 0.165 ms | 0.124 ms | 25% |
+**Benchmark (padded L=4736):**
+| Implementation | rope_apply time | vs Step 0 |
+|----------------|-----------------|-----------|
+| Step 0 (FA rotary) | 0.153 ms | baseline |
+| v1 (padded) | 0.125 ms | 1.22x |
+| **v2 (unified 64)** | **0.069 ms** | **2.22x** |
 
-But full pipeline: **20 → 17.8 FPS** (11% regression).
+**Full pipeline:** 20.2 FPS (v2 default)
 
-**Fix options:**
-1. Channel tiling - process chunks in power-of-2 tiles (e.g., 16 at a time) with loop
-2. Match FA's approach - they handle non-power-of-2 with BLOCK_K tiling
-3. Hardcode D=128 unrolled path without padding
-
-**Spec + design doc:**
-- `notes/FA4/phase3-triton-rope-step2.md`
-
-**GPT-5 Pro draft:**
-- `notes/FA4/DeepResearch/2025-12-22/Phase3_01.md`
+**Docs:**
+- `notes/FA4/phase3-triton-rope-step2.md` - Step 2 spec
+- `notes/FA4/DeepResearch/2025-12-22/Phase3_01.md` - GPT-5 Pro v1 draft
+- `notes/FA4/DeepResearch/2025-12-22/Phase3_02.md` - GPT-5 Pro v2 fix diagnosis
+- `notes/FA4/DeepResearch/2025-12-22/Phase3_03.md` - GPT-5 Pro v2 alternative impl
 
 ### Step 3 (optimize access + launch)
 - Tune `BLOCK_L` and launch params for target shapes (likely 128/256, warps 4/8, stages 2).
