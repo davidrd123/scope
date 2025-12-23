@@ -283,6 +283,156 @@ def rope_fused_3way_kernel(
 
 
 # -----------------------------------------------------------------------------
+# v2 kernel: unified 64-pair arange (no per-chunk padding)
+# Grid: (H/BLOCK_H, seq_len/BLOCK_M, B)
+# Key insight: C=64 is already power-of-2, so use unified rk=0..63 with masks
+# -----------------------------------------------------------------------------
+@triton.jit
+def rope_fused_3way_kernel_v2(
+    X_ptr,
+    OUT_ptr,
+    COS_F_ptr,
+    SIN_F_ptr,
+    COS_H_ptr,
+    SIN_H_ptr,
+    COS_W_ptr,
+    SIN_W_ptr,
+    # x strides: [B, L, H, D]
+    stride_xb,
+    stride_xl,
+    stride_xh,
+    stride_xd,
+    # out strides: [B, L, H, D]
+    stride_ob,
+    stride_ol,
+    stride_oh,
+    stride_od,
+    # cos/sin strides (2D): [max_seq, c_axis]
+    stride_cf_l,
+    stride_cf_c,
+    stride_ch_l,
+    stride_ch_c,
+    stride_cw_l,
+    stride_cw_c,
+    # sizes / params
+    SEQ_LEN,  # f * gh * gw (active tokens)
+    HN,  # num heads
+    HW,  # gh * gw
+    W,  # gw
+    START_FRAME,
+    # meta
+    C0: tl.constexpr,
+    C1: tl.constexpr,
+    C2: tl.constexpr,
+    BLOCK_H: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+):
+    pid_h = tl.program_id(0)  # head blocks
+    pid_m = tl.program_id(1)  # token blocks
+    pid_b = tl.program_id(2)  # batch
+
+    rh = pid_h * BLOCK_H + tl.arange(0, BLOCK_H)
+    rm = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
+    mask_m = rm < SEQ_LEN
+    mask_h = rh < HN
+
+    # token -> (f_idx, h_idx, w_idx)
+    t = rm
+    f_local = t // HW
+    rem = t - f_local * HW
+    h_idx = rem // W
+    w_idx = rem - h_idx * W
+    f_idx = START_FRAME + f_local
+
+    # Build cos/sin for all 64 pairs (C=64 is power-of-two for D=128)
+    rk = tl.arange(0, 64)
+    cos = tl.full((BLOCK_M, 64), 1.0, tl.float32)
+    sin = tl.full((BLOCK_M, 64), 0.0, tl.float32)
+
+    # time chunk [0:C0)
+    m0 = rk < C0
+    cos0 = tl.load(
+        COS_F_ptr + f_idx[:, None] * stride_cf_l + rk[None, :] * stride_cf_c,
+        mask=mask_m[:, None] & m0[None, :],
+        other=1.0,
+    ).to(tl.float32)
+    sin0 = tl.load(
+        SIN_F_ptr + f_idx[:, None] * stride_cf_l + rk[None, :] * stride_cf_c,
+        mask=mask_m[:, None] & m0[None, :],
+        other=0.0,
+    ).to(tl.float32)
+    cos = tl.where(m0[None, :], cos0, cos)
+    sin = tl.where(m0[None, :], sin0, sin)
+
+    # height chunk [C0:C0+C1)
+    m1 = (rk >= C0) & (rk < (C0 + C1))
+    idx1 = rk - C0
+    idx1 = tl.where(m1, idx1, 0)  # keep pointers sane for masked lanes
+    cos1 = tl.load(
+        COS_H_ptr + h_idx[:, None] * stride_ch_l + idx1[None, :] * stride_ch_c,
+        mask=mask_m[:, None] & m1[None, :],
+        other=1.0,
+    ).to(tl.float32)
+    sin1 = tl.load(
+        SIN_H_ptr + h_idx[:, None] * stride_ch_l + idx1[None, :] * stride_ch_c,
+        mask=mask_m[:, None] & m1[None, :],
+        other=0.0,
+    ).to(tl.float32)
+    cos = tl.where(m1[None, :], cos1, cos)
+    sin = tl.where(m1[None, :], sin1, sin)
+
+    # width chunk [C0+C1:C0+C1+C2)
+    m2 = rk >= (C0 + C1)
+    idx2 = rk - (C0 + C1)
+    idx2 = tl.where(m2, idx2, 0)  # keep pointers sane for masked lanes
+    cos2 = tl.load(
+        COS_W_ptr + w_idx[:, None] * stride_cw_l + idx2[None, :] * stride_cw_c,
+        mask=mask_m[:, None] & m2[None, :],
+        other=1.0,
+    ).to(tl.float32)
+    sin2 = tl.load(
+        SIN_W_ptr + w_idx[:, None] * stride_cw_l + idx2[None, :] * stride_cw_c,
+        mask=mask_m[:, None] & m2[None, :],
+        other=0.0,
+    ).to(tl.float32)
+    cos = tl.where(m2[None, :], cos2, cos)
+    sin = tl.where(m2[None, :], sin2, sin)
+
+    # Load X as [BLOCK_H, BLOCK_M, 128] (interleaved pairs)
+    rk_d = tl.arange(0, 128)
+
+    x_base = X_ptr + pid_b * stride_xb
+    o_base = OUT_ptr + pid_b * stride_ob
+
+    x_ptrs = (
+        x_base
+        + rh[:, None, None] * stride_xh
+        + rm[None, :, None] * stride_xl
+        + rk_d[None, None, :] * stride_xd
+    )
+    o_ptrs = (
+        o_base
+        + rh[:, None, None] * stride_oh
+        + rm[None, :, None] * stride_ol
+        + rk_d[None, None, :] * stride_od
+    )
+
+    mask = mask_h[:, None, None] & mask_m[None, :, None]  # broadcast over rk_d
+
+    x = tl.load(x_ptrs, mask=mask, other=0.0).to(tl.float32)
+    x0, x1 = tl.split(tl.reshape(x, [BLOCK_H, BLOCK_M, 64, 2]))
+
+    cos_b = cos[None, :, :]
+    sin_b = sin[None, :, :]
+
+    y0 = x0 * cos_b - x1 * sin_b
+    y1 = x0 * sin_b + x1 * cos_b
+
+    y = tl.reshape(tl.join(y0, y1), [BLOCK_H, BLOCK_M, 128])
+    tl.store(o_ptrs, y, mask=mask)
+
+
+# -----------------------------------------------------------------------------
 # Python wrapper
 # -----------------------------------------------------------------------------
 def _as_int3(
@@ -430,9 +580,9 @@ def rope_fused_3way(
     # Axis tables (cached, float32 contiguous)
     cos_f, sin_f, cos_h, sin_h, cos_w, sin_w = get_rope_axis_tables(freqs, c0, c1, c2, x.device)
 
-    # Kernel launch params (overrideable via args/env)
-    if block_l is None:
-        block_l = int(os.environ.get("SCOPE_TRITON_ROPE_FUSED_BLOCK_L", "128"))
+    # A/B switch: v1 (padded) vs v2 (unified 64-pair)
+    impl = os.environ.get("SCOPE_TRITON_ROPE_FUSED_IMPL", "v2").lower()
+
     if num_warps is None:
         num_warps = int(os.environ.get("SCOPE_TRITON_ROPE_FUSED_NUM_WARPS", "4"))
     if num_stages is None:
@@ -440,53 +590,104 @@ def rope_fused_3way(
 
     hw = int(gh) * int(gw)
 
-    # Compute power-of-2 padded sizes for Triton arange
-    c0_pad = _next_power_of_2(c0)
-    c1_pad = _next_power_of_2(c1)
-    c2_pad = _next_power_of_2(c2)
-
-    grid = (B * HN, triton.cdiv(seq_len, block_l))
-
     # Mirror triton_rotary's device guard to avoid launching on cuda:0 accidentally.
     with torch.cuda.device(x.device.index):
-        rope_fused_3way_kernel[grid](
-            x,
-            out,
-            cos_f,
-            sin_f,
-            cos_h,
-            sin_h,
-            cos_w,
-            sin_w,
-            x.stride(0),
-            x.stride(1),
-            x.stride(2),
-            x.stride(3),
-            out.stride(0),
-            out.stride(1),
-            out.stride(2),
-            out.stride(3),
-            cos_f.stride(0),
-            cos_f.stride(1),
-            cos_h.stride(0),
-            cos_h.stride(1),
-            cos_w.stride(0),
-            cos_w.stride(1),
-            L,
-            HN,
-            hw,
-            int(gw),
-            start_frame,
-            seq_len,
-            C0=c0,
-            C1=c1,
-            C2=c2,
-            C0_PAD=c0_pad,
-            C1_PAD=c1_pad,
-            C2_PAD=c2_pad,
-            BLOCK_L=block_l,
-            num_warps=num_warps,
-            num_stages=num_stages,
-        )
+        if impl == "v1":
+            # v1: padded kernel (for A/B comparison - causes regression)
+            if block_l is None:
+                block_l = int(os.environ.get("SCOPE_TRITON_ROPE_FUSED_BLOCK_L", "128"))
+
+            c0_pad = _next_power_of_2(c0)
+            c1_pad = _next_power_of_2(c1)
+            c2_pad = _next_power_of_2(c2)
+
+            grid = (B * HN, triton.cdiv(seq_len, block_l))
+
+            rope_fused_3way_kernel[grid](
+                x,
+                out,
+                cos_f,
+                sin_f,
+                cos_h,
+                sin_h,
+                cos_w,
+                sin_w,
+                x.stride(0),
+                x.stride(1),
+                x.stride(2),
+                x.stride(3),
+                out.stride(0),
+                out.stride(1),
+                out.stride(2),
+                out.stride(3),
+                cos_f.stride(0),
+                cos_f.stride(1),
+                cos_h.stride(0),
+                cos_h.stride(1),
+                cos_w.stride(0),
+                cos_w.stride(1),
+                L,
+                HN,
+                hw,
+                int(gw),
+                start_frame,
+                seq_len,
+                C0=c0,
+                C1=c1,
+                C2=c2,
+                C0_PAD=c0_pad,
+                C1_PAD=c1_pad,
+                C2_PAD=c2_pad,
+                BLOCK_L=block_l,
+                num_warps=num_warps,
+                num_stages=num_stages,
+            )
+        else:
+            # v2: unified 64-pair kernel (default - fixes regression)
+            block_m = int(os.environ.get("SCOPE_TRITON_ROPE_FUSED_BLOCK_M", "8"))
+            block_h = int(os.environ.get("SCOPE_TRITON_ROPE_FUSED_BLOCK_H", "2"))
+
+            grid = (
+                triton.cdiv(HN, block_h),
+                triton.cdiv(seq_len, block_m),
+                B,
+            )
+
+            rope_fused_3way_kernel_v2[grid](
+                x,
+                out,
+                cos_f,
+                sin_f,
+                cos_h,
+                sin_h,
+                cos_w,
+                sin_w,
+                x.stride(0),
+                x.stride(1),
+                x.stride(2),
+                x.stride(3),
+                out.stride(0),
+                out.stride(1),
+                out.stride(2),
+                out.stride(3),
+                cos_f.stride(0),
+                cos_f.stride(1),
+                cos_h.stride(0),
+                cos_h.stride(1),
+                cos_w.stride(0),
+                cos_w.stride(1),
+                seq_len,
+                HN,
+                hw,
+                int(gw),
+                start_frame,
+                C0=c0,
+                C1=c1,
+                C2=c2,
+                BLOCK_H=block_h,
+                BLOCK_M=block_m,
+                num_warps=num_warps,
+                num_stages=num_stages,
+            )
 
     return out
