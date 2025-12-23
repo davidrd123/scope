@@ -57,12 +57,31 @@ Python: 3.12
 
 ## What Works on B300
 
-| Feature | B200 (SM100) | B300 (SM103) |
-|---------|--------------|--------------|
-| Triton Kernel B | ✅ | ✅ (with CUDA 12.9 ptxas) |
-| flex_attention | ✅ | ✅ |
-| RoPE fused | ✅ | ✅ |
-| FA4/CUTE score_mod | ✅ | ❓ Needs separate venv with cutlass-dsl |
+| Feature | B200 (SM100) | B300 (SM103) | Notes |
+|---------|--------------|--------------|-------|
+| Triton Kernel B | ✅ | ✅ | 0.977 ms (with CUDA 12.9 ptxas) |
+| flex_attention | ✅ | ✅ | 1.095 ms |
+| RoPE fused | ✅ | ✅ | 0.029 ms |
+| FA4/CUTE basic | ✅ | ✅ | **0.074 ms** (13x faster!) - needs patches |
+| FA4/CUTE score_mod | ✅ | ❌ | Version mismatch, see B300-FA4-PATCHES.md |
+| daydream-scope | ✅ 20 FPS | ✅ 8.8 FPS | Baseline, room for optimization |
+
+## FA4/CUTE on B300 (Optional)
+
+FA4 basic attention works on B300 after patching `nvidia-cutlass-dsl`. It's **13x faster** than Triton for causal attention!
+
+```bash
+# 1. Install correct cutlass version
+uv pip install nvidia-cutlass-dsl==4.1.0
+
+# 2. Apply SM103 patches
+./scripts/patch_cutlass_sm103.sh
+
+# 3. Verify FA4 works
+python -c "from flash_attn.cute.interface import _flash_attn_fwd; print('FA4 OK')"
+```
+
+**Note**: FA4 with `score_mod` (for Kernel B equivalent) doesn't work yet due to version mismatches. See `notes/FA4/B300-FA4-PATCHES.md` for details.
 
 ## Troubleshooting
 
@@ -91,9 +110,32 @@ export TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
 2. `src/scope/core/compat/sm103.py` - SM103 compatibility utilities
 3. `src/scope/core/compat/__init__.py` - Compat module init
 4. `notes/FA4/b300-investigation.md` - Full investigation log
+5. `notes/FA4/B300-FA4-PATCHES.md` - FA4/CUTE SM103 patch documentation
+6. `scripts/patch_cutlass_sm103.sh` - Automated CUTLASS patching script
 
-## Next Steps (If Needed)
+### Files Patched for FA4 (by patch script)
 
-1. **FA4/CUTE on B300**: Requires separate venv with nvidia-cutlass-dsl (conflicts with pip flash-attn)
-2. **Performance tuning**: Block sizes may benefit from B300-specific tuning
-3. **Full pipeline test**: Run `render_timeline` on B300
+```
+.venv/lib/python3.12/site-packages/nvidia_cutlass_dsl/python_packages/cutlass/
+├── impl_utils.py                    # check_value_in SM103 support
+└── cute/nvgpu/
+    ├── tcgen05/
+    │   ├── mma.py                   # admissible_archs += sm_103a
+    │   └── copy.py                  # admissible_archs += sm_103a
+    └── cpasync/
+        └── copy.py                  # admissible_archs += sm_103a
+```
+
+## Next Steps
+
+1. **Improve B300 FPS** (currently 8.8 FPS vs B200's 20 FPS)
+   - Profile to find bottlenecks
+   - Test with FA4 basic attention in pipeline
+
+2. **FA4 score_mod on B300**
+   - Find matching cutlass-dsl version for flash-attention.bak
+   - Or wait for upstream FA4 wheel with score_mod support
+
+3. **Performance tuning**
+   - Block sizes may benefit from B300-specific tuning
+   - SM103 has 148 SMs vs B200's 160 SMs
