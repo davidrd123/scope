@@ -107,6 +107,7 @@ class _ProfileBlock:
 
 from .model import (
     USE_TRITON_ROTARY,
+    USE_TRITON_ROPE_FUSED,
     WAN_CROSSATTENTION_CLASSES,
     MLPProj,
     WanLayerNorm,
@@ -116,6 +117,7 @@ from .model import (
     rope_params,
     sinusoidal_embedding_1d,
     triton_apply_rotary,
+    triton_rope_fused_3way,
 )
 
 flex_attention = torch.compile(
@@ -283,8 +285,18 @@ def get_block_mask(
 def causal_rope_apply(x, grid_sizes, freqs, start_frame=0):
     """Optimized RoPE using cached sin/cos (no float64, no complex math).
 
-    Uses Triton kernel when available for ~2x speedup.
+    Uses Triton fused 3-way kernel when available (Step 2).
+    Falls back to Triton rotary (Step 0) or PyTorch.
     """
+    # --- Fused Triton 3-way RoPE fast path (D=128 only) ---
+    if USE_TRITON_ROPE_FUSED and x.is_cuda and x.ndim == 4 and x.shape[-1] == 128:
+        try:
+            return triton_rope_fused_3way(x, grid_sizes, freqs, start_frame=int(start_frame), inplace=None)
+        except Exception:
+            if os.environ.get("SCOPE_TRITON_ROPE_FUSED_STRICT", "0") == "1":
+                raise
+            pass
+
     n, c = x.size(2), x.size(3) // 2
 
     # split freqs (freqs is complex: real=cos, imag=sin)

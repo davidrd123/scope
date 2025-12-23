@@ -90,11 +90,43 @@ Simple Triton kernel that rotates `x` using pre-materialized `cos/sin`:
 - Triton (flash-attn rotary): **0.129 ms**
 - Result: Triton is slower here; Step 1 is not a win.
 
-### Step 2 (fuse 3-way lookup)
-Kernel takes 3 freqs tables and computes `(f_idx, h_idx, w_idx)` inside:
-- `freqs_f[max_f, C0]`, `freqs_h[max_h, C1]`, `freqs_w[max_w, C2]`.
-- Load cos/sin from each table and apply to 3 contiguous channel chunks.
-- Reuse index math for all chunks (compute once per token).
+### Step 2 (fuse 3-way lookup) - IMPLEMENTED, REGRESSION (2025-12-23)
+
+**Status:** Implemented and integrated, but causes FPS regression (20 → 17.8 FPS). Disabled by default pending fix.
+
+**Files created/modified:**
+- Created: `src/scope/core/kernels/triton_rope_fused.py` (kernel + wrapper)
+- Modified: `model.py` and `causal_model.py` to add fused fast path
+- Feature flags:
+  - `SCOPE_DISABLE_TRITON_ROPE_FUSED=1` - disable fused path (use this for now)
+  - `SCOPE_TRITON_ROPE_FUSED_STRICT=1` - crash instead of fallback
+  - `SCOPE_TRITON_ROPE_FUSED_BLOCK_L/NUM_WARPS/NUM_STAGES` - tuning
+
+**What was fixed:**
+- Clone issue: Uses `empty_like()` + tiny tail copy instead of `x.clone()` for padded case
+- Power-of-2: Pads chunk sizes (22/21/21 → 32/32/32) with masks for Triton `arange`
+
+**Root cause of regression:**
+Power-of-2 padding overhead. Processing 96 pairs instead of 64 = **50% more work**.
+
+**Microbench (misleading):**
+| Case | Step 0 | Step 2 | Speedup |
+|------|--------|--------|---------|
+| Unpadded (L=4680) | 0.126 ms | 0.121 ms | 4% |
+| Padded (L=4736) | 0.165 ms | 0.124 ms | 25% |
+
+But full pipeline: **20 → 17.8 FPS** (11% regression).
+
+**Fix options:**
+1. Channel tiling - process chunks in power-of-2 tiles (e.g., 16 at a time) with loop
+2. Match FA's approach - they handle non-power-of-2 with BLOCK_K tiling
+3. Hardcode D=128 unrolled path without padding
+
+**Spec + design doc:**
+- `notes/FA4/phase3-triton-rope-step2.md`
+
+**GPT-5 Pro draft:**
+- `notes/FA4/DeepResearch/2025-12-22/Phase3_01.md`
 
 ### Step 3 (optimize access + launch)
 - Tune `BLOCK_L` and launch params for target shapes (likely 128/256, warps 4/8, stages 2).

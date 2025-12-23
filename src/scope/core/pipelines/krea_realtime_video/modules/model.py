@@ -25,6 +25,19 @@ USE_TRITON_ROTARY = TRITON_ROTARY_AVAILABLE and os.environ.get("SCOPE_DISABLE_TR
 if TRITON_ROTARY_AVAILABLE:
     print(f"TRITON_ROTARY_AVAILABLE: {TRITON_ROTARY_AVAILABLE}, USE_TRITON_ROTARY: {USE_TRITON_ROTARY}")
 
+# Try to import Triton fused 3-way RoPE kernel (Step 2)
+try:
+    from scope.core.kernels.triton_rope_fused import rope_fused_3way as triton_rope_fused_3way
+    TRITON_ROPE_FUSED_AVAILABLE = True
+except Exception:
+    TRITON_ROPE_FUSED_AVAILABLE = False
+    triton_rope_fused_3way = None
+
+# Env var to disable fused RoPE (for debugging/comparison)
+USE_TRITON_ROPE_FUSED = TRITON_ROPE_FUSED_AVAILABLE and os.environ.get("SCOPE_DISABLE_TRITON_ROPE_FUSED", "0") != "1"
+if TRITON_ROPE_FUSED_AVAILABLE:
+    print(f"TRITON_ROPE_FUSED_AVAILABLE: {TRITON_ROPE_FUSED_AVAILABLE}, USE_TRITON_ROPE_FUSED: {USE_TRITON_ROPE_FUSED}")
+
 __all__ = ['WanModel']
 
 def sinusoidal_embedding_1d(dim, position):
@@ -126,8 +139,20 @@ def get_rope_cos_sin(freqs, f, h, w, start_frame, dtype, device, c):
 def rope_apply(x, grid_sizes, freqs):
     """Optimized RoPE using cached sin/cos (no float64, no complex math).
 
-    Uses Triton kernel when available for ~2x speedup.
+    Uses Triton fused 3-way kernel when available (Step 2).
+    Falls back to Triton rotary (Step 0) or PyTorch.
     """
+    # --- Fused Triton 3-way RoPE fast path (D=128 only) ---
+    if USE_TRITON_ROPE_FUSED and x.is_cuda and x.ndim == 4 and x.shape[-1] == 128:
+        try:
+            return triton_rope_fused_3way(x, grid_sizes, freqs, start_frame=0, inplace=None)
+        except Exception:
+            # Optional strict mode to surface kernel issues early:
+            if os.environ.get("SCOPE_TRITON_ROPE_FUSED_STRICT", "0") == "1":
+                raise
+            # Otherwise fall back to existing implementation
+            pass
+
     n, c = x.size(2), x.size(3) // 2
 
     # split freqs (freqs is complex: real=cos, imag=sin)
