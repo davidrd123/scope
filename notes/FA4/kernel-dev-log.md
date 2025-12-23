@@ -6,10 +6,17 @@ Purpose
 - DeepResearch mapping + recommended sequencing: `notes/FA4/DeepResearch/summary.md`
 
 Current status (2025-12-23)
+- **RoPE Phase 3 Step 2 COMPLETE**: v2 fused kernel achieves **20.2 FPS** (fixed 17.8 FPS regression from v1 padding overhead)
+  - v2 uses unified 64-pair arange (no per-chunk padding)
+  - 2.2x faster than Step 0 baseline in microbench
+  - Tag: `v0.3.0-phase3-step2`
+  - Details: `notes/FA4/phase3-triton-rope.md`
+- **FA4/CUTE deps UNBLOCKED**: `cuda-python==12.9.5` + `nvidia-cutlass-dsl==4.1.0` installed via `uv sync --group fa4`
+  - No conflict with PyTorch inductor
+  - Ready for B1 (CUTE score_mod) experiment
 - Kernel B (KV-cache bias): Triton integrated + pinned for B200; real runs show ~20% FPS uplift at 320x576; profiling shows `p_bias≈89.5%` of **attention-kernel** time (Kernel A is small).
-- Fine-grained `self_attn` breakdown (targeting “what moves the needle”): `self_attn_kv_bias` 27.4%, `qkv_projection` 20.8%, `rope_apply` 15.8%, `self_attn_block_mask` 3.4% → kernel work needs to shift toward RoPE/QKV (and/or a much faster Kernel B backend).
-- RoPE: Phase 1/2.5 landed; Phase 3 Step 0 (FlashAttention Triton rotary) is integrated but wrapper overhead eats most of the kernel win; details in `notes/FA4/phase3-triton-rope.md`.
-- Next bets (highest upside per effort): (1) RoPE fusion (reduce wrapper overhead; fuse 3-way lookup; ideally rotate Q+K together), (2) FA4/CUTE `score_mod` for Kernel B (treat as pass/fail experiment), (3) QKV “overhead hunt” (only if there’s a clear inefficiency; it may already be near GEMM limits).
+- Fine-grained `self_attn` breakdown (targeting "what moves the needle"): `self_attn_kv_bias` 27.4%, `qkv_projection` 20.8%, `rope_apply` 15.8%, `self_attn_block_mask` 3.4% → kernel work needs to shift toward RoPE/QKV (and/or a much faster Kernel B backend).
+- Next bets (highest upside per effort): (1) ~~RoPE fusion~~ **DONE**, (2) FA4/CUTE `score_mod` for Kernel B (deps unblocked, ready to try), (3) RoPE Step 3 tuning (BLOCK_M/H, Q+K fusion).
 
 Amdahl cheat sheet (based on latest fine-grained profile; assumes `self_attn≈51%` of total step time)
 - 2× `self_attn_kv_bias` (~14% of total) → ~7–8% faster end-to-end
@@ -27,11 +34,20 @@ Context (why this exists)
   - Triton prototype kernel track: `scripts/triton_sdpa.py`
   - FA4 backend integration (for non-Flex paths): `src/scope/core/pipelines/wan2_1/modules/attention.py`
 
-DeepResearch docs (source of “what to build”)
+DeepResearch docs (source of "what to build")
 - Kernel project breakdown + sequencing: `notes/FA4/DeepResearch/MSU_chat.md`
 - Profiling workflow note (Nsight Compute loop / Wafer): `notes/FA4/DeepResearch/wafer.md`
 - Repo-specific synthesis + pointers: `notes/FA4/DeepResearch/summary.md`
 - External reviews captured verbatim (useful for onboarding other agents): `notes/FA4/DeepResearch/2025-12-22/MSU.md`, `notes/FA4/DeepResearch/2025-12-22/wafer.md`
+- RoPE Phase 3 fix: `notes/FA4/DeepResearch/2025-12-22/Phase3_02.md`, `Phase3_03.md`
+
+Vendored CUTE reference (pulled 2025-12-23)
+- `vendored/cutlass-cute/python/CuTeDSL/blackwell/fmha.py` (133KB) - Full FMHA for SM100
+- `vendored/cutlass-cute/python/CuTeDSL/blackwell/fmha_bwd.py` (131KB) - FMHA backward
+- `vendored/cutlass-cute/python/CuTeDSL/utils/fmha_helpers.py` - Helper utilities
+- `vendored/cutlass-cute/cute/tutorial/blackwell/` - C++ SM100 MMA tutorials
+- `flash-attention.bak/tests/cute/score_mod_definitions.py` - score_mod examples
+- `flash-attention.bak/flash_attn/cute/interface.py` - FA4 CUTE interface (62KB)
 
 Design split (deliverables)
 - Kernel A (recompute): block-causal attention (dense within block, causal across blocks), no bias.
