@@ -20,18 +20,94 @@ from scope.core.pipelines.wan2_1.modules.attention import attention
 
 logger = logging.getLogger(__name__)
 
+# KV-cache bias backend selection
+# SCOPE_KV_BIAS_BACKEND: fa4 (fastest) | triton (default) | flex (fallback)
+_KV_BIAS_BACKEND = os.getenv("SCOPE_KV_BIAS_BACKEND", "triton").lower()
+
+# FA4 + CUTE score_mod: 1.89x faster than Triton Kernel B on B200
+_fa4_available = False
+_fa4_fwd = None
+_fa4_score_mod_cache = {}
+
+if _KV_BIAS_BACKEND == "fa4":
+    try:
+        import sys
+        # Enable local flash-attention with CUTE score_mod support
+        import os as _os
+        _flash_attn_path = _os.path.join(_os.path.dirname(__file__), "../../../../../flash-attention")
+        if _os.path.exists(_flash_attn_path):
+            sys.path.insert(0, _flash_attn_path)
+        from flash_attn.cute.interface import _flash_attn_fwd as _fa4_fwd
+        import cutlass
+        import cutlass.cute as cute
+        import operator
+        _fa4_available = True
+        logger.info("FA4/CUTE score_mod enabled for KV-cache attention bias (1.89x faster than Triton)")
+    except ImportError as e:
+        logger.warning(f"FA4/CUTE not available, falling back to Triton: {e}")
+        _KV_BIAS_BACKEND = "triton"
+
 # Triton Kernel B: 10.7% faster than flex_attention for KV-cache bias path
-# Set USE_TRITON_KERNEL_B=1 to enable
-USE_TRITON_KERNEL_B = os.getenv("USE_TRITON_KERNEL_B", "1") == "1"
+USE_TRITON_KERNEL_B = _KV_BIAS_BACKEND in ("triton", "fa4")  # fa4 falls back to triton
 _triton_kernel_b = None
 
-if USE_TRITON_KERNEL_B:
+if _KV_BIAS_BACKEND == "triton" or (_KV_BIAS_BACKEND == "fa4" and not _fa4_available):
     try:
         from scope.core.kernels import triton_kernel_b as _triton_kernel_b
         logger.info("Triton Kernel B enabled for KV-cache attention bias")
     except ImportError as e:
         logger.warning(f"Triton Kernel B not available: {e}")
         USE_TRITON_KERNEL_B = False
+
+
+def _get_fa4_score_mod(frame_seqlen: int, block_size: int, log_bias: float):
+    """
+    Get or create a CUTE score_mod for FA4 KV-cache bias.
+
+    Uses closure constants to avoid aux_tensors (keeps vec_size=2 for better perf).
+    Caches compiled score_mods by (frame_seqlen, block_size, log_bias).
+    """
+    if not _fa4_available:
+        return None
+
+    # Round log_bias to avoid cache explosion
+    cache_key = (frame_seqlen, block_size, round(log_bias, 6))
+    if cache_key in _fa4_score_mod_cache:
+        return _fa4_score_mod_cache[cache_key]
+
+    # Closure constants (compile-time)
+    _frame_seqlen = frame_seqlen
+    _block_size = block_size
+    _log_bias = log_bias
+
+    @cute.jit
+    def score_mod_kv_bias(tSrS_ssa, b_idx, h_idx, q_idx, kv_idx, seqlen_info, aux_tensors):
+        # Get runtime Lk from seqlen_info
+        Lk = seqlen_info.seqlen_k
+
+        # Compute block_start = max(0, Lk - block_size)
+        block_start_val = Lk - _block_size
+        block_start_tensor = cute.full_like(kv_idx, 0) + block_start_val
+        zero_tensor = cute.full_like(kv_idx, 0)
+        block_start_tensor = cute.where(
+            operator.ge(block_start_tensor, zero_tensor),
+            block_start_tensor,
+            zero_tensor
+        )
+
+        # Build Region 2 mask: frame_seqlen ≤ kv_idx < block_start
+        frame_seqlen_tensor = cute.full_like(kv_idx, _frame_seqlen)
+        cond_ge = operator.ge(kv_idx, frame_seqlen_tensor)
+        cond_lt = operator.lt(kv_idx, block_start_tensor)
+        past_frame_mask = cond_ge & cond_lt
+
+        # Add log_bias only to Region 2
+        bias_tensor = cute.full_like(tSrS_ssa, _log_bias)
+        return cute.where(past_frame_mask, tSrS_ssa + bias_tensor, tSrS_ssa)
+
+    _fa4_score_mod_cache[cache_key] = score_mod_kv_bias
+    return score_mod_kv_bias
+
 
 # Simple profiler for timing operations
 # Note: Profiling is incompatible with torch.compile - disable if compile is enabled
@@ -665,9 +741,24 @@ class CausalWanSelfAttention(nn.Module):
                 )
 
                 q_len = roped_query.shape[1]
+                block_size = frame_seqlen * self.num_frame_per_block
 
-                if USE_TRITON_KERNEL_B and _triton_kernel_b is not None:
-                    # Triton Kernel B: 10.7% faster, no padding needed
+                if _fa4_available and _KV_BIAS_BACKEND == "fa4":
+                    # FA4 + CUTE score_mod: 1.89x faster than Triton Kernel B
+                    # FA4 expects layout: [B, L, H, D] (already correct)
+                    score_mod_cute = _get_fa4_score_mod(frame_seqlen, block_size, log_scale)
+                    with _ProfileBlock("self_attn_kv_bias_fa4"):
+                        x, _ = _fa4_fwd(
+                            roped_query,
+                            cached_k,
+                            cached_v,
+                            score_mod=score_mod_cute,
+                            causal=False,
+                            return_lse=False,
+                        )
+
+                elif USE_TRITON_KERNEL_B and _triton_kernel_b is not None:
+                    # Triton Kernel B: 10.7% faster than FlexAttention, no padding needed
                     # Input: (B, L, H, D) -> (B, H, L, D)
                     with _ProfileBlock("transpose_contiguous"):
                         Q_t = roped_query.transpose(2, 1).contiguous()
