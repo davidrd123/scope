@@ -1,0 +1,101 @@
+2025-12-23 12:06:18,710 INFO __main__: Timeline duration=5.000s target_frames=80 fps=16
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+2025-12-23 12:06:21,155 INFO CUTE_DSL: `cute.compile` CompileOptions: options=
+2025-12-23 12:06:21,155 INFO CUTE_DSL: Initializing CUTE_DSL DSL
+2025-12-23 12:06:21,155 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,155 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,156 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,156 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,157 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,157 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,157 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,157 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,158 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,158 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,158 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,158 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,158 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,158 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,158 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,158 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,159 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,159 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,159 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,159 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,159 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,159 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,159 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,161 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,163 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,163 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,163 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,163 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,163 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,165 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,165 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,165 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,166 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,166 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,166 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,166 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,166 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,166 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,166 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,166 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,166 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,166 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,166 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,167 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,167 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,167 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,167 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,167 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,167 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,167 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,167 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,167 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,167 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,167 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,167 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,167 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,168 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,168 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,168 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,168 INFO CUTE_DSL: jit_runner
+2025-12-23 12:06:21,169 INFO CUTE_DSL: jit_runner
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Fetching 6 files: 100%|██████████| 6/6 [00:00<00:00, 127745.30it/s]
+2025-12-23 12:06:21,452 INFO scope.core.pipelines.wan2_1.modules.attention: Attention backends: FA2=True, FA3=False, FA4=False, Sage=False
+2025-12-23 12:06:21,454 WARNING scope.core.pipelines.krea_realtime_video.modules.causal_model: FA4/CUTE not available, falling back to Triton: cannot import name 'FastDivmodDivisor' from 'cutlass.cute' (/root/scope/.venv/lib/python3.12/site-packages/nvidia_cutlass_dsl/python_packages/cutlass/cute/__init__.py)
+2025-12-23 12:06:21,455 INFO scope.core.pipelines.krea_realtime_video.modules.causal_model: Triton Kernel B enabled for KV-cache attention bias
+2025-12-23 12:06:21,461 INFO __main__: Loading pipeline=krea-realtime-video device=cuda compile=False quantization=None resolution=576x320 steps=[1000, 750, 500, 250]
+2025-12-23 12:06:21,748 INFO scope.core.pipelines.wan2_1.lora.mixin: _init_loras: Found 1 LoRA configs to load
+2025-12-23 12:06:21,748 INFO scope.core.pipelines.wan2_1.lora.manager: KreaRealtimeVideoPipeline.__init__: Loading 1 LoRA(s) with permanent_merge strategy
+2025-12-23 12:06:21,758 INFO scope.core.pipelines.wan2_1.lora.strategies.peft_lora: load_adapter: Loading LoRA from /root/.daydream-scope/models/lora/yeti_10bucket_v3_14b_8500steps.safetensors as adapter 'yeti_10bucket_v3_14b_8500steps'
+2025-12-23 12:06:21,774 INFO scope.core.pipelines.wan2_1.lora.strategies.peft_lora: load_adapter: Mapped 400 LoRA layers to model parameters
+2025-12-23 12:06:24,421 INFO scope.core.pipelines.wan2_1.lora.strategies.peft_lora: _inject_lora_layers: Loaded 400 LoRA weight pairs
+2025-12-23 12:06:24,432 INFO scope.core.pipelines.wan2_1.lora.strategies.peft_lora: load_adapter: Loaded adapter 'yeti_10bucket_v3_14b_8500steps' in 2.674s
+2025-12-23 12:06:46,265 INFO scope.core.pipelines.wan2_1.lora.mixin: _init_loras: Completed, loaded 1 LoRA adapters
+2025-12-23 12:06:52,518 INFO root: loading /root/.daydream-scope/models/Wan2.1-T2V-1.3B/Wan2.1_VAE.pth
+2025-12-23 12:07:07,459 INFO __main__: Progress: 81/80 frames (5.1s/5.0s)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+2025-12-23 12:07:07,701 INFO __main__: Wrote outputs/b300_320x576_fa4.mp4 (80 frames @ 16fps)
+Exception ignored in atexit callback: <function move_cutlass_compiled_cache at 0x701aa2fcdb20>
+Traceback (most recent call last):
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_inductor/codegen/cuda/cutlass_utils.py", line 39, in move_cutlass_compiled_cache
+    if not os.path.exists(cutlass.CACHE_FILE):
+                          ^^^^^^^^^^^^^^^^^^
+AttributeError: module 'cutlass' has no attribute 'CACHE_FILE'
+2025-12-23 12:07:08,115 INFO CUTE_DSL: JIT cache : dumping [CUTE_DSL] items=[0]
+Warning: Could not load sageattention: No module named 'sageattention'
+sageattention package is not installed
+SAGEATTN_AVAILABLE: False
+TRITON_ROTARY_AVAILABLE: True, USE_TRITON_ROTARY: True
+TRITON_ROPE_FUSED_AVAILABLE: True, USE_TRITON_ROPE_FUSED: True
+Loaded diffusion model in 0.079030s
+Loaded text encoder in 0.286415s
+Loaded VAE in 0.111s
+Warmed up (3 runs) in 5.04s
+ELAPSED_SEC=50.89

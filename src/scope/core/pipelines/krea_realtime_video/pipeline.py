@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from typing import TYPE_CHECKING
 
@@ -30,8 +31,10 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_DENOISING_STEP_LIST = [1000, 750, 500, 250]
 # This default value < 1.0 will trigger torch.compile in the flex_attention code path
-# during warmup
-DEFAULT_KV_CACHE_ATTENTION_BIAS = 0.3
+# during warmup. Set SCOPE_KV_CACHE_ATTENTION_BIAS=1.0 to disable bias (faster on B300).
+DEFAULT_KV_CACHE_ATTENTION_BIAS = float(
+    os.getenv("SCOPE_KV_CACHE_ATTENTION_BIAS", "0.3")
+)
 
 WARMUP_PROMPT = [{"text": "a majestic sunset", "weight": 1.0}]
 

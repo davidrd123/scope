@@ -27,12 +27,12 @@ logger = logging.getLogger(__name__)
 # Monkey patching these values in aiortc don't seem to work as expected
 # The expected behavior is for the bitrate calculations to set a bitrate based on the ceiling, floor and defaults
 # For now, these values were set kind of arbitrarily to increase the bitrate
-h264.MAX_FRAME_RATE = 8
+h264.MAX_FRAME_RATE = 30
 h264.DEFAULT_BITRATE = 7000000
 h264.MIN_BITRATE = 5000000
 h264.MAX_BITRATE = 10000000
 
-vpx.MAX_FRAME_RATE = 8
+vpx.MAX_FRAME_RATE = 30
 vpx.DEFAULT_BITRATE = 7000000
 vpx.MIN_BITRATE = 5000000
 vpx.MAX_BITRATE = 10000000

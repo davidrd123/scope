@@ -4,6 +4,7 @@ import functools
 import logging
 import math
 import os
+import subprocess
 from collections import defaultdict
 
 import torch
@@ -20,9 +21,29 @@ from scope.core.pipelines.wan2_1.modules.attention import attention
 
 logger = logging.getLogger(__name__)
 
+def _is_sm103() -> bool:
+    """Return True on B300 (SM103)."""
+    try:
+        return (
+            torch.cuda.is_available()
+            and torch.cuda.get_device_capability(0) == (10, 3)
+        )
+    except Exception:
+        return False
+
+
 # KV-cache bias backend selection
-# SCOPE_KV_BIAS_BACKEND: fa4 (fastest) | triton (default) | flex (fallback)
-_KV_BIAS_BACKEND = os.getenv("SCOPE_KV_BIAS_BACKEND", "triton").lower()
+# SCOPE_KV_BIAS_BACKEND:
+# - fa4:   FA4/CUTE score_mod (fastest when available; requires CUTLASS DSL)
+# - flash: Bias via FlashAttention segment-combine (no score_mod; SM103 default)
+# - triton: Triton Kernel B (SM100 default)
+# - flex:  torch.nn.attention.flex_attention fallback
+_env_kv_bias_backend = os.getenv("SCOPE_KV_BIAS_BACKEND")
+_KV_BIAS_BACKEND = (
+    _env_kv_bias_backend.lower()
+    if _env_kv_bias_backend
+    else ("flash" if _is_sm103() else "triton")
+)
 
 # FA4 + CUTE score_mod: 1.89x faster than Triton Kernel B on B200
 _fa4_available = False
@@ -31,30 +52,49 @@ _fa4_score_mod_cache = {}
 
 if _KV_BIAS_BACKEND == "fa4":
     try:
-        import sys
-        # Enable local flash-attention with CUTE score_mod support
-        import os as _os
-        _flash_attn_path = _os.path.join(_os.path.dirname(__file__), "../../../../../flash-attention")
-        if _os.path.exists(_flash_attn_path):
-            sys.path.insert(0, _flash_attn_path)
+        import inspect
+        import operator
+        from pathlib import Path
+
+        import flash_attn as _flash_attn
+
+        def _extend_flash_attn_path_for_score_mod() -> None:
+            try:
+                base_path = Path(__file__).resolve()
+            except Exception:
+                return
+            for parent in base_path.parents:
+                for repo_dir in ("flash-attention", "flash-attention.bak"):
+                    candidate = parent / repo_dir / "flash_attn"
+                    if candidate.is_dir():
+                        candidate_str = str(candidate)
+                        if candidate_str not in _flash_attn.__path__:
+                            _flash_attn.__path__.insert(0, candidate_str)
+                        return
+
+        _extend_flash_attn_path_for_score_mod()
         from flash_attn.cute.interface import _flash_attn_fwd as _fa4_fwd
+        if "score_mod" not in inspect.signature(_fa4_fwd).parameters:
+            raise ImportError(
+                "FA4/CUTE score_mod requires the local flash-attention repo; "
+                "_flash_attn_fwd() lacks score_mod in this environment."
+            )
         import cutlass
         import cutlass.cute as cute
-        import operator
         _fa4_available = True
         logger.info("FA4/CUTE score_mod enabled for KV-cache attention bias (1.89x faster than Triton)")
-    except ImportError as e:
+    except Exception as e:
         logger.warning(f"FA4/CUTE not available, falling back to Triton: {e}")
         _KV_BIAS_BACKEND = "triton"
 
-# Triton Kernel B: 10.7% faster than flex_attention for KV-cache bias path
-USE_TRITON_KERNEL_B = _KV_BIAS_BACKEND in ("triton", "fa4")  # fa4 falls back to triton
+# Triton Kernel B: fast fallback for KV-cache bias path
+USE_TRITON_KERNEL_B = _KV_BIAS_BACKEND in ("triton", "fa4", "flash")  # fa4/flash fall back to triton
 _triton_kernel_b = None
 
-if _KV_BIAS_BACKEND == "triton" or (_KV_BIAS_BACKEND == "fa4" and not _fa4_available):
+if USE_TRITON_KERNEL_B:
     try:
         from scope.core.kernels import triton_kernel_b as _triton_kernel_b
-        logger.info("Triton Kernel B enabled for KV-cache attention bias")
+        logger.info("Triton Kernel B available for KV-cache attention bias")
     except ImportError as e:
         logger.warning(f"Triton Kernel B not available: {e}")
         USE_TRITON_KERNEL_B = False
@@ -107,6 +147,172 @@ def _get_fa4_score_mod(frame_seqlen: int, block_size: int, log_bias: float):
 
     _fa4_score_mod_cache[cache_key] = score_mod_kv_bias
     return score_mod_kv_bias
+
+
+_flash_bias_fa4_fwd = None
+_flash_bias_tripped = False
+
+
+def _get_fa4_fwd():
+    global _flash_bias_fa4_fwd
+    if _flash_bias_fa4_fwd is not None:
+        return _flash_bias_fa4_fwd
+    try:
+        from flash_attn.cute.interface import _flash_attn_fwd
+
+        _flash_bias_fa4_fwd = _flash_attn_fwd
+    except Exception:
+        _flash_bias_fa4_fwd = None
+    return _flash_bias_fa4_fwd
+
+
+_cu_seqlens_cache: dict[tuple[str, int, int], torch.Tensor] = {}
+
+
+def _get_cu_seqlens(device: torch.device, batch_size: int, seqlen: int) -> torch.Tensor:
+    key = (str(device), int(batch_size), int(seqlen))
+    cached = _cu_seqlens_cache.get(key)
+    if cached is not None:
+        return cached
+    cu = torch.arange(
+        0,
+        (batch_size + 1) * seqlen,
+        step=seqlen,
+        device=device,
+        dtype=torch.int32,
+    )
+    _cu_seqlens_cache[key] = cu
+    return cu
+
+
+def _flash_attn_with_lse(
+    q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, softmax_scale: float
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Compute attention output + LSE for segment-combine KV-cache bias.
+
+    Returns:
+        out: [B, Lq, H, D]
+        lse: [B, Lq, H] (float32)
+    """
+    fa4_fwd = _get_fa4_fwd()
+    if fa4_fwd is not None:
+        out, lse = fa4_fwd(
+            q,
+            k,
+            v,
+            softmax_scale=softmax_scale,
+            causal=False,
+            return_lse=True,
+        )
+        if lse is None:
+            raise RuntimeError("FA4 _flash_attn_fwd returned lse=None with return_lse=True")
+        if lse.dim() == 3:
+            # [B, H, Lq] -> [B, Lq, H]
+            lse = lse.transpose(1, 2)
+        elif lse.dim() == 2:
+            # [H, total_q] -> [B, Lq, H]
+            b, lq = q.shape[:2]
+            lse = lse.transpose(0, 1).reshape(b, lq, -1)
+        else:
+            raise RuntimeError(f"Unexpected lse shape from FA4: {tuple(lse.shape)}")
+        return out, lse
+
+    from flash_attn.flash_attn_interface import _flash_attn_varlen_forward
+
+    b, lq, _h, _d = q.shape
+    lk = k.shape[1]
+    q_flat = q.reshape(b * lq, q.shape[2], q.shape[3])
+    k_flat = k.reshape(b * lk, k.shape[2], k.shape[3])
+    v_flat = v.reshape(b * lk, v.shape[2], v.shape[3])
+    cu_seqlens_q = _get_cu_seqlens(q.device, b, lq)
+    cu_seqlens_k = _get_cu_seqlens(q.device, b, lk)
+    out_flat, softmax_lse, _s_dmask, _rng_state = _flash_attn_varlen_forward(
+        q_flat,
+        k_flat,
+        v_flat,
+        cu_seqlens_q,
+        cu_seqlens_k,
+        lq,
+        lk,
+        0.0,  # dropout_p
+        softmax_scale,
+        False,  # causal
+    )
+    out = out_flat.reshape(b, lq, q.shape[2], v.shape[3])
+    lse = softmax_lse.transpose(0, 1).reshape(b, lq, -1)
+    return out, lse
+
+
+def _merge_out_lse(
+    out_a: torch.Tensor,
+    lse_a: torch.Tensor,
+    out_b: torch.Tensor,
+    lse_b: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Merge two attention results from disjoint KV segments.
+
+    Shapes:
+      out_*: [B, Lq, H, D]
+      lse_*: [B, Lq, H] (float32)
+    """
+    lse_a = lse_a.to(torch.float32)
+    lse_b = lse_b.to(torch.float32)
+    lse_new = torch.logaddexp(lse_a, lse_b)
+    w_a = torch.exp(lse_a - lse_new)
+    w_b = torch.exp(lse_b - lse_new)
+    out_new = out_a.to(torch.float32) * w_a.unsqueeze(-1) + out_b.to(torch.float32) * w_b.unsqueeze(-1)
+    return out_new, lse_new
+
+
+def _kv_bias_flash_combine(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    frame_seqlen: int,
+    current_block_start: int,
+    log_bias: float,
+) -> torch.Tensor:
+    """
+    Exact KV-bias attention using FlashAttention segment combine.
+
+    This reproduces the score_mod rule:
+      add log_bias for kv_idx in [frame_seqlen, current_block_start)
+    without requiring a score_mod-capable kernel.
+    """
+    lk = int(k.shape[1])
+    if lk == 0 or log_bias == 0.0:
+        return attention(q, k, v)
+
+    frame_end = max(0, min(int(frame_seqlen), lk))
+    block_start = max(0, min(int(current_block_start), lk))
+    if block_start <= frame_end:
+        # No biased region; matches the score_mod condition always being False.
+        return attention(q, k, v)
+
+    softmax_scale = 1.0 / math.sqrt(q.shape[-1])
+
+    out_accum = None
+    lse_accum = None
+    for seg_start, seg_end, seg_log_w in (
+        (0, frame_end, 0.0),
+        (frame_end, block_start, float(log_bias)),
+        (block_start, lk, 0.0),
+    ):
+        if seg_end <= seg_start:
+            continue
+        out_seg, lse_seg = _flash_attn_with_lse(q, k[:, seg_start:seg_end], v[:, seg_start:seg_end], softmax_scale)
+        if seg_log_w != 0.0:
+            lse_seg = lse_seg + seg_log_w
+        if out_accum is None:
+            out_accum = out_seg
+            lse_accum = lse_seg
+            continue
+        out_accum, lse_accum = _merge_out_lse(out_accum, lse_accum, out_seg, lse_seg)
+
+    assert out_accum is not None
+    return out_accum.to(dtype=q.dtype)
 
 
 # Simple profiler for timing operations
@@ -196,9 +402,84 @@ from .model import (
     triton_rope_fused_3way,
 )
 
-flex_attention = torch.compile(
-    flex_attention, dynamic=False, mode="max-autotune-no-cudagraphs"
-)
+_FLEX_ATTENTION_EAGER = flex_attention
+_FLEX_ATTENTION_COMPILED = None
+_FLEX_ATTENTION_USE_EAGER = False
+_FLEX_ATTENTION_DISABLE_COMPILE = os.getenv("DISABLE_FLEX_ATTENTION_COMPILE", "0") == "1"
+
+
+def _maybe_set_triton_ptxas_path() -> None:
+    if os.getenv("TRITON_PTXAS_PATH"):
+        return
+
+    candidates = [
+        "/usr/local/cuda-13.1/bin/ptxas",
+        "/usr/local/cuda-13.0/bin/ptxas",
+        "/usr/local/cuda-12.9/bin/ptxas",
+        "/usr/local/cuda/bin/ptxas",
+        "/usr/local/cuda-12.8/bin/ptxas",
+    ]
+
+    def supports_sm103(ptxas_path: str) -> bool:
+        try:
+            proc = subprocess.run(
+                [ptxas_path, "--help"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=2,
+            )
+        except Exception:
+            return False
+        return proc.returncode == 0 and "sm_103" in (proc.stdout or "")
+
+    # Prefer a ptxas that explicitly supports SM103 (B300).
+    for candidate in candidates:
+        if os.path.exists(candidate) and supports_sm103(candidate):
+            os.environ["TRITON_PTXAS_PATH"] = candidate
+            logger.info("Set TRITON_PTXAS_PATH=%s (supports SM103)", candidate)
+            return
+
+    # Fall back to the first ptxas we can find.
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            os.environ["TRITON_PTXAS_PATH"] = candidate
+            logger.info("Set TRITON_PTXAS_PATH=%s", candidate)
+            return
+
+
+def _flex_attention_first_call(*args, **kwargs):
+    """
+    Lazily compile flex_attention and fall back to eager if compilation fails.
+
+    This makes B300/SM103 bringup less brittle: toolchain mismatches (e.g., old ptxas)
+    can surface as Inductor/Triton compilation failures.
+    """
+    global _FLEX_ATTENTION_COMPILED, _FLEX_ATTENTION_USE_EAGER, flex_attention
+
+    if _FLEX_ATTENTION_USE_EAGER or _FLEX_ATTENTION_DISABLE_COMPILE:
+        flex_attention = _FLEX_ATTENTION_EAGER
+        return _FLEX_ATTENTION_EAGER(*args, **kwargs)
+
+    _maybe_set_triton_ptxas_path()
+    if _FLEX_ATTENTION_COMPILED is None:
+        _FLEX_ATTENTION_COMPILED = torch.compile(
+            _FLEX_ATTENTION_EAGER, dynamic=False, mode="max-autotune-no-cudagraphs"
+        )
+
+    try:
+        out = _FLEX_ATTENTION_COMPILED(*args, **kwargs)
+    except Exception as e:
+        _FLEX_ATTENTION_USE_EAGER = True
+        flex_attention = _FLEX_ATTENTION_EAGER
+        logger.warning("flex_attention compile failed; falling back to eager: %s", e)
+        return _FLEX_ATTENTION_EAGER(*args, **kwargs)
+
+    flex_attention = _FLEX_ATTENTION_COMPILED
+    return out
+
+
+flex_attention = _flex_attention_first_call
 
 # Constants for flex_attention operations
 FLEX_ATTENTION_ALIGNMENT = 128
@@ -743,6 +1024,8 @@ class CausalWanSelfAttention(nn.Module):
                 q_len = roped_query.shape[1]
                 block_size = frame_seqlen * self.num_frame_per_block
 
+                x = None
+
                 if _fa4_available and _KV_BIAS_BACKEND == "fa4":
                     # FA4 + CUTE score_mod: 1.89x faster than Triton Kernel B
                     # FA4 expects layout: [B, L, H, D] (already correct)
@@ -757,8 +1040,28 @@ class CausalWanSelfAttention(nn.Module):
                             return_lse=False,
                         )
 
-                elif USE_TRITON_KERNEL_B and _triton_kernel_b is not None:
-                    # Triton Kernel B: 10.7% faster than FlexAttention, no padding needed
+                elif _KV_BIAS_BACKEND == "flash":
+                    global _flash_bias_tripped
+                    if not _flash_bias_tripped:
+                        try:
+                            with _ProfileBlock("self_attn_kv_bias_flash"):
+                                x = _kv_bias_flash_combine(
+                                    roped_query,
+                                    cached_k,
+                                    cached_v,
+                                    frame_seqlen=frame_seqlen,
+                                    current_block_start=cache_current_block_start,
+                                    log_bias=log_scale,
+                                )
+                        except Exception as e:
+                            _flash_bias_tripped = True
+                            logger.warning(
+                                "KV-bias flash backend failed; falling back to Triton: %s",
+                                e,
+                            )
+
+                if x is None and USE_TRITON_KERNEL_B and _triton_kernel_b is not None:
+                    # Triton Kernel B: no padding needed
                     # Input: (B, L, H, D) -> (B, H, L, D)
                     with _ProfileBlock("transpose_contiguous"):
                         Q_t = roped_query.transpose(2, 1).contiguous()
@@ -773,7 +1076,8 @@ class CausalWanSelfAttention(nn.Module):
                             current_block_start=cache_current_block_start,
                             log_bias=log_scale,
                         ).transpose(2, 1)  # (B, H, L, D) -> (B, L, H, D)
-                else:
+
+                if x is None:
                     # Fallback: flex_attention with padding
                     kv_len = cached_k.shape[1]
                     target_padded_length = (

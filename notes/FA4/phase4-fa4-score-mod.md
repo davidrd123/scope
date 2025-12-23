@@ -13,13 +13,20 @@ This doc is a plan + integration sketch so other models/people can critique it q
 ### What’s working
 - **RoPE Phase 3 Step 2 (v2 fused)** is complete and the default; perf is back to ~20 FPS on B200. See `notes/FA4/phase3-triton-rope.md`.
 - **Kernel B Triton** is integrated in `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` and beats flex_attention on the real shape.
+- **B1: FA4/CUTE score_mod KV-bias** is integrated (opt-in):
+  - Backend selector: `SCOPE_KV_BIAS_BACKEND=fa4|triton|flex` (default `triton`)
+  - Implementation: `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
+  - Test harness: `scripts/test_fa4_kv_bias.py`
 
-### What’s missing for “CuTe score_mod”
-- The installed wheel `flash-attn==2.8.3` exposes `flash_attn.cute.flash_attn_varlen_func(...)`, but **it does not accept `score_mod`** (signature check confirms this).
-- We *do* have a newer FA4 CuTe implementation with `score_mod` support in `flash-attention.bak/flash_attn/cute/interface.py`.
-- `src/scope/core/pipelines/wan2_1/modules/attention.py` has an `_extend_flash_attn_path()` hook that will prefer a local `flash-attention/flash_attn` tree if present — but the repo currently has `flash-attention.bak/`, not `flash-attention/`.
+### Results (B200 / SM100)
+- Kernel B latency (steady-state): **~0.54ms (FA4)** vs **~1.02ms (Triton)** → **~1.9× faster** Kernel B.
+- End-to-end FPS uplift observed: **~+3–6%** (depends on resolution / workload mix).
 
-**Implication:** before we can even prototype FA4 `score_mod`, we must make sure the runtime imports a `flash_attn.cute.flash_attn_varlen_func` that supports it (either by switching to a newer wheel, or by using the local `flash-attention.bak` code via the path hook).
+### What changed to make “CuTe score_mod” work
+- The installed wheel `flash-attn==2.8.3` exposes `flash_attn.cute.flash_attn_varlen_func(...)`, but it **does not accept `score_mod`**.
+- We use the newer CuTe interface with `score_mod` support from `flash-attention.bak/flash_attn/cute/interface.py`:
+  - Local path is enabled via `flash-attention -> flash-attention.bak` symlink (the directory is gitignored).
+  - KV-bias FA4 path imports and calls `flash_attn.cute.interface._flash_attn_fwd(...)` directly (not the wheel’s `flash_attn.cute.flash_attn_varlen_func`).
 
 ## Goal (Phase 4)
 
@@ -86,10 +93,8 @@ We need `flash_attn.cute.flash_attn_varlen_func` to accept `score_mod=...` (and 
 Two options:
 
 **Option 0A (preferred for iteration): use local `flash-attention.bak` code**
-- Create `flash-attention/` (symlink to `flash-attention.bak/`) so `_extend_flash_attn_path()` in `src/scope/core/pipelines/wan2_1/modules/attention.py` finds it.
-- In a fresh process, verify:
-  - `import inspect; from flash_attn.cute import flash_attn_varlen_func; inspect.signature(...)` includes `score_mod`.
-- Keep this behind an env guard if you want safety (e.g., `SCOPE_USE_LOCAL_FLASH_ATTN_CUTE=1`), but the directory is already `.gitignore`’d.
+- ✅ Create `flash-attention/` (symlink to `flash-attention.bak/`) so local CuTe code is importable.
+- ✅ Import `flash_attn.cute.interface._flash_attn_fwd` (supports `score_mod`) from the local tree.
 
 **Option 0B: upgrade/replace the wheel**
 - Install a flash-attn build that exposes the score_mod CuTe interface.
@@ -210,4 +215,3 @@ Goal: implement FA4/CuTe DSL `score_mod` for Krea KV-cache bias attention (Kerne
 4) Propose a microbench harness (new script or extend `scripts/triton_sdpa.py`) that compares:
    - FA4 score_mod vs Triton Kernel B vs flex_attention score_mod
    using the real shape: `B=1,H=16,D=128,Lq=4680,Lk=9360` and several early-cache `Lk` values.
-

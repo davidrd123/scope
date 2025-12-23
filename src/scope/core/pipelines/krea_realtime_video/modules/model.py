@@ -12,6 +12,19 @@ from einops import repeat
 from scope.core.pipelines.wan2_1.modules.attention import flash_attention, sageattn_func, SAGEATTN_AVAILABLE, FLASH_ATTN_2_AVAILABLE, FLASH_ATTN_3_AVAILABLE
 print("SAGEATTN_AVAILABLE:", SAGEATTN_AVAILABLE)
 
+# On B300 (SM103), Triton will fail to compile if it uses an older bundled `ptxas`
+# that doesn't recognize `sm_103a`. Prefer a newer system toolkit when available.
+if "TRITON_PTXAS_PATH" not in os.environ:
+    for _candidate in (
+        "/usr/local/cuda-13.1/bin/ptxas",
+        "/usr/local/cuda-13.0/bin/ptxas",
+        "/usr/local/cuda-12.9/bin/ptxas",
+        "/usr/local/cuda/bin/ptxas",
+    ):
+        if os.path.exists(_candidate):
+            os.environ["TRITON_PTXAS_PATH"] = _candidate
+            break
+
 # Try to import Triton rotary kernel
 try:
     from scope.core.kernels.triton_rotary import apply_rotary as triton_apply_rotary

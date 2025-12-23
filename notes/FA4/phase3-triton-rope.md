@@ -122,6 +122,12 @@ Simple Triton kernel that rotates `x` using pre-materialized `cos/sin`:
 
 **Full pipeline:** 20.2 FPS (v2 default)
 
+**Block tuning (300 iters, pad-to-multiple=128):**
+- Sweeped `BLOCK_M ∈ {8,16}`, `BLOCK_H ∈ {1,2}`.
+- Results were extremely close; best was **M=8, H=2**:
+  - `rope_apply` ~0.066 ms, `triton_rope_fused_3way` ~0.065 ms.
+- Decision: keep default `BLOCK_M=8`, `BLOCK_H=2`.
+
 **Docs:**
 - `notes/FA4/phase3-triton-rope-step2.md` - Step 2 spec
 - `notes/FA4/DeepResearch/2025-12-22/Phase3_01.md` - GPT-5 Pro v1 draft

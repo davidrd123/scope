@@ -15,12 +15,12 @@ import triton
 import triton.language as tl
 
 
-# Check if we're on B200/Blackwell (compute capability >= 10.0)
+# Check if we're on B200 (SM100). B300 (SM103) often benefits from autotune.
 def _is_b200():
     if not torch.cuda.is_available():
         return False
     props = torch.cuda.get_device_properties(0)
-    return props.major >= 10
+    return props.major == 10 and props.minor == 0
 
 
 # B200-optimized config (from tuning sweep)

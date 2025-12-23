@@ -14,16 +14,37 @@ Usage:
 import sys
 import os
 import math
+import inspect
+from pathlib import Path
 import torch
 
-# Enable local flash-attention
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+def _extend_flash_attn_path_for_score_mod() -> None:
+    import flash_attn as _flash_attn
+
+    try:
+        base_path = Path(__file__).resolve()
+    except Exception:
+        return
+    for parent in base_path.parents:
+        for repo_dir in ("flash-attention", "flash-attention.bak"):
+            candidate = parent / repo_dir / "flash_attn"
+            if candidate.is_dir():
+                candidate_str = str(candidate)
+                if candidate_str not in _flash_attn.__path__:
+                    _flash_attn.__path__.insert(0, candidate_str)
+                return
 
 import cutlass
 import cutlass.cute as cute
 import operator
 
+_extend_flash_attn_path_for_score_mod()
 from flash_attn.cute.interface import _flash_attn_fwd
+if "score_mod" not in inspect.signature(_flash_attn_fwd).parameters:
+    raise SystemExit(
+        "flash_attn.cute.interface._flash_attn_fwd() does not support score_mod. "
+        "Ensure the local flash-attention repo is available (flash-attention.bak)."
+    )
 
 # Try to import FlexAttention for reference
 try:

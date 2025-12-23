@@ -14,9 +14,23 @@ Milestones:
 - M4: Autotune + early exit optimization
 """
 
+import os
+
+if "TRITON_PTXAS_PATH" not in os.environ:
+    for _candidate in (
+        "/usr/local/cuda-13.1/bin/ptxas",
+        "/usr/local/cuda-13.0/bin/ptxas",
+        "/usr/local/cuda-12.9/bin/ptxas",
+        "/usr/local/cuda/bin/ptxas",
+    ):
+        if os.path.exists(_candidate):
+            os.environ["TRITON_PTXAS_PATH"] = _candidate
+            break
+
 import torch
 import triton
 import triton.language as tl
+from contextlib import contextmanager
 
 
 # =============================================================================
@@ -1132,6 +1146,19 @@ def benchmark_kernel_b():
         has_flex = False
         return
 
+    @contextmanager
+    def nvtx_range(name: str):
+        try:
+            torch.cuda.nvtx.range_push(name)
+            yield
+        except Exception:
+            yield
+        finally:
+            try:
+                torch.cuda.nvtx.range_pop()
+            except Exception:
+                pass
+
     # Krea target shape
     B, H, Lq, Lk, D = 1, 16, 4680, 9360, 128
     frame_seqlen = 1560
@@ -1182,10 +1209,11 @@ def benchmark_kernel_b():
 
     # Benchmark Triton
     torch.cuda.synchronize()
-    start = time.perf_counter()
-    for _ in range(50):
-        _ = triton_kernel_b(Q, K, V, frame_seqlen, current_block_start, log_bias)
-    torch.cuda.synchronize()
+    with nvtx_range("kernel_b_triton_bench"):
+        start = time.perf_counter()
+        for _ in range(50):
+            _ = triton_kernel_b(Q, K, V, frame_seqlen, current_block_start, log_bias)
+        torch.cuda.synchronize()
     triton_time = (time.perf_counter() - start) / 50 * 1000
 
     print(f"Triton Kernel B: {triton_time:.3f} ms")

@@ -27,6 +27,9 @@ Recommended env var (set before importing anything that triggers Triton compilat
 export TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
 ```
 
+Note: Triton often uses its bundled `ptxas` by default (inside the Python wheel), which may be
+too old for SM103. The above override forces the system toolkit `ptxas` instead.
+
 If `torch.compile(flex_attention, ...)` still fails after this, *then* it’s likely a genuine SM103 support gap in the PyTorch/Triton stack.
 
 ### B200 vs B300
