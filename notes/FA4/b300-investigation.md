@@ -4,8 +4,30 @@
 - **GPU**: NVIDIA B300 SXM6 AC → now testing on **B200**
 - **Compute Capability**: SM103 (10.3) for B300, **SM100 (10.0) for B200**
 - **PyTorch**: 2.8.0+cu128
-- **CUDA**: 12.8
+- **CUDA**: 12.8 (historical on B300)
 - **Python**: 3.12.3
+
+## Update: SM103 requires newer `ptxas` (CUDA 12.9+)
+
+The earlier B300 failures included:
+- `ptxas fatal: Value 'sm_103a' is not defined for option 'gpu-name'`
+- `NoValidChoicesError: target: flex_attention` during `torch.compile` autotune
+
+These can happen when Triton/Inductor is assembling with an older `ptxas` (e.g., CUDA 12.8).
+
+**Fix:** ensure Triton uses a CUDA toolkit whose `ptxas` supports SM103, e.g. CUDA **12.9+**.
+
+On the machine backing this repo, CUDA 12.9 is installed and supports SM103:
+```bash
+/usr/local/cuda-12.9/bin/ptxas --help | rg "sm_103"
+```
+
+Recommended env var (set before importing anything that triggers Triton compilation):
+```bash
+export TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
+```
+
+If `torch.compile(flex_attention, ...)` still fails after this, *then* it’s likely a genuine SM103 support gap in the PyTorch/Triton stack.
 
 ### B200 vs B300
 - B200 = SM100 (officially supported by PyTorch flex_attention and FA4/CUTE)
@@ -110,7 +132,9 @@ FA4 can only be used in isolation (benchmarks). Cannot coexist with render_timel
 Even without FA4 deps, `render_timeline` fails on B300 with `NoValidChoicesError` for `flex_attention`.
 
 ### Root Cause Hypothesis
-PyTorch 2.8's inductor doesn't have complete SM103 kernel support for flex_attention's "max-autotune-no-cudagraphs" compilation mode.
+Most likely: Triton/Inductor is using an older `ptxas` that doesn’t recognize `sm_103a`, so all candidate kernels fail to assemble and autotune surfaces `NoValidChoicesError`.
+
+Secondary possibility (if using CUDA 12.9+ `ptxas` doesn’t fix it): PyTorch 2.8’s inductor lacks complete SM103 kernel support for flex_attention’s `"max-autotune-no-cudagraphs"` mode.
 
 ### What We Tried
 
@@ -276,6 +300,195 @@ So uncompiled flex_attention may also have issues - need to debug why `self_attn
 3. **Check if H100 works**: Compare behavior on different GPU
 
 4. **Debug the tuple return**: If uncompiled fails, trace where tuple comes from
+
+---
+
+## 2025-12-23 Analysis: FA4 + score_mod SM103 Compatibility
+
+### Overview
+Analysis of what's needed to run the FA4/CUTE `score_mod` path (Kernel B) on B300 (SM103).
+
+### Current State on B200 (SM100)
+- **Kernel B with FA4/CUTE score_mod**: 0.54ms (1.89x faster than Triton)
+- **Kernel B with Triton**: 1.02ms
+- Backend selection: `SCOPE_KV_BIAS_BACKEND=fa4|triton|flex`
+
+### CUTE Files Touched by `_flash_attn_fwd` with `score_mod`
+
+The FA4 score_mod path invokes these files when `compute_capability == 10`:
+
+```
+flash_attn/cute/
+├── interface.py           # Entry point - _flash_attn_fwd()
+├── flash_fwd_sm100.py     # FlashAttentionForwardSm100 class
+│   ├── imports tcgen05 (mma, copy)
+│   ├── imports cpasync (copy)
+│   └── uses apply_score_mod_inner from softmax.py
+├── softmax.py             # SoftmaxSm100, apply_score_mod_inner()
+│   └── score_mod is called here with (batch_idx, head_idx, q_idx, kv_idx)
+├── blackwell_helpers.py   # tcgen05 gemm operations
+├── mma_sm100_desc.py      # MMA instruction descriptors
+└── pipeline.py            # Pipeline utilities
+```
+
+### nvidia-cutlass-dsl Files Requiring SM103 Patches
+
+The existing `scripts/patch_cutlass_sm103.py` patches:
+
+| File | Purpose | Patch Type |
+|------|---------|------------|
+| `cute/arch/mbar.py` | mbarrier operations | Add 103 to `_VALID_ARCHS` |
+| `cute/arch/elect.py` | elect operations | Add 103 to `_VALID_ARCHS` |
+| `cute/nvgpu/tcgen05/mma.py` | TensorCore Gen 05 MMA | Add 103 to `_VALID_ARCHS` |
+| `cute/nvgpu/tcgen05/copy.py` | TensorCore Gen 05 copy | Add 103 to `_VALID_ARCHS` |
+| `cute/nvgpu/cpasync/copy.py` | Async copy | Add 103 to `_VALID_ARCHS` |
+
+**Verdict**: The patch covers ALL tcgen05/cpasync modules used by the score_mod path.
+
+### New SM103 Compatibility Layer
+
+Created: `src/scope/core/compat/sm103.py`
+
+Features:
+1. **Auto-detection**: `is_sm100()`, `is_sm103()`, `is_blackwell()`
+2. **Auto-patching**: `patch_cutlass_for_sm103()` - patches cutlass-dsl on import
+3. **Backend recommendation**: `get_recommended_backend()` - returns safe defaults
+4. **Capability info**: `get_capability_info()` - debug helper
+
+Usage:
+```python
+from scope.core.compat.sm103 import (
+    is_sm103, patch_cutlass_for_sm103, get_recommended_backend
+)
+
+# Auto-detect and get safe backend
+backend = get_recommended_backend()  # "triton" on SM103, "fa4" or "triton" on SM100
+```
+
+### SM103 Adaptation Risks
+
+| Component | Risk Level | Notes |
+|-----------|------------|-------|
+| Triton Kernel B | **Low** | JIT compiles to target GPU, may need retuning |
+| Triton RoPE v2 | **Low** | Same as above |
+| FA4/CUTE score_mod | **Medium** | Needs patching, untested on real SM103 |
+| flex_attention (compiled) | **High** | torch._inductor lacks SM103 kernels |
+| FA4 → Triton fallback | **Low** | Already implemented in causal_model.py |
+
+### Recommended Testing on B300
+
+```bash
+# 1. Check device capability
+python -c "import torch; print(torch.cuda.get_device_capability())"
+# Expected: (10, 3)
+
+# 2. Check capability info from new compat module
+python -c "from scope.core.compat.sm103 import get_capability_info; import pprint; pprint.pprint(get_capability_info())"
+
+# 3. Test Triton Kernel B (should work)
+SCOPE_KV_BIAS_BACKEND=triton uv run python scripts/triton_sdpa.py --kernel-b
+
+# 4. Test FA4 score_mod (after auto-patching)
+SCOPE_KV_BIAS_BACKEND=fa4 uv run python -c "
+from scope.core.compat.sm103 import patch_cutlass_for_sm103
+patch_cutlass_for_sm103()
+from flash_attn.cute.interface import _flash_attn_fwd
+import torch
+q = torch.randn(1, 64, 8, 128, dtype=torch.bfloat16, device='cuda')
+k = torch.randn(1, 256, 8, 128, dtype=torch.bfloat16, device='cuda')
+v = torch.randn(1, 256, 8, 128, dtype=torch.bfloat16, device='cuda')
+out, _ = _flash_attn_fwd(q, k, v, causal=False)
+print('FA4 basic test passed:', out.shape)
+"
+
+# 5. Force PTX JIT to detect missing PTX coverage
+CUDA_FORCE_PTX_JIT=1 SCOPE_KV_BIAS_BACKEND=fa4 uv run python -c "
+from flash_attn.cute.interface import _flash_attn_fwd
+print('PTX JIT test passed')
+"
+```
+
+### Questions to Resolve
+
+1. **Does SM103 share the same tcgen05 instruction set as SM100?**
+   - Likely yes (same Blackwell family), but untested
+   - PTX should JIT to SM103 if cubin doesn't match
+
+2. **Will Triton kernels need retuning for B300?**
+   - B300 may have different memory bandwidth, L2 size, SM count
+   - Block sizes tuned for B200 may not be optimal
+
+3. **Can we use FA4 as primary on SM103?**
+   - Only after validation on real B300 hardware
+   - Default should remain Triton until confirmed
+
+---
+
+## 2025-12-23: BREAKTHROUGH - Triton Works on B300!
+
+### The Fix: CUDA 12.9 ptxas
+
+**Root cause**: CUDA 12.8's ptxas doesn't support `sm_103a`. Triton 3.4.0 bundles an older ptxas.
+
+**Solution**: Install CUDA 12.9 and point Triton to its ptxas:
+
+```bash
+# Install CUDA 12.9 (has SM103 support)
+sudo apt install cuda-toolkit-12-9
+
+# Set the env var (added to .venv/bin/activate)
+export TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
+```
+
+### Verified Working on B300 (SM103)
+
+```
+GPU: NVIDIA B300 SXM6 AC
+Compute Capability: (10, 3) = SM103
+
+Kernel B Correctness Tests: ALL PASS
+- Test 1 (B=1, H=1, Lq=64, Lk=128, D=16): PASS (max error: 0.0039)
+- Test 2 (B=1, H=4, Lq=128, Lk=256, D=64): PASS (max error: 0.0039)
+- Test 3 (B=1, H=16, Lq=4680, Lk=9360, D=128): PASS (max error: 0.0020)
+
+Kernel B Benchmark (4680x9360, H=16, D=128):
+- flex_attention: 1.095 ms
+- Triton Kernel B: 0.977 ms (10.8% faster)
+```
+
+### B300 Environment Setup
+
+```bash
+# In .venv/bin/activate, add:
+export TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
+```
+
+### Updated Status
+
+| Component | B200 (SM100) | B300 (SM103) |
+|-----------|--------------|--------------|
+| Triton Kernel B | ✅ Works | ✅ Works (with CUDA 12.9 ptxas) |
+| flex_attention | ✅ Works | ✅ Works |
+| FA4/CUTE score_mod | ✅ Works | ❓ Needs cutlass-dsl |
+| RoPE fused | ✅ Works | ✅ Works (0.029 ms) |
+
+### RoPE Benchmark on B300
+
+```
+shape: B=1 L=4680 H=16 D=128 dtype=bf16
+PyTorch (prefix only): 0.091 ms
+Triton rotary (prefix only): 0.067 ms
+rope_apply (end-to-end): 0.030 ms
+triton_rope_fused_3way (direct): 0.029 ms
+Correctness: max_err=0.031250 mean_err=0.000595
+```
+
+### What's Left for Full B300 Support
+
+1. ~~**Test RoPE v2 kernel** on B300~~ ✅ DONE
+2. **Full pipeline test** (`render_timeline`) on B300
+3. **FA4/CUTE** requires separate venv with nvidia-cutlass-dsl (conflicts with pip flash-attn)
+4. **Performance tuning** - block sizes may benefit from B300-specific tuning
 
 ---
 
