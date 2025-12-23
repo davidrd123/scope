@@ -106,6 +106,7 @@ class _ProfileBlock:
 
 
 from .model import (
+    USE_TRITON_ROTARY,
     WAN_CROSSATTENTION_CLASSES,
     MLPProj,
     WanLayerNorm,
@@ -114,6 +115,7 @@ from .model import (
     rope_apply,
     rope_params,
     sinusoidal_embedding_1d,
+    triton_apply_rotary,
 )
 
 flex_attention = torch.compile(
@@ -279,40 +281,69 @@ def get_block_mask(
 
 
 def causal_rope_apply(x, grid_sizes, freqs, start_frame=0):
-    """Optimized RoPE using cached sin/cos (no float64, no complex math)."""
+    """Optimized RoPE using cached sin/cos (no float64, no complex math).
+
+    Uses Triton kernel when available for ~2x speedup.
+    """
     n, c = x.size(2), x.size(3) // 2
 
     # split freqs (freqs is complex: real=cos, imag=sin)
     freqs_split = freqs.split([c - 2 * (c // 3), c // 3, c // 3], dim=1)
 
-    # loop over samples
-    output = []
-
-    for i, (f, h, w) in enumerate(grid_sizes.tolist()):
+    if x.size(0) == 1:
+        if isinstance(grid_sizes, torch.Tensor):
+            f, h, w = (int(v) for v in grid_sizes[0].tolist())
+        else:
+            f, h, w = (int(v) for v in grid_sizes[0])
         seq_len = f * h * w
 
-        # Get cached cos/sin (builds on cache miss)
+        cos, sin = get_rope_cos_sin(
+            freqs_split, f, h, w, start_frame, x.dtype, x.device, c
+        )
+        cos_fa = cos.squeeze(1)
+        sin_fa = sin.squeeze(1)
+
+        if USE_TRITON_ROTARY:
+            if seq_len == x.shape[1]:
+                return triton_apply_rotary(x, cos_fa, sin_fa, interleaved=True)
+            out = x.clone()
+            out[:, :seq_len] = triton_apply_rotary(
+                x[:, :seq_len], cos_fa, sin_fa, interleaved=True
+            )
+            return out
+
+        x_i = x[0, :seq_len].reshape(seq_len, n, -1, 2)
+        x0, x1 = x_i[..., 0], x_i[..., 1]
+        x0_new = x0 * cos - x1 * sin
+        x1_new = x0 * sin + x1 * cos
+        x_i = torch.stack([x0_new, x1_new], dim=-1).flatten(2).unsqueeze(0)
+        if seq_len == x.shape[1]:
+            return x_i
+        out = x.clone()
+        out[:, :seq_len] = x_i
+        return out
+
+    out = x.clone()
+    for i, (f, h, w) in enumerate(grid_sizes.tolist()):
+        seq_len = f * h * w
         cos, sin = get_rope_cos_sin(
             freqs_split, f, h, w, start_frame, x.dtype, x.device, c
         )
 
-        # Reshape x to access pairs: (seq_len, n, c, 2)
-        x_i = x[i, :seq_len].reshape(seq_len, n, -1, 2)
+        if USE_TRITON_ROTARY:
+            cos_fa = cos.squeeze(1)
+            sin_fa = sin.squeeze(1)
+            out[i : i + 1, :seq_len] = triton_apply_rotary(
+                x[i : i + 1, :seq_len], cos_fa, sin_fa, interleaved=True
+            )
+            continue
 
-        # Apply rotation without complex math:
-        # x0_new = x0 * cos - x1 * sin
-        # x1_new = x0 * sin + x1 * cos
-        x0, x1 = x_i[..., 0], x_i[..., 1]  # (seq_len, n, c)
+        x_i = x[i, :seq_len].reshape(seq_len, n, -1, 2)
+        x0, x1 = x_i[..., 0], x_i[..., 1]
         x0_new = x0 * cos - x1 * sin
         x1_new = x0 * sin + x1 * cos
-
-        # Stack and flatten back to (seq_len, n, 2*c)
-        x_i = torch.stack([x0_new, x1_new], dim=-1).flatten(2)
-        x_i = torch.cat([x_i, x[i, seq_len:]])
-
-        # append to collection
-        output.append(x_i)
-    return torch.stack(output)
+        out[i, :seq_len] = torch.stack([x0_new, x1_new], dim=-1).flatten(2)
+    return out
 
 
 class CausalWanSelfAttention(nn.Module):

@@ -5,6 +5,17 @@ Purpose
 - Capture shapes, correctness, perf, and next steps.
 - DeepResearch mapping + recommended sequencing: `notes/FA4/DeepResearch/summary.md`
 
+Current status (2025-12-23)
+- Kernel B (KV-cache bias): Triton integrated + pinned for B200; real runs show ~20% FPS uplift at 320x576; profiling shows `p_bias≈89.5%` of **attention-kernel** time (Kernel A is small).
+- Fine-grained `self_attn` breakdown (targeting “what moves the needle”): `self_attn_kv_bias` 27.4%, `qkv_projection` 20.8%, `rope_apply` 15.8%, `self_attn_block_mask` 3.4% → kernel work needs to shift toward RoPE/QKV (and/or a much faster Kernel B backend).
+- RoPE: Phase 1/2.5 landed; Phase 3 Step 0 (FlashAttention Triton rotary) is integrated but wrapper overhead eats most of the kernel win; details in `notes/FA4/phase3-triton-rope.md`.
+- Next bets (highest upside per effort): (1) RoPE fusion (reduce wrapper overhead; fuse 3-way lookup; ideally rotate Q+K together), (2) FA4/CUTE `score_mod` for Kernel B (treat as pass/fail experiment), (3) QKV “overhead hunt” (only if there’s a clear inefficiency; it may already be near GEMM limits).
+
+Amdahl cheat sheet (based on latest fine-grained profile; assumes `self_attn≈51%` of total step time)
+- 2× `self_attn_kv_bias` (~14% of total) → ~7–8% faster end-to-end
+- 2× `qkv_projection` (~11% of total) → ~6% faster end-to-end
+- 2× `rope_apply` (~8% of total) → ~4% faster end-to-end
+
 Context (why this exists)
 - Krea Realtime’s self-attn uses `torch.nn.attention.flex_attention` for:
   - KV recomputation with a block-causal `block_mask`
@@ -20,6 +31,7 @@ DeepResearch docs (source of “what to build”)
 - Kernel project breakdown + sequencing: `notes/FA4/DeepResearch/MSU_chat.md`
 - Profiling workflow note (Nsight Compute loop / Wafer): `notes/FA4/DeepResearch/wafer.md`
 - Repo-specific synthesis + pointers: `notes/FA4/DeepResearch/summary.md`
+- External reviews captured verbatim (useful for onboarding other agents): `notes/FA4/DeepResearch/2025-12-22/MSU.md`, `notes/FA4/DeepResearch/2025-12-22/wafer.md`
 
 Design split (deliverables)
 - Kernel A (recompute): block-causal attention (dense within block, causal across blocks), no bias.
@@ -837,6 +849,17 @@ Kernel B tuning results (B200, 2025-12-22):
   Action: Pinned winning config for B200 (compute capability >= 10) in triton_attention.py.
   Commit: d18e7d7
 
+  Nsight Compute snapshot (B200, real shape; see `notes/FA4/phase3-triton-rope.md`):
+  - Shape: B=1 H=16 Lq=4680 Lk=9360 D=128 dtype=bf16
+  - SM throughput: ~39%
+  - Memory throughput: ~12% (DRAM ~0.7%)
+  - L2 hit rate: ~87%
+  - Regs/thread: 178
+  - Dynamic shared mem: ~82 KB
+  - Waves/SM: 4
+  - Interpretation: Kernel B looks latency/occupancy-limited (not memory-bound); further pure-Triton tuning likely has limited upside vs “new backend” (FA4/CUTE score_mod) or shifting focus to RoPE/QKV.
+  - Important: profiling `scripts/triton_sdpa.py --kernel-b` can hit tiny grids (grid size = 1). Use `scripts/tune_kernel_b.py` for meaningful NCU metrics.
+
 RoPE Phase 2.6 attempt (2025-12-22) - ROLLED BACK:
   Idea: Broadcast per-axis cos/sin to avoid (seq_len, C) materialization
   Result: FPS dropped 18.6-18.8 → 17 (regression)
@@ -854,3 +877,59 @@ RoPE Phase 3 planning (2025-12-22):
     Step 3: Optimize memory access patterns
   Target file: src/scope/core/kernels/triton_rope.py (new)
   See: notes/FA4/rope-optimization.md for full plan
+
+RoPE Phase 3 Step 0: FA's Existing Rotary Kernel (2025-12-23)
+--------------------------------------------------------------
+
+**Status: COMPLETE - Integrated**
+
+Changed approach: Instead of writing a kernel from scratch, first tried FlashAttention's
+existing Triton rotary kernel. It works with our 3-way positional encoding because we
+pre-compute the merged cos/sin table.
+
+**Integration:**
+- Copied: `vendored/rope/flash_attn_triton_rotary.py` → `src/scope/core/kernels/triton_rotary.py`
+- Modified: `rope_apply()` and `causal_rope_apply()` to use Triton kernel when available
+- Feature flag: `SCOPE_DISABLE_TRITON_ROTARY=1` to force PyTorch fallback
+
+**Benchmark results:**
+
+| Component | Time (ms) | Notes |
+|-----------|-----------|-------|
+| PyTorch rope_apply | 0.200 | Baseline |
+| Direct Triton kernel | 0.101 | **1.98x faster** than PyTorch |
+| Integrated rope_apply | 0.183 | Only 8.5% faster (overhead) |
+
+**Overhead breakdown:**
+
+| Step | Time (ms) |
+|------|-----------|
+| Prep (slice+squeeze) | 0.003 |
+| Triton kernel | 0.101 |
+| Post (squeeze+cat) | 0.025 |
+| **Expected total** | 0.129 |
+| **Actual integrated** | 0.183 |
+| **Unexplained overhead** | 0.054 |
+
+The 0.054 ms gap comes from Python loop overhead (`grid_sizes.tolist()`, cache lookup per
+batch, `freqs.split()`, `torch.stack()`).
+
+**Correctness:**
+- FP32: Exact match (diff < 1e-7)
+- BF16: Max diff 0.03125 (1 bf16 ULP)
+  - 88.3% of values have diff <= 0.001
+  - 99.5% have diff <= 0.01
+  - FA uses fp32 internally = better numerics
+
+**Next steps:**
+- Option A: Remove Python loop overhead by calling kernel once for all batches (blocked by variable grid_sizes)
+- Option B: Pre-squeeze cos/sin in cache (minor, ~0.003ms)
+- Option C: Fuse Q+K in one kernel call (requires kernel modification)
+- Option D: Move to Step 1 - custom kernel with 3-way lookup fusion
+
+**Files changed:**
+- `src/scope/core/kernels/triton_rotary.py` (new)
+- `src/scope/core/pipelines/krea_realtime_video/modules/model.py` (USE_TRITON_ROTARY, rope_apply)
+- `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` (causal_rope_apply)
+
+**Detailed doc:** `notes/FA4/phase3-triton-rope.md`

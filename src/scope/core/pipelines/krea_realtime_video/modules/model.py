@@ -1,6 +1,7 @@
 # Modified from https://github.com/krea-ai/realtime-video
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
 import math
+import os
 
 import torch
 import torch.nn as nn
@@ -10,6 +11,19 @@ from einops import repeat
 
 from scope.core.pipelines.wan2_1.modules.attention import flash_attention, sageattn_func, SAGEATTN_AVAILABLE, FLASH_ATTN_2_AVAILABLE, FLASH_ATTN_3_AVAILABLE
 print("SAGEATTN_AVAILABLE:", SAGEATTN_AVAILABLE)
+
+# Try to import Triton rotary kernel
+try:
+    from scope.core.kernels.triton_rotary import apply_rotary as triton_apply_rotary
+    TRITON_ROTARY_AVAILABLE = True
+except ImportError:
+    TRITON_ROTARY_AVAILABLE = False
+    triton_apply_rotary = None
+
+# Environment variable to disable Triton rotary (for debugging/comparison)
+USE_TRITON_ROTARY = TRITON_ROTARY_AVAILABLE and os.environ.get("SCOPE_DISABLE_TRITON_ROTARY", "0") != "1"
+if TRITON_ROTARY_AVAILABLE:
+    print(f"TRITON_ROTARY_AVAILABLE: {TRITON_ROTARY_AVAILABLE}, USE_TRITON_ROTARY: {USE_TRITON_ROTARY}")
 
 __all__ = ['WanModel']
 
@@ -110,39 +124,65 @@ def get_rope_cos_sin(freqs, f, h, w, start_frame, dtype, device, c):
 
 # @amp.autocast(enabled=False)
 def rope_apply(x, grid_sizes, freqs):
-    """Optimized RoPE using cached sin/cos (no float64, no complex math)."""
+    """Optimized RoPE using cached sin/cos (no float64, no complex math).
+
+    Uses Triton kernel when available for ~2x speedup.
+    """
     n, c = x.size(2), x.size(3) // 2
 
     # split freqs (freqs is complex: real=cos, imag=sin)
     freqs_split = freqs.split([c - 2 * (c // 3), c // 3, c // 3], dim=1)
 
-    # loop over samples
-    output = []
-    for i, (f, h, w) in enumerate(grid_sizes.tolist()):
+    if x.size(0) == 1:
+        if isinstance(grid_sizes, torch.Tensor):
+            f, h, w = (int(v) for v in grid_sizes[0].tolist())
+        else:
+            f, h, w = (int(v) for v in grid_sizes[0])
         seq_len = f * h * w
 
-        # Get cached cos/sin (builds on cache miss, start_frame=0 for rope_apply)
-        cos, sin = get_rope_cos_sin(
-            freqs_split, f, h, w, 0, x.dtype, x.device, c
-        )
+        cos, sin = get_rope_cos_sin(freqs_split, f, h, w, 0, x.dtype, x.device, c)
+        cos_fa = cos.squeeze(1)
+        sin_fa = sin.squeeze(1)
 
-        # Reshape x to access pairs: (seq_len, n, c, 2)
-        x_i = x[i, :seq_len].reshape(seq_len, n, -1, 2)
+        if USE_TRITON_ROTARY:
+            if seq_len == x.shape[1]:
+                return triton_apply_rotary(x, cos_fa, sin_fa, interleaved=True)
+            out = x.clone()
+            out[:, :seq_len] = triton_apply_rotary(
+                x[:, :seq_len], cos_fa, sin_fa, interleaved=True
+            )
+            return out
 
-        # Apply rotation without complex math:
-        # x0_new = x0 * cos - x1 * sin
-        # x1_new = x0 * sin + x1 * cos
-        x0, x1 = x_i[..., 0], x_i[..., 1]  # (seq_len, n, c)
+        x_i = x[0, :seq_len].reshape(seq_len, n, -1, 2)
+        x0, x1 = x_i[..., 0], x_i[..., 1]
         x0_new = x0 * cos - x1 * sin
         x1_new = x0 * sin + x1 * cos
+        x_i = torch.stack([x0_new, x1_new], dim=-1).flatten(2).unsqueeze(0)
+        if seq_len == x.shape[1]:
+            return x_i
+        out = x.clone()
+        out[:, :seq_len] = x_i
+        return out
 
-        # Stack and flatten back to (seq_len, n, 2*c)
-        x_i = torch.stack([x0_new, x1_new], dim=-1).flatten(2)
-        x_i = torch.cat([x_i, x[i, seq_len:]])
+    out = x.clone()
+    for i, (f, h, w) in enumerate(grid_sizes.tolist()):
+        seq_len = f * h * w
+        cos, sin = get_rope_cos_sin(freqs_split, f, h, w, 0, x.dtype, x.device, c)
 
-        # append to collection
-        output.append(x_i)
-    return torch.stack(output)
+        if USE_TRITON_ROTARY:
+            cos_fa = cos.squeeze(1)
+            sin_fa = sin.squeeze(1)
+            out[i : i + 1, :seq_len] = triton_apply_rotary(
+                x[i : i + 1, :seq_len], cos_fa, sin_fa, interleaved=True
+            )
+            continue
+
+        x_i = x[i, :seq_len].reshape(seq_len, n, -1, 2)
+        x0, x1 = x_i[..., 0], x_i[..., 1]
+        x0_new = x0 * cos - x1 * sin
+        x1_new = x0 * sin + x1 * cos
+        out[i, :seq_len] = torch.stack([x0_new, x1_new], dim=-1).flatten(2)
+    return out
 
 
 class WanRMSNorm(nn.Module):
