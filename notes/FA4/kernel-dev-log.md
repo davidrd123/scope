@@ -954,94 +954,55 @@ batch, `freqs.split()`, `torch.stack()`).
 
 **Detailed doc:** `notes/FA4/phase3-triton-rope.md`
 
-B300 (SM103) INVESTIGATION (2025-12-23)
-----------------------------------------
+B300 (SM103) INVESTIGATION (2025-12-23/24)
+-------------------------------------------
 
-### Current Status: 8.8 FPS MYSTERY
+### Current Status: B300 is 2x slower than B200
 
-**B300 is locked at exactly 8.8 FPS regardless of kernel optimizations.**
+**Test conditions (same for both):** 320x576 resolution, 4 denoising steps
 
-This is suspicious because:
-- FA4 benchmarks show 0.38ms for KV-cache attention (vs 1.6ms Triton)
-- Multiple backend changes have ZERO effect on FPS
-- Suggests a hard limiter outside the attention path
+| GPU | FPS | Notes |
+|-----|-----|-------|
+| B200 (SM100) | ~18 FPS | Baseline, working |
+| B300 (SM103) | 8.8 FPS | 2x slower, unexplained |
 
-### What Was Tried (NO EFFECT on FPS):
+### What We Know (Facts):
 
-| Change | Expected Effect | Actual Effect |
-|--------|-----------------|---------------|
-| Enable FA4 for main attention | Faster attention | Still 8.8 FPS |
-| `SCOPE_KV_CACHE_ATTENTION_BIAS=1.0` | Bypass Triton Kernel B | Still 8.8 FPS |
-| MAX_FRAME_RATE 8→30 in webrtc.py | Remove codec cap | Still 8.8 FPS |
-| Switch FA4↔Triton backend | Different kernel speed | Still 8.8 FPS |
+1. B300 runs at 8.8 FPS at 320x576/4 steps
+2. B200 runs at ~18 FPS at same settings
+3. Attention kernel microbenchmarks show expected speedups (FA4 0.38ms vs Triton 1.6ms)
+4. Changing attention backends on B300 does not change FPS
 
-### Unexplored Causes (for GPT-5 Pro / RepoPrompt):
+### What We Don't Know:
 
-1. **FPS calculation/reporting bug** - `frame_processor.py:296`
-2. **Synchronization bottleneck** - something blocking in the pipeline
-3. **Input frame rate limiting** - WebRTC/tracks layer
-4. **Something outside attention entirely** - the kernel optimizations are working but something else is the ceiling
+1. **Has B200 been re-tested after all the B300 work?** - We may have broken something that affects both
+2. **Full pipeline profile on B300** - We have attention kernel profiles, but not full frame breakdown
+3. **Where the time is going** - If attention is 4x faster but FPS doesn't change, something else dominates
 
-### Files to Investigate:
+### What Was Tried (on B300):
 
-```
-src/scope/server/frame_processor.py:296  # FPS calculation
-src/scope/server/tracks.py               # Frame rate control
-lib/webrtc.py                            # MAX_FRAME_RATE setting
-src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py  # KV bias paths
-```
+| Change | Result |
+|--------|--------|
+| Enable FA4 for main attention | Still 8.8 FPS |
+| `SCOPE_KV_CACHE_ATTENTION_BIAS=1.0` | Still 8.8 FPS |
+| MAX_FRAME_RATE 8→30 | Still 8.8 FPS |
+| Switch FA4↔Triton backend | Still 8.8 FPS |
+
+### Possible Causes (Unverified):
+
+1. **Something broke during B300 work** - Need to re-test B200 baseline
+2. **SM103-specific issue** - B300 may have different perf characteristics
+3. **Full pipeline bottleneck** - Something outside attention dominates on B300
+4. **Profiling needed** - Full frame profile, not just attention kernels
 
 ### Environment for B300:
 
 ```bash
 export TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas  # Required for SM103
-# Optional overrides:
-export SCOPE_KV_BIAS_BACKEND=flash  # or fa4, triton
-export SCOPE_KV_CACHE_ATTENTION_BIAS=1.0  # disable bias for plain FA4
-export PROFILE_ATTENTION=1  # enable profiling
 ```
-
-### Backend Selection on B300:
-
-```python
-_KV_BIAS_BACKEND = "flash" if _is_sm103() else "triton"
-```
-
-- `fa4`: FA4 with score_mod (needs vendored CUTE files)
-- `flash`: Segment-combine fallback (currently active on B300)
-- `triton`: Triton Kernel B (works but 1.6ms on B300)
-- `flex`: flex_attention fallback
-
-### Current Codex Work (2025-12-24):
-
-Moving FA4/CUTE files from `flash-attention.bak` → `vendored/flash_attn_cute_score_mod/` so:
-1. Files can be git committed (not in .gitignore)
-2. RepoPrompt can see them locally
-3. GPT-5 Pro gets full context for 8.8 FPS investigation
-
-### causal_model.py Changes In Progress:
-
-- **Vendored path priority**: Now checks `vendored/flash_attn_cute_score_mod/` before `flash-attention.bak`
-- **Trip breaker added**: `_fa4_bias_tripped` flag to fallback gracefully on FA4 failure
-- **Module cache clearing**: Forces re-import to pick up vendored code
-
-### Key Insight:
-
-The 8.8 FPS ceiling suggests the bottleneck is NOT in the attention kernels we've been optimizing.
-All kernel improvements (FA4 0.38ms vs Triton 1.6ms = 4x faster) should show SOME FPS change,
-but we see NONE. This points to:
-- A rate limiter somewhere in the frame processing/WebRTC stack
-- OR a synchronization point that serializes everything
-- OR the FPS measurement itself is wrong/capped
 
 ### Next Steps:
 
-1. Commit vendored FA4 files
-2. Pull to local machine for RepoPrompt
-3. Build context for GPT-5 Pro with:
-   - This log (kernel-dev-log.md)
-   - causal_model.py
-   - frame_processor.py
-   - tracks.py
-   - webrtc.py
-4. Ask GPT-5 Pro to identify the 8.8 FPS limiter
+1. **Re-test B200** - Verify baseline still works at ~18 FPS
+2. **Full pipeline profile on B300** - Where does time go per frame?
+3. **Compare profiles** - B200 vs B300 at same settings
