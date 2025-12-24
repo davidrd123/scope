@@ -1,0 +1,80 @@
+# Example StyleManifest
+# Copy this template and fill in vocab from your prompt experiments
+
+name: example_style
+description: Template manifest - replace with your LoRA-specific vocab
+
+# LoRA configuration
+lora_path: /path/to/your/lora.safetensors
+lora_default_scale: 0.85
+
+# Trigger words (always included at start of prompt)
+trigger_words:
+  - your_trigger_word
+  - optional_second_trigger
+
+# Material vocabulary
+# Maps abstract material concepts to effective tokens for this LoRA
+material_vocab:
+  skin: "your effective skin tokens here"
+  metal: "your effective metal tokens here"
+  wood: "your effective wood tokens here"
+  fabric: "your effective fabric tokens here"
+  default: "fallback material description"
+
+# Motion vocabulary
+# Maps abstract actions to style-specific motion descriptions
+motion_vocab:
+  walk: "walking description that works for this LoRA"
+  run: "running description"
+  idle: "idle/standing description"
+  enter_menacing: "menacing entrance"
+  fall: "falling motion"
+
+# Camera vocabulary
+# Maps camera intents to effective framing descriptions
+camera_vocab:
+  close_up: "close-up framing tokens"
+  medium: "medium shot tokens"
+  wide: "wide shot tokens"
+  low_angle: "low angle tokens"
+  tracking: "tracking shot tokens"
+
+# Lighting vocabulary
+lighting_vocab:
+  dramatic: "dramatic lighting tokens"
+  flat: "flat/even lighting"
+  night: "nighttime lighting"
+  golden_hour: "warm golden lighting"
+
+# Emotion vocabulary
+# Character emotional states -> visual descriptors
+emotion_vocab:
+  happy: "visual happy expression tokens"
+  sad: "visual sad expression tokens"
+  frustrated: "visual frustrated expression"
+  determined: "visual determined expression"
+  neutral: ""  # empty = omit from prompt
+
+# Beat/pacing modifiers
+beat_vocab:
+  setup: "establishing shot, calm"
+  escalation: "quicker cuts, tighter"
+  climax: "dramatic, intense"
+  payoff: "reaction shot, pause"
+  reset: "wide shot, normalized"
+
+# Prompt constraints
+default_negative: "realistic, photographic, blurry, low quality"
+max_prompt_tokens: 77
+
+# Priority order for token budget (earlier = kept when truncating)
+priority_order:
+  - trigger
+  - action
+  - material
+  - camera
+  - mood
+
+# Path to LLM instruction sheet (optional)
+# instruction_sheet_path: /path/to/instructions.md

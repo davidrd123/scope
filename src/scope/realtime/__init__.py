@@ -30,6 +30,24 @@ from scope.realtime.generator_driver import (
     GenerationResult,
     GeneratorDriver,
 )
+from scope.realtime.style_manifest import StyleManifest, StyleRegistry
+from scope.realtime.world_state import (
+    BeatType,
+    CameraIntent,
+    CharacterState,
+    PropState,
+    WorldState,
+    create_simple_world,
+    create_character_scene,
+)
+from scope.realtime.prompt_compiler import (
+    CompiledPrompt as StyleCompiledPrompt,
+    PromptCompiler,
+    TemplateCompiler,
+    LLMCompiler,
+    CachedCompiler,
+    InstructionSheet,
+)
 
 __all__ = [
     # control_state
@@ -50,4 +68,22 @@ __all__ = [
     "DriverState",
     "GenerationResult",
     "GeneratorDriver",
+    # style_manifest
+    "StyleManifest",
+    "StyleRegistry",
+    # world_state
+    "BeatType",
+    "CameraIntent",
+    "CharacterState",
+    "PropState",
+    "WorldState",
+    "create_simple_world",
+    "create_character_scene",
+    # prompt_compiler
+    "StyleCompiledPrompt",
+    "PromptCompiler",
+    "TemplateCompiler",
+    "LLMCompiler",
+    "CachedCompiler",
+    "InstructionSheet",
 ]
