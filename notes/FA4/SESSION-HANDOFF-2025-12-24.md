@@ -1,8 +1,25 @@
 # Session Handoff - 2025-12-24
 
+**Last updated:** End of session 2 (notes reorg + architecture review)
+
+## Session 2 Accomplishments
+
+1. **Notes reorganization:**
+   - `notes/FA4/` - organized by topic (b300/, rope/, fa4/, b200/)
+   - `notes/research/` - organized by date (2025-12-23/)
+   - `notes/realtime_video_architecture.md` - elevated to root as primary doc
+
+2. **B300 investigation runbook:** `notes/FA4/b300/investigation-runbook.md`
+   - Systematic tests for H1-H5 hypotheses
+   - Specific commands, output locations, decision tree
+
+3. **Architecture review:**
+   - `notes/realtime_video_architecture.md` (v1.1, 1800+ lines)
+   - `notes/research/2025-12-23/realtime-architecture-v1.1-review.md` (5Pro feedback)
+
 ## Current State
 
-### The Mystery (UNSOLVED)
+### B300 Mystery (UNSOLVED)
 - **B200**: ~20 FPS at 320x576, 4 steps
 - **B300**: 8.8 FPS at same settings (2x slower)
 - Kernel optimizations show expected speedups in microbenchmarks but FPS doesn't change
@@ -122,6 +139,27 @@ uv run python scripts/profile_krea_pipeline_blocks.py \
 **Additional B300-specific concerns:**
 - Memory hierarchy - L2 eviction patterns may differ from B200
 - Driver/runtime overhead - CUDA 12.9 SM103 support is fresh
+
+## Architecture v1.2 Action Items (from 5Pro review)
+
+1. **Pipeline Adapter Contract** - map ControlState to KREA kwargs, handle continuity via `pipeline.state` keys (not direct attributes)
+2. **Wire ControlBus to GeneratorDriver** - events as source of truth, drain at chunk boundaries
+3. **Implement prompt ramps** - pick engine-native (EmbeddingBlendingBlock) or control-layer approach
+4. **Clarify rollouts sequential** - single pipeline can't truly parallelize
+
+## Next Priorities
+
+1. **H100 fallback** - verify it works for hackathon (Jan 9 deadline)
+2. **Architecture v1.2** - address 5Pro feedback
+3. **B300 investigation** - run runbook if time permits
+
+## Uncommitted (Intentional)
+
+```
+ M scripts/test_fa4_kv_bias.py
+ M src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py
+```
+These are experimental Codex changes (LSE fallback) that didn't fix B300.
 
 ## Claude Code Version
 Locked at 2.0.62 (see notes/TODO-next-session.md for unlock instructions)
