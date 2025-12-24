@@ -49,11 +49,13 @@ _KV_BIAS_BACKEND = (
 _fa4_available = False
 _fa4_fwd = None
 _fa4_score_mod_cache = {}
+_fa4_bias_tripped = False
 
 if _KV_BIAS_BACKEND == "fa4":
     try:
         import inspect
         import operator
+        import sys
         from pathlib import Path
 
         import flash_attn as _flash_attn
@@ -64,19 +66,42 @@ if _KV_BIAS_BACKEND == "fa4":
             except Exception:
                 return
             for parent in base_path.parents:
+                vendored = parent / "vendored" / "flash_attn_cute_score_mod" / "flash_attn"
+                if vendored.is_dir():
+                    vendored_str = str(vendored)
+                    if vendored_str not in _flash_attn.__path__:
+                        _flash_attn.__path__.insert(0, vendored_str)
+
+                    # If `flash_attn.cute` was already imported (likely from the wheel),
+                    # make sure *its* module search path also prefers the vendored code.
+                    cute_mod = sys.modules.get("flash_attn.cute")
+                    if cute_mod is not None and hasattr(cute_mod, "__path__"):
+                        vendored_cute = str(vendored / "cute")
+                        if vendored_cute not in cute_mod.__path__:
+                            cute_mod.__path__.insert(0, vendored_cute)
+
+                    # Force re-import of interface so we don't get a cached wheel module.
+                    sys.modules.pop("flash_attn.cute.interface", None)
+                    return
                 for repo_dir in ("flash-attention", "flash-attention.bak"):
                     candidate = parent / repo_dir / "flash_attn"
                     if candidate.is_dir():
                         candidate_str = str(candidate)
                         if candidate_str not in _flash_attn.__path__:
                             _flash_attn.__path__.insert(0, candidate_str)
+                        cute_mod = sys.modules.get("flash_attn.cute")
+                        if cute_mod is not None and hasattr(cute_mod, "__path__"):
+                            candidate_cute = str(candidate / "cute")
+                            if candidate_cute not in cute_mod.__path__:
+                                cute_mod.__path__.insert(0, candidate_cute)
+                        sys.modules.pop("flash_attn.cute.interface", None)
                         return
 
         _extend_flash_attn_path_for_score_mod()
         from flash_attn.cute.interface import _flash_attn_fwd as _fa4_fwd
         if "score_mod" not in inspect.signature(_fa4_fwd).parameters:
             raise ImportError(
-                "FA4/CUTE score_mod requires the local flash-attention repo; "
+                "FA4/CUTE score_mod requires the vendored (or local) flash-attention CuTe sources; "
                 "_flash_attn_fwd() lacks score_mod in this environment."
             )
         import cutlass
@@ -84,8 +109,9 @@ if _KV_BIAS_BACKEND == "fa4":
         _fa4_available = True
         logger.info("FA4/CUTE score_mod enabled for KV-cache attention bias (1.89x faster than Triton)")
     except Exception as e:
-        logger.warning(f"FA4/CUTE not available, falling back to Triton: {e}")
-        _KV_BIAS_BACKEND = "triton"
+        fallback_backend = "flash" if _is_sm103() else "triton"
+        logger.warning(f"FA4/CUTE not available, falling back to {fallback_backend}: {e}")
+        _KV_BIAS_BACKEND = fallback_backend
 
 # Triton Kernel B: fast fallback for KV-cache bias path
 USE_TRITON_KERNEL_B = _KV_BIAS_BACKEND in ("triton", "fa4", "flash")  # fa4/flash fall back to triton
@@ -100,43 +126,35 @@ if USE_TRITON_KERNEL_B:
         USE_TRITON_KERNEL_B = False
 
 
-def _get_fa4_score_mod(frame_seqlen: int, block_size: int, log_bias: float):
+def _get_fa4_score_mod(frame_seqlen: int, block_start: int, log_bias: float):
     """
     Get or create a CUTE score_mod for FA4 KV-cache bias.
 
     Uses closure constants to avoid aux_tensors (keeps vec_size=2 for better perf).
-    Caches compiled score_mods by (frame_seqlen, block_size, log_bias).
+    Caches compiled score_mods by (frame_seqlen, block_start, log_bias).
+
+    Note: `block_start` should be `max(0, Lk - block_size)` computed on the Python
+    side for the current KV cache length. Capturing it as a closure constant avoids
+    using `seqlen_info.seqlen_k` (runtime values) inside the score_mod, which can be
+    brittle across cutlass-dsl versions.
     """
     if not _fa4_available:
         return None
 
     # Round log_bias to avoid cache explosion
-    cache_key = (frame_seqlen, block_size, round(log_bias, 6))
+    cache_key = (int(frame_seqlen), int(block_start), round(log_bias, 6))
     if cache_key in _fa4_score_mod_cache:
         return _fa4_score_mod_cache[cache_key]
 
     # Closure constants (compile-time)
     _frame_seqlen = frame_seqlen
-    _block_size = block_size
+    _block_start = max(0, int(block_start))
     _log_bias = log_bias
 
     @cute.jit
     def score_mod_kv_bias(tSrS_ssa, b_idx, h_idx, q_idx, kv_idx, seqlen_info, aux_tensors):
-        # Get runtime Lk from seqlen_info
-        Lk = seqlen_info.seqlen_k
-
-        # Compute block_start = max(0, Lk - block_size)
-        block_start_val = Lk - _block_size
-        block_start_tensor = cute.full_like(kv_idx, 0) + block_start_val
-        zero_tensor = cute.full_like(kv_idx, 0)
-        block_start_tensor = cute.where(
-            operator.ge(block_start_tensor, zero_tensor),
-            block_start_tensor,
-            zero_tensor
-        )
-
-        # Build Region 2 mask: frame_seqlen ≤ kv_idx < block_start
         frame_seqlen_tensor = cute.full_like(kv_idx, _frame_seqlen)
+        block_start_tensor = cute.full_like(kv_idx, _block_start)
         cond_ge = operator.ge(kv_idx, frame_seqlen_tensor)
         cond_lt = operator.lt(kv_idx, block_start_tensor)
         past_frame_mask = cond_ge & cond_lt
@@ -158,7 +176,14 @@ def _get_fa4_fwd():
     if _flash_bias_fa4_fwd is not None:
         return _flash_bias_fa4_fwd
     try:
+        import inspect
         from flash_attn.cute.interface import _flash_attn_fwd
+
+        if "return_lse" not in inspect.signature(_flash_attn_fwd).parameters:
+            # Older flash-attn wheels expose a CuTe _flash_attn_fwd without `return_lse`.
+            # In that case, fall back to the compiled varlen kernel which returns LSE.
+            _flash_bias_fa4_fwd = None
+            return None
 
         _flash_bias_fa4_fwd = _flash_attn_fwd
     except Exception:
@@ -884,58 +909,78 @@ class CausalWanSelfAttention(nn.Module):
                 kv_cache["global_end_index"] = local_end_index
                 kv_cache["local_end_index"] = local_end_index
 
-                padded_length = math.ceil(q.shape[1] / 128) * 128 - q.shape[1]
-                padded_roped_query = torch.cat(
-                    [
-                        roped_query,
-                        torch.zeros(
-                            [q.shape[0], padded_length, q.shape[2], q.shape[3]],
-                            device=q.device,
-                            dtype=v.dtype,
-                        ),
-                    ],
-                    dim=1,
-                )
+                use_dense_attention_for_block_mask = False
+                if block_mask is not None and _FLEX_ATTENTION_DISABLE_COMPILE and _is_sm103():
+                    # On SM103 + torch 2.9 / triton 3.5, `torch.compile(flex_attention)` hard-aborts
+                    # with an LLVM tcgen05 intrinsic error. Eager flex_attention is extremely slow
+                    # for block masks (materializes full scores).
+                    #
+                    # For the Krea recompute path, the block_mask is often "single block" (i.e.
+                    # num_frames <= num_frame_per_block), which is equivalent to dense attention.
+                    try:
+                        if isinstance(grid_sizes, torch.Tensor):
+                            num_frames = int(grid_sizes[0, 0].item())
+                        else:
+                            num_frames = int(grid_sizes[0][0])
+                        num_frame_per_block = int(getattr(self, "num_frame_per_block", 1))
+                        use_dense_attention_for_block_mask = num_frames <= num_frame_per_block
+                    except Exception:
+                        use_dense_attention_for_block_mask = False
 
-                padded_roped_key = torch.cat(
-                    [
-                        roped_key,
-                        torch.zeros(
-                            [k.shape[0], padded_length, k.shape[2], k.shape[3]],
-                            device=k.device,
-                            dtype=v.dtype,
-                        ),
-                    ],
-                    dim=1,
-                )
-                # print("shape of padded_roped_query", padded_roped_query.shape)
-                # print("shape of padded_roped_key", padded_roped_key.shape)
-
-                padded_v = torch.cat(
-                    [
-                        v,
-                        torch.zeros(
-                            [v.shape[0], padded_length, v.shape[2], v.shape[3]],
-                            device=v.device,
-                            dtype=v.dtype,
-                        ),
-                    ],
-                    dim=1,
-                )
-
-                with _ProfileBlock("self_attn_block_mask"):
-                    attn_out = flex_attention(
-                        query=padded_roped_query.transpose(2, 1).contiguous(),
-                        key=padded_roped_key.transpose(2, 1).contiguous(),
-                        value=padded_v.transpose(2, 1).contiguous(),
-                        block_mask=block_mask,
-                        kernel_options={
-                            "BLOCKS_ARE_CONTIGUOUS": True,
-                        },
+                if use_dense_attention_for_block_mask:
+                    with _ProfileBlock("self_attn_block_mask"):
+                        x = attention(roped_query, roped_key, v)
+                else:
+                    padded_length = math.ceil(q.shape[1] / 128) * 128 - q.shape[1]
+                    padded_roped_query = torch.cat(
+                        [
+                            roped_query,
+                            torch.zeros(
+                                [q.shape[0], padded_length, q.shape[2], q.shape[3]],
+                                device=q.device,
+                                dtype=v.dtype,
+                            ),
+                        ],
+                        dim=1,
                     )
-                if padded_length > 0:
-                    attn_out = attn_out[:, :, :-padded_length]
-                x = attn_out.transpose(2, 1)
+
+                    padded_roped_key = torch.cat(
+                        [
+                            roped_key,
+                            torch.zeros(
+                                [k.shape[0], padded_length, k.shape[2], k.shape[3]],
+                                device=k.device,
+                                dtype=v.dtype,
+                            ),
+                        ],
+                        dim=1,
+                    )
+
+                    padded_v = torch.cat(
+                        [
+                            v,
+                            torch.zeros(
+                                [v.shape[0], padded_length, v.shape[2], v.shape[3]],
+                                device=v.device,
+                                dtype=v.dtype,
+                            ),
+                        ],
+                        dim=1,
+                    )
+
+                    with _ProfileBlock("self_attn_block_mask"):
+                        attn_out = flex_attention(
+                            query=padded_roped_query.transpose(2, 1).contiguous(),
+                            key=padded_roped_key.transpose(2, 1).contiguous(),
+                            value=padded_v.transpose(2, 1).contiguous(),
+                            block_mask=block_mask,
+                            kernel_options={
+                                "BLOCKS_ARE_CONTIGUOUS": True,
+                            },
+                        )
+                    if padded_length > 0:
+                        attn_out = attn_out[:, :, :-padded_length]
+                    x = attn_out.transpose(2, 1)
         else:
             # frame_seqlen = math.prod(grid_sizes[0][1:]).item() # torch compile doesn't like this
             frame_seqlen = self.frame_seq_length
@@ -1026,18 +1071,30 @@ class CausalWanSelfAttention(nn.Module):
 
                 x = None
 
-                if _fa4_available and _KV_BIAS_BACKEND == "fa4":
+                global _fa4_bias_tripped
+                if _fa4_available and (not _fa4_bias_tripped) and _KV_BIAS_BACKEND == "fa4":
                     # FA4 + CUTE score_mod: 1.89x faster than Triton Kernel B
                     # FA4 expects layout: [B, L, H, D] (already correct)
-                    score_mod_cute = _get_fa4_score_mod(frame_seqlen, block_size, log_scale)
-                    with _ProfileBlock("self_attn_kv_bias_fa4"):
-                        x, _ = _fa4_fwd(
-                            roped_query,
-                            cached_k,
-                            cached_v,
-                            score_mod=score_mod_cute,
-                            causal=False,
-                            return_lse=False,
+                    try:
+                        score_mod_cute = _get_fa4_score_mod(
+                            frame_seqlen,
+                            block_start=cache_current_block_start,
+                            log_bias=log_scale,
+                        )
+                        with _ProfileBlock("self_attn_kv_bias_fa4"):
+                            x, _ = _fa4_fwd(
+                                roped_query,
+                                cached_k,
+                                cached_v,
+                                score_mod=score_mod_cute,
+                                causal=False,
+                                return_lse=False,
+                            )
+                    except Exception as e:
+                        _fa4_bias_tripped = True
+                        logger.warning(
+                            "FA4/CUTE KV-bias failed; falling back to Triton: %s",
+                            e,
                         )
 
                 elif _KV_BIAS_BACKEND == "flash":
