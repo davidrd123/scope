@@ -1,14 +1,138 @@
 # Modified from https://github.com/guandeh17/Self-Forcing
+import atexit
 import inspect
 import json
+import logging
 import os
+import time
 import types
+from collections import defaultdict
 
 import torch
 
 from scope.core.pipelines.utils import load_state_dict
 
 from .scheduler import FlowMatchScheduler, SchedulerInterface
+
+logger = logging.getLogger(__name__)
+
+_PROFILE_GENERATOR_STEPS = os.getenv("PROFILE_GENERATOR_STEPS", "0") == "1"
+_PROFILE_GENERATOR_STEPS_JSON = os.getenv("PROFILE_GENERATOR_STEPS_JSON")
+_generator_step_cpu_ms = defaultdict(float)
+_generator_step_gpu_ms = defaultdict(float)
+_generator_step_counts = defaultdict(int)
+_generator_step_meta: dict[str, object] = {}
+
+
+def _should_profile_generator_steps() -> bool:
+    if not _PROFILE_GENERATOR_STEPS:
+        return False
+    if hasattr(torch, "compiler") and hasattr(torch.compiler, "is_compiling"):
+        if torch.compiler.is_compiling():
+            return False
+    return True
+
+
+def _generator_step_profile_report() -> None:
+    if not _generator_step_counts:
+        return
+
+    total_cpu_ms = sum(_generator_step_cpu_ms.values())
+    total_gpu_ms = sum(_generator_step_gpu_ms.values())
+
+    logger.info("=== Generator Profiling Report ===")
+    for name, cpu_ms in sorted(_generator_step_cpu_ms.items(), key=lambda kv: -kv[1]):
+        calls = _generator_step_counts.get(name, 0)
+        gpu_ms = _generator_step_gpu_ms.get(name, 0.0)
+        cpu_pct = (100.0 * cpu_ms / total_cpu_ms) if total_cpu_ms > 0 else 0.0
+        gpu_pct = (100.0 * gpu_ms / total_gpu_ms) if total_gpu_ms > 0 else 0.0
+        cpu_per_call = (cpu_ms / calls) if calls else 0.0
+        gpu_per_call = (gpu_ms / calls) if calls else 0.0
+        logger.info(
+            "  %s: CPU %.1fms (%.1f%%) GPU %.1fms (%.1f%%) [%d calls, CPU %.2fms/call, GPU %.2fms/call]",
+            name,
+            cpu_ms,
+            cpu_pct,
+            gpu_ms,
+            gpu_pct,
+            calls,
+            cpu_per_call,
+            gpu_per_call,
+        )
+    logger.info("  TOTAL: CPU %.1fms GPU %.1fms", total_cpu_ms, total_gpu_ms)
+
+    if _PROFILE_GENERATOR_STEPS_JSON:
+        meta = dict(_generator_step_meta)
+        meta.setdefault("torch", torch.__version__)
+        meta.setdefault("cuda", torch.version.cuda)
+        if torch.cuda.is_available():
+            try:
+                meta.setdefault("cuda_device", torch.cuda.get_device_name(0))
+                meta.setdefault("cuda_capability", list(torch.cuda.get_device_capability(0)))
+            except Exception:
+                pass
+        payload = {
+            "meta": meta,
+            "total_cpu_ms": total_cpu_ms,
+            "total_gpu_ms": total_gpu_ms,
+            "steps": {
+                name: {
+                    "cpu_ms": _generator_step_cpu_ms.get(name, 0.0),
+                    "gpu_ms": _generator_step_gpu_ms.get(name, 0.0),
+                    "calls": int(_generator_step_counts.get(name, 0)),
+                }
+                for name in sorted(_generator_step_counts.keys())
+            },
+        }
+        try:
+            with open(_PROFILE_GENERATOR_STEPS_JSON, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2, sort_keys=True)
+            logger.info("Wrote generator step profile JSON: %s", _PROFILE_GENERATOR_STEPS_JSON)
+        except Exception as e:
+            logger.warning("Failed writing generator step profile JSON (%s): %s", _PROFILE_GENERATOR_STEPS_JSON, e)
+
+
+atexit.register(_generator_step_profile_report)
+
+
+def reset_generator_step_profile() -> None:
+    """Clear accumulated generator profiling counters."""
+    _generator_step_cpu_ms.clear()
+    _generator_step_gpu_ms.clear()
+    _generator_step_counts.clear()
+    _generator_step_meta.clear()
+
+
+class _ProfileGeneratorStep:
+    __slots__ = ("name", "_cpu_start", "_start", "_end")
+
+    def __init__(self, name: str):
+        self.name = name
+        self._cpu_start = None
+        self._start = None
+        self._end = None
+
+    def __enter__(self):
+        if not _should_profile_generator_steps():
+            return self
+        self._cpu_start = time.perf_counter()
+        if torch.cuda.is_available():
+            self._start = torch.cuda.Event(enable_timing=True)
+            self._end = torch.cuda.Event(enable_timing=True)
+            self._start.record()
+        return self
+
+    def __exit__(self, *_exc):
+        if self._cpu_start is None:
+            return
+
+        if self._start is not None and self._end is not None:
+            self._end.record()
+            self._end.synchronize()
+            _generator_step_gpu_ms[self.name] += self._start.elapsed_time(self._end)
+
+        _generator_step_cpu_ms[self.name] += (time.perf_counter() - self._cpu_start) * 1000.0
+        _generator_step_counts[self.name] += 1
 
 
 def filter_causal_model_cls_config(causal_model_cls, config):
@@ -224,67 +348,94 @@ class WanDiffusionWrapper(torch.nn.Module):
         else:
             input_timestep = timestep
 
+        if _should_profile_generator_steps():
+            _generator_step_meta.update(
+                {
+                    "noisy_shape": list(noisy_image_or_video.shape),
+                    "noisy_dtype": str(noisy_image_or_video.dtype),
+                    "noisy_device": str(noisy_image_or_video.device),
+                    "timestep_shape": list(timestep.shape),
+                    "timestep_dtype": str(timestep.dtype),
+                    "prompt_embeds_shape": list(prompt_embeds.shape),
+                    "prompt_embeds_dtype": str(prompt_embeds.dtype),
+                    "prompt_embeds_device": str(prompt_embeds.device),
+                    "kv_cache_present": bool(kv_cache is not None),
+                    "kv_cache_len": int(len(kv_cache)) if kv_cache is not None else 0,
+                    "crossattn_cache_present": bool(crossattn_cache is not None),
+                    "crossattn_cache_len": int(len(crossattn_cache)) if crossattn_cache is not None else 0,
+                    "current_start": int(current_start) if current_start is not None else None,
+                    "current_end": int(current_end) if current_end is not None else None,
+                    "cache_start": int(cache_start) if cache_start is not None else None,
+                    "kv_cache_attention_bias": float(kv_cache_attention_bias),
+                }
+            )
+
         logits = None
         # X0 prediction
         if kv_cache is not None:
-            flow_pred = self._call_model(
-                noisy_image_or_video.permute(0, 2, 1, 3, 4),
-                t=input_timestep,
-                context=prompt_embeds,
-                seq_len=self.seq_len,
-                kv_cache=kv_cache,
-                crossattn_cache=crossattn_cache,
-                current_start=current_start,
-                current_end=current_end,
-                cache_start=cache_start,
-                kv_cache_attention_bias=kv_cache_attention_bias,
-                vace_context=vace_context,
-                vace_context_scale=vace_context_scale,
-            ).permute(0, 2, 1, 3, 4)
-        else:
-            if clean_x is not None:
-                # teacher forcing
+            with _ProfileGeneratorStep("call_model_kv_cache"):
                 flow_pred = self._call_model(
                     noisy_image_or_video.permute(0, 2, 1, 3, 4),
                     t=input_timestep,
                     context=prompt_embeds,
                     seq_len=self.seq_len,
-                    clean_x=clean_x.permute(0, 2, 1, 3, 4),
-                    aug_t=aug_t,
+                    kv_cache=kv_cache,
+                    crossattn_cache=crossattn_cache,
+                    current_start=current_start,
+                    current_end=current_end,
+                    cache_start=cache_start,
+                    kv_cache_attention_bias=kv_cache_attention_bias,
                     vace_context=vace_context,
                     vace_context_scale=vace_context_scale,
                 ).permute(0, 2, 1, 3, 4)
-            else:
-                if classify_mode:
-                    flow_pred, logits = self._call_model(
-                        noisy_image_or_video.permute(0, 2, 1, 3, 4),
-                        t=input_timestep,
-                        context=prompt_embeds,
-                        seq_len=self.seq_len,
-                        classify_mode=True,
-                        register_tokens=self._register_tokens,
-                        cls_pred_branch=self._cls_pred_branch,
-                        gan_ca_blocks=self._gan_ca_blocks,
-                        concat_time_embeddings=concat_time_embeddings,
-                        vace_context=vace_context,
-                        vace_context_scale=vace_context_scale,
-                    )
-                    flow_pred = flow_pred.permute(0, 2, 1, 3, 4)
-                else:
+        else:
+            if clean_x is not None:
+                # teacher forcing
+                with _ProfileGeneratorStep("call_model_teacher_forcing"):
                     flow_pred = self._call_model(
                         noisy_image_or_video.permute(0, 2, 1, 3, 4),
                         t=input_timestep,
                         context=prompt_embeds,
                         seq_len=self.seq_len,
+                        clean_x=clean_x.permute(0, 2, 1, 3, 4),
+                        aug_t=aug_t,
                         vace_context=vace_context,
                         vace_context_scale=vace_context_scale,
                     ).permute(0, 2, 1, 3, 4)
+            else:
+                if classify_mode:
+                    with _ProfileGeneratorStep("call_model_classify"):
+                        flow_pred, logits = self._call_model(
+                            noisy_image_or_video.permute(0, 2, 1, 3, 4),
+                            t=input_timestep,
+                            context=prompt_embeds,
+                            seq_len=self.seq_len,
+                            classify_mode=True,
+                            register_tokens=self._register_tokens,
+                            cls_pred_branch=self._cls_pred_branch,
+                            gan_ca_blocks=self._gan_ca_blocks,
+                            concat_time_embeddings=concat_time_embeddings,
+                            vace_context=vace_context,
+                            vace_context_scale=vace_context_scale,
+                        )
+                        flow_pred = flow_pred.permute(0, 2, 1, 3, 4)
+                else:
+                    with _ProfileGeneratorStep("call_model_no_cache"):
+                        flow_pred = self._call_model(
+                            noisy_image_or_video.permute(0, 2, 1, 3, 4),
+                            t=input_timestep,
+                            context=prompt_embeds,
+                            seq_len=self.seq_len,
+                            vace_context=vace_context,
+                            vace_context_scale=vace_context_scale,
+                        ).permute(0, 2, 1, 3, 4)
 
-        pred_x0 = self._convert_flow_pred_to_x0(
-            flow_pred=flow_pred.flatten(0, 1),
-            xt=noisy_image_or_video.flatten(0, 1),
-            timestep=timestep.flatten(0, 1),
-        ).unflatten(0, flow_pred.shape[:2])
+        with _ProfileGeneratorStep("convert_flow_pred_to_x0"):
+            pred_x0 = self._convert_flow_pred_to_x0(
+                flow_pred=flow_pred.flatten(0, 1),
+                xt=noisy_image_or_video.flatten(0, 1),
+                timestep=timestep.flatten(0, 1),
+            ).unflatten(0, flow_pred.shape[:2])
 
         if logits is not None:
             return flow_pred, pred_x0, logits

@@ -4,7 +4,11 @@
 
 **Baseline (repo default stack): B300 is ~8.8 FPS at `320x576` (reference resolution) and the number is stable across iterations.**
 
-**Update (cu130 + FlashAttention): B300 is now ~14.8–15.0 FPS at `320x576` (same reference settings).** This is a ~70% improvement over baseline.
+**Update (cu130 + FlashAttention):**
+- Daydream end-to-end: **~14.8–15.0 FPS** at `320x576` (canonical)
+- `scripts/profile_krea_pipeline_blocks.py` benchmark: **~13.3–13.5 FPS** at `320x576` (see artifacts below)
+
+This is a ~70% improvement over the repo-default baseline.
 
 Repro (isolated env; does not touch shared `.venv`):
 
@@ -29,6 +33,14 @@ WANVAE_STREAM_DECODE_MODE=chunk \
   --kv-cache-attention-bias 0.3 \
   --cudnn-benchmark
 ```
+
+Or for a one-shot denoise/decode drill-down (writes JSON artifacts under `outputs/`):
+
+```bash
+scripts/profile_b300_denoise_drilldown.sh
+```
+
+Latest drill-down run (cu130, profiling enabled): `outputs/b300_cu130_fp8_bias03_drilldown_perf.log` averaged **~11.4 FPS** (expected lower than the non-profiled benchmark due to extra synchronizations).
 
 Artifacts:
 - `outputs/b300_cu130_fp8_bias03_flashattn.log`

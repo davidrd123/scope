@@ -138,6 +138,12 @@ def main() -> int:
     except Exception:
         pass
     try:
+        from scope.core.pipelines.wan2_1.components import generator as _wan_generator
+
+        _wan_generator.reset_generator_step_profile()
+    except Exception:
+        pass
+    try:
         from scope.core.pipelines.wan2_1.vae import wan as _wan_vae
 
         _wan_vae.reset_wanvae_decode_profile()
@@ -163,6 +169,40 @@ def main() -> int:
         fps = (frames / dt) if dt > 0 else 0.0
         per_iter.append({"iter": i, "frames": frames, "seconds": dt, "fps": fps})
         print(f"iter={i:03d} frames={frames:3d} seconds={dt:.4f} fps={fps:.2f}")
+
+        # If we're skipping early iterations for steady-state averages, also reset profiling
+        # counters so the JSON artifacts reflect steady-state behavior (not warmup/cache fill).
+        if args.skip and i == args.skip - 1:
+            try:
+                from scope.core.pipelines.krea_realtime_video import modular_blocks as _modular_blocks
+
+                _modular_blocks.reset_pipeline_block_profile()
+            except Exception:
+                pass
+            try:
+                from scope.core.pipelines.wan2_1.blocks import denoise as _denoise_block
+
+                _denoise_block.reset_denoise_step_profile()
+            except Exception:
+                pass
+            try:
+                from scope.core.pipelines.wan2_1.components import generator as _wan_generator
+
+                _wan_generator.reset_generator_step_profile()
+            except Exception:
+                pass
+            try:
+                from scope.core.pipelines.wan2_1.vae import wan as _wan_vae
+
+                _wan_vae.reset_wanvae_decode_profile()
+            except Exception:
+                pass
+            try:
+                from scope.core.pipelines.wan2_1.vae.modules import vae as _wan_vae_modules
+
+                _wan_vae_modules.reset_wanvae_decode_inner_profile()
+            except Exception:
+                pass
 
     kept = per_iter[args.skip :] if args.skip else per_iter
     if kept:

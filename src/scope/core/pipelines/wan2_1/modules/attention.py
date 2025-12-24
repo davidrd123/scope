@@ -6,12 +6,17 @@ import platform
 from pathlib import Path
 
 import torch
-import flash_attn as _flash_attn
+try:
+    import flash_attn as _flash_attn
+except ModuleNotFoundError:  # Optional dependency (e.g. B300 cu130 experiments)
+    _flash_attn = None
 
 logger = logging.getLogger(__name__)
 
 
 def _extend_flash_attn_path() -> None:
+    if _flash_attn is None:
+        return
     try:
         base_path = Path(__file__).resolve()
     except Exception:
@@ -25,8 +30,14 @@ def _extend_flash_attn_path() -> None:
             break
 
 
-_extend_flash_attn_path()
-flash_attn_func = _flash_attn.flash_attn_func
+flash_attn_func = None
+flash_attn = None
+FLASH_ATTN_2_AVAILABLE = False
+if _flash_attn is not None:
+    _extend_flash_attn_path()
+    flash_attn_func = _flash_attn.flash_attn_func
+    flash_attn = _flash_attn
+    FLASH_ATTN_2_AVAILABLE = True
 
 
 def is_hopper_gpu():
@@ -52,12 +63,13 @@ def is_blackwell_gpu():
 flash_attn_4_varlen_func = None
 FLASH_ATTN_4_AVAILABLE = False
 if os.getenv("DISABLE_FLASH_ATTENTION_4", "0") == "0":
-    try:
-        from flash_attn.cute import flash_attn_varlen_func as flash_attn_4_varlen_func
+    if _flash_attn is not None:
+        try:
+            from flash_attn.cute import flash_attn_varlen_func as flash_attn_4_varlen_func
 
-        FLASH_ATTN_4_AVAILABLE = is_blackwell_gpu()
-    except Exception:
-        pass
+            FLASH_ATTN_4_AVAILABLE = is_blackwell_gpu()
+        except Exception:
+            pass
 
 FLASH_ATTN_3_AVAILABLE = False
 
@@ -79,13 +91,6 @@ if not FLASH_ATTN_3_AVAILABLE and platform.system() != "Windows":
         FLASH_ATTN_3_AVAILABLE = is_hopper_gpu()
     except Exception:
         pass
-
-try:
-    flash_attn = _flash_attn
-
-    FLASH_ATTN_2_AVAILABLE = True
-except ModuleNotFoundError:
-    FLASH_ATTN_2_AVAILABLE = False
 
 sageattn_func = None
 SAGEATTN_AVAILABLE = False
@@ -140,11 +145,8 @@ def flash_attention(
     dtype:          torch.dtype. Apply when dtype of q/k/v is not float16/bfloat16.
     """
     if not FLASH_ATTN_3_AVAILABLE and not FLASH_ATTN_4_AVAILABLE:
-        return flash_attn_func(
-            q,
-            k,
-            v,
-        )
+        assert flash_attn_func is not None
+        return flash_attn_func(q, k, v)
     half_dtypes = (torch.float16, torch.bfloat16)
     assert dtype in half_dtypes
     assert q.device.type == "cuda" and q.size(-1) <= 256

@@ -51,3 +51,6 @@ notes/**/bench-*.json
 .cursorrules
 .cursorignore
 .cursorindexingignore
+
+# Output artifacts
+outputs/*.png

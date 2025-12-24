@@ -10,6 +10,8 @@ Tuning results (B200, shape B=1 H=16 Lq=4680 Lk=9360 D=128):
 - Pattern: smaller tiles + 8 warps + 2 stages wins on B200
 """
 
+import os
+
 import torch
 import triton
 import triton.language as tl
@@ -29,6 +31,44 @@ _B200_CONFIG = triton.Config(
     num_warps=8,
     num_stages=2,
 )
+
+def _parse_triton_version() -> tuple[int, int, int]:
+    ver = getattr(triton, "__version__", "0.0.0")
+    parts = (ver.split("+", 1)[0]).split(".")
+    out = []
+    for p in parts[:3]:
+        try:
+            out.append(int(p))
+        except Exception:
+            out.append(0)
+    while len(out) < 3:
+        out.append(0)
+    return out[0], out[1], out[2]
+
+
+def _should_use_scalar_kernel_b() -> bool:
+    """
+    Triton 3.5 (as shipped with torch 2.9 + cu130) currently fails on SM103 when
+    lowering tensor-core dot() to tcgen05 intrinsics (LLVM error: tcgen05.wait.st).
+
+    Use a more portable (non-tensorcore) kernel variant to avoid hard aborts.
+    """
+    if os.getenv("SCOPE_TRITON_KERNEL_B_FORCE_SCALAR", "0") == "1":
+        return True
+    if os.getenv("SCOPE_TRITON_KERNEL_B_FORCE_DOT", "0") == "1":
+        return False
+    try:
+        if not torch.cuda.is_available():
+            return False
+        major, minor = torch.cuda.get_device_capability(0)
+        if (major, minor) != (10, 3):
+            return False
+        v_major, v_minor, _v_patch = _parse_triton_version()
+        if (v_major, v_minor) >= (3, 5):
+            return True
+    except Exception:
+        return False
+    return False
 
 
 def get_kernel_b_configs():
@@ -50,6 +90,21 @@ def get_kernel_b_configs():
                             num_stages=num_stages,
                         )
                     )
+    return configs
+
+
+def get_kernel_b_scalar_configs():
+    configs = []
+    for BLOCK_M in [16, 32]:
+        for BLOCK_N in [32, 64]:
+            for num_warps in [4, 8]:
+                configs.append(
+                    triton.Config(
+                        {"BLOCK_M": BLOCK_M, "BLOCK_N": BLOCK_N},
+                        num_warps=num_warps,
+                        num_stages=2,
+                    )
+                )
     return configs
 
 
@@ -168,6 +223,99 @@ def kernel_b_bias_attention(
     tl.store(o_ptrs, o_i.to(O_ptr.dtype.element_ty), mask=o_mask)
 
 
+@triton.autotune(
+    configs=get_kernel_b_scalar_configs(),
+    key=["seq_len_q", "seq_len_k", "head_dim"],
+)
+@triton.jit
+def kernel_b_bias_attention_scalar(
+    Q_ptr,
+    K_ptr,
+    V_ptr,
+    O_ptr,
+    stride_qb,
+    stride_qh,
+    stride_qm,
+    stride_qd,
+    stride_kb,
+    stride_kh,
+    stride_kn,
+    stride_kd,
+    stride_vb,
+    stride_vh,
+    stride_vn,
+    stride_vd,
+    stride_ob,
+    stride_oh,
+    stride_om,
+    stride_od,
+    seq_len_q,
+    seq_len_k,
+    head_dim,
+    scale,
+    frame_seqlen,
+    current_block_start,
+    log_bias,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    BLOCK_D: tl.constexpr,
+):
+    pid_m = tl.program_id(0)
+    pid_bh = tl.program_id(1)
+
+    Q_block_ptr = Q_ptr + pid_bh * stride_qh
+    K_block_ptr = K_ptr + pid_bh * stride_kh
+    V_block_ptr = V_ptr + pid_bh * stride_vh
+    O_block_ptr = O_ptr + pid_bh * stride_oh
+
+    offs_m = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
+    offs_n = tl.arange(0, BLOCK_N)
+    offs_d = tl.arange(0, BLOCK_D)
+
+    q_ptrs = Q_block_ptr + offs_m[:, None] * stride_qm + offs_d[None, :] * stride_qd
+    q_mask = (offs_m[:, None] < seq_len_q) & (offs_d[None, :] < head_dim)
+    q = tl.load(q_ptrs, mask=q_mask, other=0.0).to(tl.float32)
+
+    m_i = tl.full([BLOCK_M], float("-inf"), dtype=tl.float32)
+    l_i = tl.zeros([BLOCK_M], dtype=tl.float32)
+    o_i = tl.zeros([BLOCK_M, BLOCK_D], dtype=tl.float32)
+
+    num_k_blocks = tl.cdiv(seq_len_k, BLOCK_N)
+    for kv_block_idx in range(num_k_blocks):
+        k_offs = kv_block_idx * BLOCK_N + offs_n
+
+        k_ptrs = K_block_ptr + k_offs[:, None] * stride_kn + offs_d[None, :] * stride_kd
+        k_mask = (k_offs[:, None] < seq_len_k) & (offs_d[None, :] < head_dim)
+        k = tl.load(k_ptrs, mask=k_mask, other=0.0).to(tl.float32)
+
+        qk = tl.sum(q[:, None, :] * k[None, :, :], axis=2) * scale
+
+        past_frame_mask = (k_offs[None, :] >= frame_seqlen) & (k_offs[None, :] < current_block_start)
+        qk = tl.where(past_frame_mask, qk + log_bias, qk)
+        qk = tl.where(k_offs[None, :] < seq_len_k, qk, float("-inf"))
+
+        m_ij = tl.max(qk, axis=1)
+        m_new = tl.maximum(m_i, m_ij)
+        alpha = tl.exp(m_i - m_new)
+        p_ij = tl.exp(qk - m_new[:, None])
+        l_new = alpha * l_i + tl.sum(p_ij, axis=1)
+
+        v_ptrs = V_block_ptr + k_offs[:, None] * stride_vn + offs_d[None, :] * stride_vd
+        v_mask = (k_offs[:, None] < seq_len_k) & (offs_d[None, :] < head_dim)
+        v = tl.load(v_ptrs, mask=v_mask, other=0.0).to(tl.float32)
+
+        o_i = alpha[:, None] * o_i + tl.sum(p_ij[:, :, None] * v[None, :, :], axis=1)
+
+        m_i = m_new
+        l_i = l_new
+
+    o_i = o_i / l_i[:, None]
+
+    o_ptrs = O_block_ptr + offs_m[:, None] * stride_om + offs_d[None, :] * stride_od
+    o_mask = (offs_m[:, None] < seq_len_q) & (offs_d[None, :] < head_dim)
+    tl.store(o_ptrs, o_i.to(O_ptr.dtype.element_ty), mask=o_mask)
+
+
 def triton_kernel_b(Q, K, V, frame_seqlen, current_block_start, log_bias, scale=None):
     """
     Wrapper for Kernel B: Attention with piecewise bias.
@@ -203,15 +351,69 @@ def triton_kernel_b(Q, K, V, frame_seqlen, current_block_start, log_bias, scale=
     def grid(meta):
         return (triton.cdiv(Lq, meta['BLOCK_M']), B * H)
 
-    kernel_b_bias_attention[grid](
-        Q, K, V, O,
-        Q.stride(0), Q.stride(1), Q.stride(2), Q.stride(3),
-        K.stride(0), K.stride(1), K.stride(2), K.stride(3),
-        V.stride(0), V.stride(1), V.stride(2), V.stride(3),
-        O.stride(0), O.stride(1), O.stride(2), O.stride(3),
-        Lq, Lk, D, scale,
-        frame_seqlen, current_block_start, log_bias,
-        BLOCK_D=BLOCK_D,
-    )
+    use_scalar = _should_use_scalar_kernel_b()
+
+    if use_scalar:
+        kernel_b_bias_attention_scalar[grid](
+            Q,
+            K,
+            V,
+            O,
+            Q.stride(0),
+            Q.stride(1),
+            Q.stride(2),
+            Q.stride(3),
+            K.stride(0),
+            K.stride(1),
+            K.stride(2),
+            K.stride(3),
+            V.stride(0),
+            V.stride(1),
+            V.stride(2),
+            V.stride(3),
+            O.stride(0),
+            O.stride(1),
+            O.stride(2),
+            O.stride(3),
+            Lq,
+            Lk,
+            D,
+            scale,
+            frame_seqlen,
+            current_block_start,
+            log_bias,
+            BLOCK_D=BLOCK_D,
+        )
+    else:
+        kernel_b_bias_attention[grid](
+            Q,
+            K,
+            V,
+            O,
+            Q.stride(0),
+            Q.stride(1),
+            Q.stride(2),
+            Q.stride(3),
+            K.stride(0),
+            K.stride(1),
+            K.stride(2),
+            K.stride(3),
+            V.stride(0),
+            V.stride(1),
+            V.stride(2),
+            V.stride(3),
+            O.stride(0),
+            O.stride(1),
+            O.stride(2),
+            O.stride(3),
+            Lq,
+            Lk,
+            D,
+            scale,
+            frame_seqlen,
+            current_block_start,
+            log_bias,
+            BLOCK_D=BLOCK_D,
+        )
 
     return O

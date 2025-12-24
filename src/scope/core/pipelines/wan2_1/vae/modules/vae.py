@@ -1,6 +1,11 @@
 # Modified from https://github.com/chenfengxu714/StreamdiffusionV2
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
+import atexit
+import json
 import logging
+import os
+import time
+from collections import defaultdict
 
 import torch
 import torch.cuda.amp as amp
@@ -14,6 +19,130 @@ __all__ = [
 ]
 
 CACHE_T = 2
+
+logger = logging.getLogger(__name__)
+
+_PROFILE_WANVAE_DECODE_INNER = os.getenv("PROFILE_WANVAE_DECODE_INNER", "0") == "1"
+_PROFILE_WANVAE_DECODE_INNER_JSON = os.getenv("PROFILE_WANVAE_DECODE_INNER_JSON")
+_wanvae_decode_inner_cpu_ms = defaultdict(float)
+_wanvae_decode_inner_gpu_ms = defaultdict(float)
+_wanvae_decode_inner_counts = defaultdict(int)
+_wanvae_decode_inner_meta: dict[str, object] = {}
+_WANVAE_STREAM_DECODE_MODE = os.getenv("WANVAE_STREAM_DECODE_MODE", "chunk").lower()
+
+
+def _should_profile_wanvae_decode_inner() -> bool:
+    if not _PROFILE_WANVAE_DECODE_INNER:
+        return False
+    if hasattr(torch, "compiler") and hasattr(torch.compiler, "is_compiling"):
+        if torch.compiler.is_compiling():
+            return False
+    return True
+
+
+def _wanvae_decode_inner_profile_report() -> None:
+    if not _wanvae_decode_inner_counts:
+        return
+
+    total_cpu_ms = sum(_wanvae_decode_inner_cpu_ms.values())
+    total_gpu_ms = sum(_wanvae_decode_inner_gpu_ms.values())
+    logger.info("=== WanVAE stream_decode() Inner Profiling Report ===")
+    for name, cpu_ms in sorted(_wanvae_decode_inner_cpu_ms.items(), key=lambda kv: -kv[1]):
+        calls = _wanvae_decode_inner_counts.get(name, 0)
+        gpu_ms = _wanvae_decode_inner_gpu_ms.get(name, 0.0)
+        cpu_pct = (100.0 * cpu_ms / total_cpu_ms) if total_cpu_ms > 0 else 0.0
+        gpu_pct = (100.0 * gpu_ms / total_gpu_ms) if total_gpu_ms > 0 else 0.0
+        cpu_per_call = (cpu_ms / calls) if calls else 0.0
+        gpu_per_call = (gpu_ms / calls) if calls else 0.0
+        logger.info(
+            "  %s: CPU %.1fms (%.1f%%) GPU %.1fms (%.1f%%) [%d calls, CPU %.2fms/call, GPU %.2fms/call]",
+            name,
+            cpu_ms,
+            cpu_pct,
+            gpu_ms,
+            gpu_pct,
+            calls,
+            cpu_per_call,
+            gpu_per_call,
+        )
+    logger.info("  TOTAL: CPU %.1fms GPU %.1fms", total_cpu_ms, total_gpu_ms)
+
+    if _PROFILE_WANVAE_DECODE_INNER_JSON:
+        meta = dict(_wanvae_decode_inner_meta)
+        meta.setdefault("torch", torch.__version__)
+        meta.setdefault("cuda", torch.version.cuda)
+        if torch.cuda.is_available():
+            try:
+                meta.setdefault("cuda_device", torch.cuda.get_device_name(0))
+                meta.setdefault("cuda_capability", list(torch.cuda.get_device_capability(0)))
+            except Exception:
+                pass
+        payload = {
+            "meta": meta,
+            "total_cpu_ms": total_cpu_ms,
+            "total_gpu_ms": total_gpu_ms,
+            "steps": {
+                name: {
+                    "cpu_ms": _wanvae_decode_inner_cpu_ms.get(name, 0.0),
+                    "gpu_ms": _wanvae_decode_inner_gpu_ms.get(name, 0.0),
+                    "calls": int(_wanvae_decode_inner_counts.get(name, 0)),
+                }
+                for name in sorted(_wanvae_decode_inner_counts.keys())
+            },
+        }
+        try:
+            with open(_PROFILE_WANVAE_DECODE_INNER_JSON, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2, sort_keys=True)
+            logger.info("Wrote WanVAE inner decode profile JSON: %s", _PROFILE_WANVAE_DECODE_INNER_JSON)
+        except Exception as e:
+            logger.warning(
+                "Failed writing WanVAE inner decode profile JSON (%s): %s",
+                _PROFILE_WANVAE_DECODE_INNER_JSON,
+                e,
+            )
+
+
+atexit.register(_wanvae_decode_inner_profile_report)
+
+
+def reset_wanvae_decode_inner_profile() -> None:
+    """Clear accumulated WanVAE_.stream_decode() inner profiling counters."""
+    _wanvae_decode_inner_cpu_ms.clear()
+    _wanvae_decode_inner_gpu_ms.clear()
+    _wanvae_decode_inner_counts.clear()
+    _wanvae_decode_inner_meta.clear()
+
+
+class _ProfileWanVaeDecodeInner:
+    __slots__ = ("name", "_cpu_start", "_start", "_end")
+
+    def __init__(self, name: str):
+        self.name = name
+        self._cpu_start = None
+        self._start = None
+        self._end = None
+
+    def __enter__(self):
+        if not _should_profile_wanvae_decode_inner():
+            return self
+        self._cpu_start = time.perf_counter()
+        if torch.cuda.is_available():
+            self._start = torch.cuda.Event(enable_timing=True)
+            self._end = torch.cuda.Event(enable_timing=True)
+            self._start.record()
+        return self
+
+    def __exit__(self, *_exc):
+        if self._cpu_start is None:
+            return
+
+        if self._start is not None and self._end is not None:
+            self._end.record()
+            self._end.synchronize()
+            _wanvae_decode_inner_gpu_ms[self.name] += self._start.elapsed_time(self._end)
+
+        _wanvae_decode_inner_cpu_ms[self.name] += (time.perf_counter() - self._cpu_start) * 1000.0
+        _wanvae_decode_inner_counts[self.name] += 1
 
 
 class CausalConv3d(nn.Conv3d):
@@ -680,41 +809,74 @@ class WanVAE_(nn.Module):
     def stream_decode(self, z, scale):
         # z: [b,c,t,h,w]
         t = z.shape[2]
-        if isinstance(scale[0], torch.Tensor):
-            z = z / scale[1].view(1, self.z_dim, 1, 1, 1) + scale[0].view(
-                1, self.z_dim, 1, 1, 1
+        if _should_profile_wanvae_decode_inner():
+            _wanvae_decode_inner_meta.update(
+                {
+                    "z_shape": list(z.shape),
+                    "z_dtype": str(z.dtype),
+                    "z_device": str(z.device),
+                    "t": int(t),
+                    "first_batch": bool(self.first_batch),
+                }
             )
-        else:
-            z = z / scale[1] + scale[0]
-        x = self.conv2(z)
+
+        with _ProfileWanVaeDecodeInner("apply_scale"):
+            if isinstance(scale[0], torch.Tensor):
+                z = z / scale[1].view(1, self.z_dim, 1, 1, 1) + scale[0].view(
+                    1, self.z_dim, 1, 1, 1
+                )
+            else:
+                z = z / scale[1] + scale[0]
+
+        with _ProfileWanVaeDecodeInner("conv2"):
+            x = self.conv2(z)
+
         if self.first_batch:
             self.clear_cache_decode()
             self.first_batch = False
             self._conv_idx = [0]
-            out = self.decoder(
-                x[:, :, :1, :, :],
-                feat_cache=self._feat_map,
-                feat_idx=self._conv_idx,
-            )
+            with _ProfileWanVaeDecodeInner("decoder_first"):
+                out = self.decoder(
+                    x[:, :, :1, :, :],
+                    feat_cache=self._feat_map,
+                    feat_idx=self._conv_idx,
+                )
             self._conv_idx = [0]
-            out_ = self.decoder(
-                x[:, :, 1:, :, :],
-                feat_cache=self._feat_map,
-                feat_idx=self._conv_idx,
-            )
-            out = torch.cat([out, out_], 2)
+            with _ProfileWanVaeDecodeInner("decoder_rest"):
+                out_ = self.decoder(
+                    x[:, :, 1:, :, :],
+                    feat_cache=self._feat_map,
+                    feat_idx=self._conv_idx,
+                )
+            with _ProfileWanVaeDecodeInner("cat"):
+                out = torch.cat([out, out_], 2)
         else:
-            out = []
-            for i in range(t):
+            if _WANVAE_STREAM_DECODE_MODE == "loop":
+                out = []
+                with _ProfileWanVaeDecodeInner("decoder_loop"):
+                    for i in range(t):
+                        self._conv_idx = [0]
+                        out.append(
+                            self.decoder(
+                                x[:, :, i : (i + 1), :, :],
+                                feat_cache=self._feat_map,
+                                feat_idx=self._conv_idx,
+                            )
+                        )
+                with _ProfileWanVaeDecodeInner("cat"):
+                    out = torch.cat(out, 2)
+            else:
+                # Fast path: decode the full chunk in a single call.
+                # The decoder is causal (CausalConv3d + per-frame AttentionBlock), so
+                # processing `t` frames together is equivalent to the per-frame loop,
+                # but enables much better kernel efficiency.
                 self._conv_idx = [0]
-                out.append(
-                    self.decoder(
-                        x[:, :, i : (i + 1), :, :],
+                with _ProfileWanVaeDecodeInner("decoder_chunk"):
+                    out = self.decoder(
+                        x,
                         feat_cache=self._feat_map,
                         feat_idx=self._conv_idx,
                     )
-                )
-            out = torch.cat(out, 2)
         # self.clear_cache()
         return out
 

@@ -170,6 +170,8 @@ Notes:
 - These profilers use CUDA events + `synchronize()`, so they reduce overlap and will lower absolute throughput while enabled.
 - `PROFILE_ATTENTION=1` helps answer “how much of `denoise` is attention vs everything else?”
 
+Shortcut (B300, cu130 env): `scripts/profile_b300_denoise_drilldown.sh` runs the same drill-down and writes all JSON + logs under `outputs/` with a single command.
+
 ### Interpreting Test 1b (Known B300 Findings)
 
 On B300 at `320x576`, `4` denoise steps, `kv_cache_attention_bias=0.3`, the drill-down shows:
@@ -177,6 +179,21 @@ On B300 at `320x576`, `4` denoise steps, `kv_cache_attention_bias=0.3`, the dril
 - `denoise` is almost entirely `components.generator(...)` time (random noise + scheduler are negligible).
 - `decode` is almost entirely `WanVAEWrapper.decode_to_pixel(...).stream_decode(...)` time (conv3d-heavy).
 - In steady-state (post-warmup), `decode` is currently the largest single block (~`740–760ms` per pipeline call for `t=3` frames).
+
+Artifacts that establish this (baseline stack, torch `2.8.0+cu128`):
+- Block profile: `outputs/b300_pipeline_blocks_profile_reset.json`
+- Denoise step split: `outputs/b300_denoise_steps_reset.json`
+- Decode wrapper split: `outputs/b300_vae_decode_reset.json`
+- Decode inner split: `outputs/b300_vae_decode_inner_reset.json`
+
+Key numbers (from `outputs/b300_denoise_steps_reset.json`, 4 timed pipeline calls):
+- `generator`: ~`1857.5ms` GPU total (~`464.4ms` per pipeline call)
+- `randn`: ~`0.29ms` GPU total
+- `scheduler_add_noise`: ~`1.29ms` GPU total
+
+Key numbers (from `outputs/b300_vae_decode_reset.json`, 4 timed decode calls):
+- `stream_decode`: ~`3042.5ms` GPU total (~`760.6ms` per call)
+- Everything else (`get_scale`, `prep_permute_cast`, `postprocess`) is noise-level.
 
 Two low-effort knobs that measurably help on B300:
 
@@ -193,6 +210,55 @@ Enabling cuDNN benchmark improves decode somewhat (at the cost of slower warmup 
 
 - Use `scripts/profile_krea_pipeline_blocks.py --cudnn-benchmark` for measurement.
 - If it helps in your environment, consider enabling `torch.backends.cudnn.benchmark=True` in the server process.
+
+### Test 1b.1: Drill Into `generator(...)` (New, Finer-Grained)
+
+The denoise-step profiler tells you that `generator(...)` dominates `denoise`, but not *why*.
+
+Enable the generator-internal profiler to split `generator(...)` into:
+- `call_model_*` (CausalWanModel forward; this is where attention/MLP lives)
+- `convert_flow_pred_to_x0` (post-processing)
+
+Example:
+
+```bash
+PROFILE_GENERATOR_STEPS=1 \
+PROFILE_GENERATOR_STEPS_JSON=$OUT_DIR/generator-steps.json \
+uv run python scripts/profile_krea_pipeline_blocks.py --iters 10 --skip 3
+```
+
+Notes:
+- Profiling uses CUDA events + synchronizes, so treat it as a breakdown tool, not a “max FPS” benchmark.
+- Avoid combining with `torch.compile` runs; the profiler auto-disables during tracing.
+
+#### Latest cu130 drill-down (profiling enabled)
+
+Command used:
+- `scripts/profile_b300_denoise_drilldown.sh`
+
+Artifacts:
+- `outputs/b300_cu130_fp8_bias03_drilldown_perf.log` / `outputs/b300_cu130_fp8_bias03_drilldown_perf.json`
+- `outputs/b300_cu130_fp8_bias03_drilldown_blocks_profile.json`
+- `outputs/b300_cu130_fp8_bias03_drilldown_denoise_steps.json`
+- `outputs/b300_cu130_fp8_bias03_drilldown_generator_steps.json`
+- `outputs/b300_cu130_fp8_bias03_drilldown_vae_decode.json`
+- `outputs/b300_cu130_fp8_bias03_drilldown_vae_decode_inner.json`
+
+Notes:
+- Avg FPS in this run is ~`11.4` (lower than the non-profiled benchmark) because the profilers add synchronizations.
+
+Key breakdown (from `outputs/b300_cu130_fp8_bias03_drilldown_blocks_profile.json`):
+- `denoise`: ~`658.5ms` per pipeline call
+- `decode`: ~`207.0ms` per pipeline call
+- `recompute_kv_cache`: ~`140.3ms` per pipeline call
+
+Within `denoise` (from `outputs/b300_cu130_fp8_bias03_drilldown_denoise_steps.json`):
+- `generator`: ~`164.5ms` per call (4 calls per pipeline call)
+- `randn` + `scheduler_add_noise`: noise-level
+
+Within `generator(...)` (from `outputs/b300_cu130_fp8_bias03_drilldown_generator_steps.json`):
+- `call_model_kv_cache`: ~`159.8ms` per call (dominates)
+- `convert_flow_pred_to_x0`: ~`0.1ms` per call (negligible)
 
 ### Test 1c: “SM103-native” Runtime Check (cu130 cuDNN)
 
@@ -284,7 +350,9 @@ PYTHONPATH=src \
   --json outputs/b300_cu130_fp8_bias03_flashattn.json
 ```
 
-Observed: **~13.3–13.5 FPS** at `320x576`.
+Observed:
+- `scripts/profile_krea_pipeline_blocks.py`: **~13.3–13.5 FPS** at `320x576` (see `outputs/b300_cu130_fp8_bias03_flashattn.log`)
+- Daydream (end-to-end): **~14.8–15.0 FPS** at `320x576` (canonical)
 
 Optional: capture per-block profile under cu130 (helps confirm decode is no longer dominant):
 
@@ -304,6 +372,19 @@ PYTHONPATH=src \
 ```
 
 ---
+
+## Troubleshooting: CUDA/NVML Disappeared (Error 304 / NVML Unknown Error)
+
+If you see:
+- PyTorch: `cudaGetDeviceCount` **Error 304** (`torch.cuda.is_available() == False`)
+- `nvidia-smi`: **Failed to initialize NVML: Unknown Error**
+
+Then the GPU/driver is likely wedged and you won’t be able to run profiling.
+
+In this environment, you may not have permission to reset the GPU from inside the container (sysfs/proc writes can be denied). Usual fixes are host-level:
+- Stop any GPU users, then attempt `nvidia-smi --gpu-reset -i 0` (if supported).
+- Restart the NVIDIA driver stack / services.
+- Reboot the box.
 
 ## Test 2: Live GPU Monitoring (H2, H3)
 
