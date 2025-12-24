@@ -2,7 +2,37 @@
 
 ## Current Status
 
-**B300 is ~8.8 FPS at `320x576` (reference resolution) and the number is stable across iterations.**
+**Baseline (repo default stack): B300 is ~8.8 FPS at `320x576` (reference resolution) and the number is stable across iterations.**
+
+**Update (cu130 + FlashAttention): B300 is now ~14.8–15.0 FPS at `320x576` (same reference settings).** This is a ~70% improvement over baseline.
+
+Repro (isolated env; does not touch shared `.venv`):
+
+```bash
+# Setup (one-time)
+./scripts/setup_b300_cu130_env.sh
+
+# Run daydream
+./scripts/run_daydream_b300.sh
+```
+
+Or for benchmarking:
+
+```bash
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 6 --skip 2 \
+  --quantization fp8_e4m3fn \
+  --kv-cache-attention-bias 0.3 \
+  --cudnn-benchmark
+```
+
+Artifacts:
+- `outputs/b300_cu130_fp8_bias03_flashattn.log`
+- `outputs/b300_cu130_fp8_bias03_flashattn.json`
 
 **Key update:** This no longer looks like an “invisible FPS cap” caused by WebRTC/codec pacing or CPU stalls. A block-level CUDA-event profile shows GPU time ≈ wall time, and the dominant blocks are `denoise` and `decode` (not the KV-bias attention microkernel).
 
@@ -22,6 +52,81 @@ Per-block GPU time breakdown (4 pipeline calls):
 | `text_conditioning` | ~655 | ~7% | ~164 ms |
 
 **Interpretation:** End-to-end throughput is largely compute-bound inside `denoise` (+ `decode`), so swapping KV-bias backends (Triton Kernel B vs FA4 vs segment-combine) won’t materially move FPS unless it changes time inside `denoise` (or reduces work in `decode` / `recompute_kv_cache`).
+
+### Update: cu130 + FlashAttention Block Profile (Much Better)
+
+Artifact: `outputs/b300_cu130_fp8_bias03_blocks_profile.json` (generated via `--profile-blocks` in the cu130 env).
+
+Aggregated GPU time breakdown (4 pipeline calls):
+
+| Block | GPU ms | Share (of total GPU) | Per-call |
+|------:|-------:|----------------------:|---------:|
+| `denoise` | ~2113 | ~62% | ~528 ms |
+| `decode` | ~833 | ~25% | ~208 ms |
+| `recompute_kv_cache` | ~410 | ~12% | ~102 ms |
+| `text_conditioning` | ~36 | ~1% | ~9 ms |
+
+## New Evidence (Deeper Drill: Decode Dominates)
+
+Using the denoise/decode CUDA-event profilers (post-warmup, `320x576`, `4` steps, `kv_cache_attention_bias=0.3`):
+
+- `denoise` ≈ **all** `components.generator(...)` time; `randn` and `scheduler_add_noise` are negligible.
+- `decode` ≈ **all** `WanVAEWrapper.decode_to_pixel(...).stream_decode(...)` time.
+- `decode` is currently the single largest block on B300 in steady-state (~`740–760ms` per pipeline call for `t=3` frames).
+
+This strengthens the hypothesis that the main B300 gap is likely in **cuDNN / conv3d performance** (and therefore may depend strongly on having an SM103-native PyTorch/CUDA runtime stack).
+
+### Update: SM103-Native Stack Matters (Big)
+
+A decode-only microbenchmark shows `WanVAE_.stream_decode(t=3)` is **~3.9× faster** on a cu130 stack:
+
+- `torch 2.8.0+cu129` (CUDA 12.9, cuDNN 9.10): ~`760ms/call`
+- `torch 2.9.0+cu130` (CUDA 13.0, cuDNN 9.13): ~`194ms/call`
+
+Artifacts:
+- `outputs/b300_cu129_vae_stream_decode_bench.log`
+- `outputs/b300_cu130_vae_stream_decode_bench.log`
+
+Implication: To move B300 off ~8.8 FPS, **prioritize a cu130 (or newer) runtime** over more attention microkernel work.
+
+### Update: cu130 env needs FlashAttention installed
+
+Without `flash_attn` installed in the cu130 env, KV-bias falls back to Triton (and flex_attention can run unfused), which regresses end-to-end to ~`1 FPS`.
+
+Install (in `.venv-b300-cu130-decode`; note the CUDA extension is large, ~1GB):
+
+```bash
+uv pip install -p .venv-b300-cu130-decode/bin/python wheel ninja
+uv pip install -p .venv-b300-cu130-decode/bin/python --no-deps --no-build-isolation --no-binary flash-attn flash-attn==2.8.3
+```
+
+Optional (FA4 / CuTe): if you want `FLASH_ATTN_4_AVAILABLE=True` on B300 in this env, you also need `cuda-python` + `nvidia-cutlass-dsl`:
+
+```bash
+uv pip install -p .venv-b300-cu130-decode/bin/python cuda-python nvidia-cutlass-dsl==4.1.0
+PATH=.venv-b300-cu130-decode/bin:$PATH ./scripts/patch_cutlass_sm103.sh .venv-b300-cu130-decode
+```
+
+This makes `flash_attn.cute` importable (CuTe). End-to-end FPS was still ~13.4 in our run (small/no gain vs FA2).
+
+If the env ever gets clobbered back to cu128 (e.g. by `uv sync`), restore it with:
+
+```bash
+./scripts/b300_env_fix_cu130.sh .venv-b300-cu130-decode
+```
+
+## Implemented Knobs (B300 Experiments)
+
+1) **Faster VAE streaming decode**
+
+`WanVAE_.stream_decode()` supports:
+
+- `WANVAE_STREAM_DECODE_MODE=chunk` (default; fewer decoder calls, slightly faster)
+- `WANVAE_STREAM_DECODE_MODE=loop` (old per-frame loop; slower on B300)
+
+2) **cuDNN benchmark**
+
+`scripts/profile_krea_pipeline_blocks.py --cudnn-benchmark` improved steady-state FPS slightly on B300 (at the cost of slower warmup).
 
 ## Key Discovery This Session
 
@@ -110,6 +215,7 @@ Practical note: `torch.profiler` CUDA timelines appear broken on this environmen
 
 ```bash
 export TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
+export DISABLE_FLEX_ATTENTION_COMPILE=1  # needed for torch 2.9 / SM103 (tcgen05 LLVM abort)
 # Optional overrides:
 export SCOPE_KV_BIAS_BACKEND=flash  # or fa4, triton
 export SCOPE_KV_CACHE_ATTENTION_BIAS=1.0  # disable bias for plain FA4

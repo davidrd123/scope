@@ -44,6 +44,17 @@ Dominant blocks (4 pipeline calls):
 
 Implication: attention micro-optimizations (FA4 score_mod, Triton Kernel B tuning, etc.) will not move end-to-end FPS unless they materially reduce time inside `denoise` (and possibly also reduce work in `decode` / `recompute_kv_cache`).
 
+### SM103-Native Stack Hypothesis (New, High-Value)
+
+On B300, **WanVAE decode is conv3d-heavy and cuDNN-dominated**. If the runtime’s cuDNN is missing fast SM103 kernels, decode can become the bottleneck even when attention is fast.
+
+We now have strong evidence that **the PyTorch + cuDNN bundle matters dramatically** on SM103:
+
+- **Torch 2.8 + cu129 (CUDA 12.9, cuDNN 9.10)**: `stream_decode(t=3)` is ~`760ms/call`
+- **Torch 2.9 + cu130 (CUDA 13.0, cuDNN 9.13)**: `stream_decode(t=3)` is ~`194ms/call` (**~3.9× faster**)
+
+If this carries over to the full pipeline, it would largely explain why B300 is stuck near ~8.8 FPS on the default cu128/cu129 stack.
+
 ### Why This Profile Is Trustworthy
 
 - Per-block GPU timing is implemented via CUDA events in `src/scope/core/pipelines/krea_realtime_video/modular_blocks.py` (records start/end, then `synchronize()`).
@@ -158,6 +169,139 @@ uv run python scripts/profile_krea_pipeline_blocks.py \
 Notes:
 - These profilers use CUDA events + `synchronize()`, so they reduce overlap and will lower absolute throughput while enabled.
 - `PROFILE_ATTENTION=1` helps answer “how much of `denoise` is attention vs everything else?”
+
+### Interpreting Test 1b (Known B300 Findings)
+
+On B300 at `320x576`, `4` denoise steps, `kv_cache_attention_bias=0.3`, the drill-down shows:
+
+- `denoise` is almost entirely `components.generator(...)` time (random noise + scheduler are negligible).
+- `decode` is almost entirely `WanVAEWrapper.decode_to_pixel(...).stream_decode(...)` time (conv3d-heavy).
+- In steady-state (post-warmup), `decode` is currently the largest single block (~`740–760ms` per pipeline call for `t=3` frames).
+
+Two low-effort knobs that measurably help on B300:
+
+1) **VAE streaming decode mode**
+
+`WanVAE_.stream_decode()` previously decoded per-frame in a Python loop. We added a faster chunk decode:
+
+- Default: `WANVAE_STREAM_DECODE_MODE=chunk` (single decoder call for all `t` frames)
+- Fallback: `WANVAE_STREAM_DECODE_MODE=loop` (old behavior, slower on B300)
+
+2) **cuDNN benchmark**
+
+Enabling cuDNN benchmark improves decode somewhat (at the cost of slower warmup due to algorithm search):
+
+- Use `scripts/profile_krea_pipeline_blocks.py --cudnn-benchmark` for measurement.
+- If it helps in your environment, consider enabling `torch.backends.cudnn.benchmark=True` in the server process.
+
+### Test 1c: “SM103-native” Runtime Check (cu130 cuDNN)
+
+Goal: determine whether B300 is slow because the **runtime stack** (cuDNN/cuBLAS) is not optimized for SM103.
+
+#### Create isolated envs (do NOT touch `.venv`)
+
+These were created on the B300 box to avoid colliding with other agents using the shared `.venv`:
+
+```bash
+# Full project env but torch 2.8 + cu129 (CUDA 12.9 runtime) for A/B sanity
+uv venv .venv-b300-cu129 --python 3.12
+UV_PROJECT_ENVIRONMENT=.venv-b300-cu129 uv sync --frozen --no-dev
+uv pip install -p .venv-b300-cu129/bin/python --upgrade --index-url https://download.pytorch.org/whl/cu129 \
+  torch==2.8.0+cu129 torchvision==0.23.0+cu129
+
+# Minimal decode-only env for torch 2.9 + cu130 (CUDA 13 runtime)
+uv venv .venv-b300-cu130-decode --python 3.12
+uv pip install -p .venv-b300-cu130-decode/bin/python --index-url https://download.pytorch.org/whl/cu130 torch==2.9.0+cu130
+uv pip install -p .venv-b300-cu130-decode/bin/python einops numpy
+```
+
+Disk note (B300 box at time of writing): `.venv` ~7.9G, `.venv-b300-cu129` ~8.4G, `.venv-b300-cu130-decode` ~4.5G, ~24G free.
+
+#### Run the pipeline benchmark under cu129 (expected: still ~8.8 FPS)
+
+```bash
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+WANVAE_STREAM_DECODE_MODE=chunk \
+.venv-b300-cu129/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 4 --skip 1 \
+  --cudnn-benchmark
+```
+
+Observed (cu129): **~8.6 FPS**, `decode` still ~`736ms/call`.
+
+#### Run the decode-only microbenchmark under cu129 vs cu130
+
+Use the repo code directly via `PYTHONPATH=src`:
+
+```bash
+# cu129: ~760ms/call (t=3)
+PYTHONPATH=src .venv-b300-cu129/bin/python scripts/bench_wanvae_stream_decode.py --height 320 --width 576 --t 3 --cudnn-benchmark
+
+# cu130: ~194ms/call (t=3)
+PYTHONPATH=src .venv-b300-cu130-decode/bin/python scripts/bench_wanvae_stream_decode.py --height 320 --width 576 --t 3 --cudnn-benchmark
+```
+
+Note: `stream_decode` has streaming caches; if warmup is too small, you will measure a “cold start” that can be ~2× slower than steady-state.
+
+Results recorded:
+- `outputs/b300_cu129_vae_stream_decode_bench.log`
+- `outputs/b300_cu130_vae_stream_decode_bench.log`
+
+Interpretation:
+- If decode is ~4× faster on cu130, **the path forward is to run B300 on a cu130 (or newer) stack**, not to keep tuning attention.
+
+#### Update (2025-12-24): cu130 + FlashAttention makes the full pipeline fast again
+
+The cu130 env **must** have `flash_attn` installed, otherwise KV-bias falls back to slow paths and end-to-end can drop to ~`1 FPS`.
+
+Install FlashAttention into the cu130 env (note: builds a large CUDA extension, ~1GB):
+
+```bash
+uv pip install -p .venv-b300-cu130-decode/bin/python wheel ninja
+uv pip install -p .venv-b300-cu130-decode/bin/python --no-deps --no-build-isolation --no-binary flash-attn flash-attn==2.8.3
+```
+
+If the env ever gets clobbered back to cu128 (common after `uv sync`), restore it with:
+
+```bash
+./scripts/b300_env_fix_cu130.sh .venv-b300-cu130-decode
+```
+
+Then run the full pipeline benchmark (reference settings):
+
+```bash
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+PYTHONPATH=src \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 6 --skip 2 \
+  --quantization fp8_e4m3fn \
+  --kv-cache-attention-bias 0.3 \
+  --cudnn-benchmark \
+  --json outputs/b300_cu130_fp8_bias03_flashattn.json
+```
+
+Observed: **~13.3–13.5 FPS** at `320x576`.
+
+Optional: capture per-block profile under cu130 (helps confirm decode is no longer dominant):
+
+```bash
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+PYTHONPATH=src \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 4 --skip 1 \
+  --quantization fp8_e4m3fn \
+  --kv-cache-attention-bias 0.3 \
+  --cudnn-benchmark \
+  --profile-blocks \
+  --profile-blocks-json outputs/b300_cu130_fp8_bias03_blocks_profile.json
+```
 
 ---
 

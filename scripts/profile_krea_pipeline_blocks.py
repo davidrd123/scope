@@ -41,6 +41,11 @@ def _parse_args() -> argparse.Namespace:
         help="Match the common 32GB setup (fp8) or run unquantized (none).",
     )
     parser.add_argument("--prompt", type=str, default="a majestic sunset")
+    parser.add_argument(
+        "--cudnn-benchmark",
+        action="store_true",
+        help="Enable torch.backends.cudnn.benchmark (can improve conv performance).",
+    )
     parser.add_argument("--json", type=Path, default=None, help="Write per-iter FPS to JSON")
     parser.add_argument(
         "--profile-blocks",
@@ -74,9 +79,12 @@ def main() -> int:
     if not torch.cuda.is_available():
         raise SystemExit("CUDA not available")
 
+    torch.backends.cudnn.benchmark = bool(args.cudnn_benchmark)
+
     print(f"CUDA device: {torch.cuda.get_device_name(0)}")
     print(f"Compute capability: {torch.cuda.get_device_capability(0)}")
     print(f"torch: {torch.__version__} (cuda={torch.version.cuda})")
+    print(f"cudnn.benchmark: {torch.backends.cudnn.benchmark}")
 
     quantization = (
         Quantization.FP8_E4M3FN if args.quantization == "fp8_e4m3fn" else None
@@ -115,6 +123,32 @@ def main() -> int:
         device=torch.device("cuda"),
         dtype=torch.bfloat16,
     )
+
+    # Reset profiling counters after pipeline init/warmup so JSON reflects timed iters only.
+    try:
+        from scope.core.pipelines.krea_realtime_video import modular_blocks as _modular_blocks
+
+        _modular_blocks.reset_pipeline_block_profile()
+    except Exception:
+        pass
+    try:
+        from scope.core.pipelines.wan2_1.blocks import denoise as _denoise_block
+
+        _denoise_block.reset_denoise_step_profile()
+    except Exception:
+        pass
+    try:
+        from scope.core.pipelines.wan2_1.vae import wan as _wan_vae
+
+        _wan_vae.reset_wanvae_decode_profile()
+    except Exception:
+        pass
+    try:
+        from scope.core.pipelines.wan2_1.vae.modules import vae as _wan_vae_modules
+
+        _wan_vae_modules.reset_wanvae_decode_inner_profile()
+    except Exception:
+        pass
 
     prompts = [{"text": args.prompt, "weight": 100}]
     per_iter = []

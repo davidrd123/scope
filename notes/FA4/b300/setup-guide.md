@@ -59,6 +59,52 @@ Why this might matter:
 - Decode is heavy **3D conv** (`WanVAE_.stream_decode`), which is typically **cuDNN**-dominated.
 - It’s plausible `torch==+cu128`’s bundled cuDNN doesn’t have the best SM103 kernels yet, even if GEMM looks great.
 
+#### Update (2025-12-24): cu130 makes decode ~4× faster
+
+We now have direct evidence that the runtime stack is the lever on B300:
+
+- `torch 2.8.0+cu129` (CUDA 12.9, cuDNN 9.10): `stream_decode(t=3)` ~`760ms/call`
+- `torch 2.9.0+cu130` (CUDA 13.0, cuDNN 9.13): `stream_decode(t=3)` ~`194ms/call` (**~3.9× faster**)
+
+Logs:
+- `outputs/b300_cu129_vae_stream_decode_bench.log`
+- `outputs/b300_cu130_vae_stream_decode_bench.log`
+
+This strongly suggests the “8.8 FPS” issue is largely a **cuDNN/conv3d stack** issue, not attention.
+
+#### Update (2025-12-24): cu130 + FlashAttention restores end-to-end FPS
+
+On torch `2.9.0+cu130` (triton `3.5.0`), `torch.compile(flex_attention)` currently hard-aborts on SM103
+(`LLVM ERROR: Cannot select: intrinsic %llvm.nvvm.tcgen05.wait.st`). For stability:
+
+- Set `DISABLE_FLEX_ATTENTION_COMPILE=1`
+- Ensure `flash_attn` is installed, otherwise KV-bias falls back to slow paths (can look like ~`1 FPS`)
+
+Install FlashAttention in the cu130 env (note: builds a large CUDA extension, ~1GB):
+
+```bash
+uv pip install -p .venv-b300-cu130-decode/bin/python wheel ninja
+uv pip install -p .venv-b300-cu130-decode/bin/python --no-deps --no-build-isolation --no-binary flash-attn flash-attn==2.8.3
+```
+
+Reference benchmark result on B300 (`320x576`, FP8, bias=0.3):
+- `outputs/b300_cu130_fp8_bias03_flashattn.log` → **~13.3–13.5 FPS**
+
+### Running Daydream on B300 (cu130 env)
+
+This avoids colliding with the shared `.venv` and sets the key SM103 env vars:
+
+```bash
+./scripts/setup_b300_cu130_env.sh .venv-b300-cu130-decode  # one-time (or after uv sync clobbers torch)
+./scripts/run_daydream_b300.sh
+```
+
+If the cu130 env ever gets clobbered back to cu128 (e.g. by `uv sync`), repair it with:
+
+```bash
+./scripts/b300_env_fix_cu130.sh .venv-b300-cu130-decode
+```
+
 Practical experiment:
 
 1) Keep `.venv-b200` unchanged (working baseline).
@@ -103,6 +149,19 @@ Triton: 3.4.0
 Python: 3.12
 ```
 
+### Decode-Only Quick Check (works without the full pipeline)
+
+This is a cheap discriminator when you’re unsure whether the box/runtime is “good” for SM103.
+
+```bash
+uv venv .venv-b300-cu130-decode --python 3.12
+uv pip install -p .venv-b300-cu130-decode/bin/python --index-url https://download.pytorch.org/whl/cu130 torch==2.9.0+cu130
+uv pip install -p .venv-b300-cu130-decode/bin/python einops numpy
+
+PYTHONPATH=src .venv-b300-cu130-decode/bin/python scripts/bench_wanvae_stream_decode.py \
+  --height 320 --width 576 --t 3 --cudnn-benchmark
+```
+
 ## What Works on B300
 
 | Feature | B200 (SM100) | B300 (SM103) | Notes |
@@ -112,21 +171,21 @@ Python: 3.12
 | RoPE fused | ✅ | ✅ | 0.029 ms |
 | FA4/CUTE basic | ✅ | ✅ | **0.074 ms** (13x faster!) - needs patches |
 | FA4/CUTE score_mod | ✅ | ❌ | Version mismatch, see B300-FA4-PATCHES.md |
-| daydream-scope | ✅ 20 FPS | ✅ 8.8 FPS | Baseline, room for optimization |
+| daydream-scope | ✅ 20 FPS | ✅ 8.8 FPS (baseline) / ✅ ~13.3 FPS (cu130+flash-attn) | End-to-end sensitive to runtime stack |
 
 ## FA4/CUTE on B300 (Optional)
 
 FA4 basic attention works on B300 after patching `nvidia-cutlass-dsl`. It's **13x faster** than Triton for causal attention!
 
 ```bash
-# 1. Install correct cutlass version
-uv pip install nvidia-cutlass-dsl==4.1.0
+# 1. Install dependencies for flash_attn.cute (CuTe)
+uv pip install cuda-python nvidia-cutlass-dsl==4.1.0
 
-# 2. Apply SM103 patches
-./scripts/patch_cutlass_sm103.sh
+# 2. Apply SM103 patches (pass your venv dir if not using `.venv`)
+PATH=.venv/bin:$PATH ./scripts/patch_cutlass_sm103.sh .venv
 
 # 3. Verify FA4 works
-python -c "from flash_attn.cute.interface import _flash_attn_fwd; print('FA4 OK')"
+PATH=.venv/bin:$PATH python -c "from flash_attn.cute.interface import _flash_attn_fwd; print('FA4 OK')"
 ```
 
 **Note**: FA4 with `score_mod` (for Kernel B equivalent) doesn't work yet due to version mismatches. See `notes/FA4/b300/fa4-patches.md` for details.

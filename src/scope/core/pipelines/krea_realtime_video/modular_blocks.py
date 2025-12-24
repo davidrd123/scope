@@ -32,6 +32,13 @@ _profile_block_gpu_ms = defaultdict(float)
 _profile_block_counts = defaultdict(int)
 
 
+def reset_pipeline_block_profile() -> None:
+    """Clear accumulated per-block profiling counters."""
+    _profile_block_cpu_ms.clear()
+    _profile_block_gpu_ms.clear()
+    _profile_block_counts.clear()
+
+
 def _should_profile_pipeline_blocks() -> bool:
     if not _PROFILE_PIPELINE_BLOCKS:
         return False
