@@ -349,7 +349,8 @@ from typing import Optional
 class CompiledPrompt:
     positive: list[dict]  # [{"text": "...", "weight": 1.0}]
     negative: str
-    lora_stack: list[dict]  # [{"path": "...", "scale": 0.8}]
+    # Scope/KREA runtime contract calls these "lora_scales"
+    lora_scales: list[dict]  # [{"path": "...", "scale": 0.8}]
     
 class PromptCompiler:
     """Translates WorldState → pipeline-ready prompts using StyleManifest."""
@@ -404,7 +405,7 @@ class PromptCompiler:
         return CompiledPrompt(
             positive=[{"text": prompt_text, "weight": 1.0}],
             negative=self.style.default_negative,
-            lora_stack=[{
+            lora_scales=[{
                 "path": self.style.lora_path,
                 "scale": self.style.lora_default_scale,
             }],
@@ -447,7 +448,7 @@ class PromptCompiler:
             "style_manifest": self.style.name,
             "output_prompt": compiled.positive[0]["text"],
             "output_negative": compiled.negative,
-            "lora": compiled.lora_stack,
+            "lora_scales": compiled.lora_scales,
         }
 ```
 
@@ -472,15 +473,17 @@ class ControlState:
     prompts: list[dict] = field(default_factory=list)
     # [{"text": "...", "weight": 1.0}]
     
+    # NOTE: The current Scope/KREA realtime pipeline does not consume negative prompts.
+    # Keep this field for forward-compatibility with other backends.
     negative_prompt: str = ""
     
-    # LoRA configuration
-    lora_stack: list[dict] = field(default_factory=list)
+    # LoRA configuration (runtime updates via lora_scales; edge-triggered)
+    lora_scales: list[dict] = field(default_factory=list)
     # [{"path": "...", "scale": 0.8}]
     
     # Generation parameters
     mode: GenerationMode = GenerationMode.T2V
-    num_frames_per_block: int = 3
+    num_frame_per_block: int = 3  # Must match pipeline config
     denoising_step_list: list[int] = field(
         default_factory=lambda: [1000, 750, 500, 250]
     )
@@ -492,9 +495,10 @@ class ControlState:
     # KV cache behavior (0.3 is KREA default - higher = more stable, less responsive)
     kv_cache_attention_bias: float = 0.3
     
-    # Transition state (for prompt ramping)
-    transition_chunks_remaining: int = 0
-    transition_from_prompts: Optional[list[dict]] = None
+    # Prompt transitions (pipeline-native; optional)
+    # Shape matches Scope's `transition` contract:
+    # {"target_prompts": [...], "num_steps": 4, "temporal_interpolation_method": "linear"}
+    transition: Optional[dict] = None
     
     # Pipeline state tracking
     current_start_frame: int = 0
@@ -504,16 +508,19 @@ class ControlState:
     
     def to_pipeline_kwargs(self) -> dict:
         """Convert to kwargs for pipeline call."""
-        return {
+        kwargs = {
             "prompts": self.prompts,
-            "negative_prompt": self.negative_prompt,
-            "num_frame_per_block": self.num_frames_per_block,
+            "num_frame_per_block": self.num_frame_per_block,
             "denoising_step_list": self.denoising_step_list,
             "base_seed": self.effective_seed(),
-            # Include LoRA and cache behavior
-            "lora_stack": self.lora_stack,
             "kv_cache_attention_bias": self.kv_cache_attention_bias,
         }
+        # IMPORTANT: `lora_scales` updates are edge-triggered and should NOT be sent
+        # on every call (it can force cache resets). The PipelineAdapter is responsible
+        # for sending `lora_scales` only when it changes.
+        if self.transition is not None:
+            kwargs["transition"] = self.transition
+        return kwargs
 ```
 
 ### 5. ControlBus (Event Queue)
@@ -532,7 +539,7 @@ class EventType(Enum):
     SET_PROMPT = "set_prompt"
     SET_WORLD_STATE = "set_world_state"
     SET_STYLE_MANIFEST = "set_style_manifest"
-    SET_LORA_STACK = "set_lora_stack"
+    SET_LORA_SCALES = "set_lora_scales"
     
     # Generation parameters
     SET_DENOISE_STEPS = "set_denoise_steps"
@@ -646,13 +653,13 @@ class ControlBus:
 # Convenience functions for common event patterns
 def prompt_event(
     prompts: list[dict],
-    ramp_chunks: int = 0,
+    transition: Optional[dict] = None,
     source: str = "api",
 ) -> ControlEvent:
     """Create a prompt update event."""
     return ControlEvent(
         type=EventType.SET_PROMPT,
-        payload={"prompts": prompts, "ramp_chunks": ramp_chunks},
+        payload={"prompts": prompts, "transition": transition},
         source=source,
     )
 
@@ -665,10 +672,10 @@ def world_state_event(updates: dict, source: str = "api") -> ControlEvent:
     )
 
 def pause_event(source: str = "api") -> ControlEvent:
-    """Create a pause event (applies immediately if possible)."""
+    """Create a pause event (applies at next chunk boundary)."""
     return ControlEvent(
         type=EventType.PAUSE,
-        apply_mode=ApplyMode.IMMEDIATE_IF_PAUSED,
+        apply_mode=ApplyMode.NEXT_BOUNDARY,
         source=source,
     )
 
@@ -684,6 +691,82 @@ def fork_event(
         source=source,
     )
 ```
+
+#### Pipeline Adapter Contract
+
+The Scope/KREA pipeline stores *both* control inputs and continuity buffers inside `pipeline.state` (a `PipelineState` key-value store). Do not treat the pipeline object as if it has stable public attributes like `pipeline.context_frame_buffer`; in Scope, those buffers are produced/consumed by blocks and live in state keys.
+
+Add a small **PipelineAdapter** abstraction whose whole job is:
+
+1. Convert `ControlState` → the exact kwargs `KreaRealtimeVideoPipeline.__call__(...)` expects.
+2. Extract and restore continuity buffers from `pipeline.state` using known keys.
+3. Edge-trigger runtime changes with side effects (notably `lora_scales`, which can force cache reset when `manage_cache` is enabled).
+
+**Continuity keys (Scope/KREA realtime video)**
+- `current_start_frame`
+- `first_context_frame`
+- `context_frame_buffer`
+- `decoded_frame_buffer`
+- `context_frame_buffer_max_size`
+- `decoded_frame_buffer_max_size`
+
+**Minimal adapter interface**
+
+```python
+class PipelineAdapter:
+    CONTINUITY_KEYS = [
+        "current_start_frame",
+        "first_context_frame",
+        "context_frame_buffer",
+        "decoded_frame_buffer",
+        "context_frame_buffer_max_size",
+        "decoded_frame_buffer_max_size",
+    ]
+
+    def __init__(self, pipeline):
+        self.pipeline = pipeline
+        self._last_lora_scales: list[dict] | None = None
+
+    def kwargs_for_call(self, control: ControlState, *, init_cache: bool) -> dict:
+        kwargs = control.to_pipeline_kwargs()
+        kwargs["init_cache"] = init_cache
+
+        # Edge-trigger: only include lora_scales when it changes, otherwise omit.
+        # In Scope/KREA, providing lora_scales may force init_cache=True when manage_cache is enabled.
+        if control.lora_scales != (self._last_lora_scales or []):
+            if control.lora_scales:
+                kwargs["lora_scales"] = control.lora_scales
+            self._last_lora_scales = list(control.lora_scales)
+        else:
+            kwargs.pop("lora_scales", None)
+
+        return kwargs
+
+    def capture_continuity(self) -> dict:
+        st = self.pipeline.state
+        return {k: st.get(k) for k in self.CONTINUITY_KEYS if st.get(k) is not None}
+
+    def restore_continuity(self, continuity: dict):
+        st = self.pipeline.state
+        for k, v in continuity.items():
+            st.set(k, v)
+```
+
+#### Chunk Boundary Event Semantics
+
+All control is **chunk-transactional**:
+
+- Generator state is mutated **only at chunk boundaries** (i.e., between pipeline calls).
+- Events are applied in a deterministic order and recorded with the chunk index they took effect on.
+- “Immediate” events are only “immediate” with respect to **pause mode** (safe to apply without generating).
+
+Recommended deterministic application order at each boundary:
+1. Lifecycle (`STOP`, `PAUSE`, `RESUME`, `STEP`)
+2. Snapshot/restore (`RESTORE_SNAPSHOT`, `SNAPSHOT_REQUEST`)
+3. Style (`SET_STYLE_MANIFEST`) (rebind compiler)
+4. World (`SET_WORLD_STATE`) (then recompile if compiler active)
+5. Prompt/transition (`SET_PROMPT`) (direct override; may include `transition`)
+6. Runtime params (`SET_DENOISE_STEPS`, `SET_SEED`, `SET_LORA_SCALES`, …)
 
 ### 6. GeneratorDriver
 
@@ -719,6 +802,8 @@ class GeneratorDriver:
         on_state_change: Callable[[DriverState], None],
     ):
         self.pipeline = pipeline
+        self.adapter = PipelineAdapter(pipeline)
+        self.control_bus = ControlBus()
         self.on_chunk = on_chunk
         self.on_state_change = on_state_change
         
@@ -726,10 +811,9 @@ class GeneratorDriver:
         self.control_state = ControlState()
         self.world_state = WorldState()
         self.compiler: Optional[PromptCompiler] = None
-        
-        self._pending_control_updates: list[dict] = []
-        self._pending_world_updates: list[dict] = []
+
         self._run_task: Optional[asyncio.Task] = None  # Guard against multiple loops
+        self._is_prepared: bool = False  # Controls init_cache on first call / resets
         
     def set_compiler(self, compiler: PromptCompiler):
         """Set the active style compiler."""
@@ -739,40 +823,85 @@ class GeneratorDriver:
             compiled = self.compiler.compile(self.world_state)
             self.control_state.prompts = compiled.positive
             self.control_state.negative_prompt = compiled.negative
-            self.control_state.lora_stack = compiled.lora_stack
+            self.control_state.lora_scales = compiled.lora_scales
     
     def update_world(self, updates: dict):
         """Queue world state updates (applied at next chunk boundary)."""
-        self._pending_world_updates.append(updates)
+        self.control_bus.enqueue(event_type=EventType.SET_WORLD_STATE, payload=updates)
     
     def update_control(self, updates: dict):
         """Queue direct control state updates (bypass compiler)."""
-        self._pending_control_updates.append(updates)
+        self.control_bus.enqueue(event_type=EventType.SET_PROMPT, payload=updates)
     
-    def _apply_pending_updates(self):
-        """Apply queued updates at chunk boundary."""
-        # Track if world changed BEFORE clearing
-        world_changed = bool(self._pending_world_updates)
+    def _apply_control_events(self):
+        """Drain and apply queued ControlBus events at a chunk boundary."""
+        events = self.control_bus.drain_pending(
+            is_paused=(self.state == DriverState.PAUSED)
+        )
         
-        # Apply world updates
-        for update in self._pending_world_updates:
-            for key, value in update.items():
-                if hasattr(self.world_state, key):
-                    setattr(self.world_state, key, value)
-        self._pending_world_updates.clear()
+        # Deterministic ordering (see "Chunk Boundary Event Semantics")
+        type_order = {
+            EventType.STOP: 0,
+            EventType.PAUSE: 1,
+            EventType.RESUME: 2,
+            EventType.STEP: 3,
+            EventType.RESTORE_SNAPSHOT: 10,
+            EventType.SNAPSHOT_REQUEST: 11,
+            EventType.SET_STYLE_MANIFEST: 20,
+            EventType.SET_WORLD_STATE: 30,
+            EventType.SET_PROMPT: 40,
+            EventType.SET_DENOISE_STEPS: 50,
+            EventType.SET_SEED: 51,
+            EventType.SET_LORA_SCALES: 52,
+        }
+        events.sort(
+            key=lambda e: (type_order.get(e.type, 999), e.timestamp, e.event_id)
+        )
+        
+        world_changed = False
+        
+        for event in events:
+            if event.type == EventType.SET_WORLD_STATE:
+                for key, value in event.payload.items():
+                    if hasattr(self.world_state, key):
+                        setattr(self.world_state, key, value)
+                        world_changed = True
+            
+            elif event.type == EventType.SET_PROMPT:
+                # Direct override: payload may contain prompts and/or transition and/or param overrides
+                for key, value in event.payload.items():
+                    if hasattr(self.control_state, key):
+                        setattr(self.control_state, key, value)
+            
+            elif event.type == EventType.SET_LORA_SCALES:
+                self.control_state.lora_scales = event.payload.get("lora_scales", [])
+            
+            elif event.type == EventType.SET_DENOISE_STEPS:
+                self.control_state.denoising_step_list = event.payload.get(
+                    "denoising_step_list", self.control_state.denoising_step_list
+                )
+            
+            elif event.type == EventType.SET_SEED:
+                if "base_seed" in event.payload:
+                    self.control_state.base_seed = int(event.payload["base_seed"])
+                if "branch_seed_offset" in event.payload:
+                    self.control_state.branch_seed_offset = int(
+                        event.payload["branch_seed_offset"]
+                    )
+            
+            elif event.type == EventType.PAUSE:
+                self.state = DriverState.PAUSED
+                self.on_state_change(self.state)
+            
+            elif event.type == EventType.STOP:
+                self.stop()
         
         # Recompile if we have a compiler and world changed
         if self.compiler and world_changed:
             compiled = self.compiler.compile(self.world_state)
             self.control_state.prompts = compiled.positive
             self.control_state.negative_prompt = compiled.negative
-        
-        # Apply direct control overrides
-        for update in self._pending_control_updates:
-            for key, value in update.items():
-                if hasattr(self.control_state, key):
-                    setattr(self.control_state, key, value)
-        self._pending_control_updates.clear()
+            self.control_state.lora_scales = compiled.lora_scales
     
     async def run(self):
         """Main generation loop."""
@@ -789,28 +918,42 @@ class GeneratorDriver:
         self.on_state_change(self.state)
         
         result = await self._generate_chunk()
+        if result is None:
+            raise RuntimeError("step() requested while paused/stopped")
         
         self.state = DriverState.PAUSED
         self.on_state_change(self.state)
         
         return result
     
-    async def _generate_chunk(self) -> GenerationResult:
+    async def _generate_chunk(self) -> Optional[GenerationResult]:
         """Generate one chunk of frames."""
         import time
         
-        # Apply pending updates at chunk boundary
-        self._apply_pending_updates()
+        # Apply control events at chunk boundary
+        self._apply_control_events()
+        if self.state not in (DriverState.RUNNING, DriverState.STEPPING):
+            return None
         
         start_time = time.perf_counter()
         
         # Call pipeline
-        output = self.pipeline(**self.control_state.to_pipeline_kwargs())
+        output = self.pipeline(
+            **self.adapter.kwargs_for_call(
+                self.control_state,
+                init_cache=(not self._is_prepared),
+            )
+        )
         
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         
-        # Update frame counter
-        self.control_state.current_start_frame += self.control_state.num_frames_per_block
+        self._is_prepared = True
+
+        # Mirror pipeline-owned start frame into control_state for UI/snapshots
+        if hasattr(self.pipeline, "state"):
+            self.control_state.current_start_frame = self.pipeline.state.get(
+                "current_start_frame"
+            )
         self.world_state.chunk_index += 1
         
         result = GenerationResult(
@@ -857,7 +1000,7 @@ class GeneratorDriver:
             "control_state": {
                 "prompts": self.control_state.prompts,
                 "negative_prompt": self.control_state.negative_prompt,
-                "lora_stack": self.control_state.lora_stack,
+                "lora_scales": self.control_state.lora_scales,
                 "base_seed": self.control_state.base_seed,
                 "branch_seed_offset": self.control_state.branch_seed_offset,
                 "current_start_frame": self.control_state.current_start_frame,
@@ -869,35 +1012,8 @@ class GeneratorDriver:
             
             # Generator continuity layer (REQUIRED for seamless continuation)
             # These are the buffers KREA's recompute block needs to rebuild KV cache
-            "generator_continuity": self._capture_continuity_state(),
+            "generator_continuity": self.adapter.capture_continuity(),
         }
-    
-    def _capture_continuity_state(self) -> dict:
-        """
-        Capture pipeline-internal state needed for seamless continuation.
-        
-        The KREA pipeline maintains continuity via:
-        - first_context_frame: anchor for temporal consistency
-        - context_frame_buffer: recent frames for KV cache recompute
-        - decoded_frame_buffer: for re-encoding if needed
-        
-        Without these, restore triggers a hard cut (cache rebuilt from scratch).
-        """
-        # Access pipeline's internal buffers
-        # NOTE: Actual attribute names depend on KREA pipeline implementation
-        continuity = {
-            "current_start_frame": self.control_state.current_start_frame,
-        }
-        
-        # Attempt to capture pipeline buffers if available
-        if hasattr(self.pipeline, 'first_context_frame'):
-            continuity["first_context_frame"] = self.pipeline.first_context_frame
-        if hasattr(self.pipeline, 'context_frame_buffer'):
-            continuity["context_frame_buffer"] = self.pipeline.context_frame_buffer
-        if hasattr(self.pipeline, 'decoded_frame_buffer'):
-            continuity["decoded_frame_buffer"] = self.pipeline.decoded_frame_buffer
-        
-        return continuity
     
     def restore(self, snapshot: dict):
         """
@@ -920,28 +1036,17 @@ class GeneratorDriver:
         ctrl_data = snapshot["control_state"]
         self.control_state.prompts = ctrl_data["prompts"]
         self.control_state.negative_prompt = ctrl_data["negative_prompt"]
-        self.control_state.lora_stack = ctrl_data["lora_stack"]
+        self.control_state.lora_scales = ctrl_data["lora_scales"]
         self.control_state.base_seed = ctrl_data["base_seed"]
         self.control_state.branch_seed_offset = ctrl_data["branch_seed_offset"]
         self.control_state.current_start_frame = ctrl_data["current_start_frame"]
         
         # Restore generator continuity (if available)
         if "generator_continuity" in snapshot:
-            self._restore_continuity_state(snapshot["generator_continuity"])
-    
-    def _restore_continuity_state(self, continuity: dict):
-        """
-        Restore pipeline-internal buffers for seamless continuation.
-        
-        If buffers are missing or incompatible, the pipeline's recompute
-        block will rebuild from scratch (hard cut, but still works).
-        """
-        if hasattr(self.pipeline, 'first_context_frame') and "first_context_frame" in continuity:
-            self.pipeline.first_context_frame = continuity["first_context_frame"]
-        if hasattr(self.pipeline, 'context_frame_buffer') and "context_frame_buffer" in continuity:
-            self.pipeline.context_frame_buffer = continuity["context_frame_buffer"]
-        if hasattr(self.pipeline, 'decoded_frame_buffer') and "decoded_frame_buffer" in continuity:
-            self.pipeline.decoded_frame_buffer = continuity["decoded_frame_buffer"]
+            self.adapter.restore_continuity(snapshot["generator_continuity"])
+
+        # Ensure next generate does not wipe continuity by forcing init_cache.
+        self._is_prepared = True
 ```
 
 ### 7. FrameBus
@@ -1220,7 +1325,7 @@ PUT    /v1/sessions/{id}/style         # Switch active style
        {"name": "rudolph_1964"}
 
 POST   /v1/styles/{name}/compile       # Preview compilation without generating
-       {world_state}                   → {compiled_prompt, lora_stack}
+       {world_state}                   → {compiled_prompt, lora_scales}
 ```
 
 ### Direct Control (Dev Console Bypass)
@@ -1231,7 +1336,7 @@ PUT    /v1/sessions/{id}/control       # Direct override (bypass compiler)
        {
          "prompts": [{"text": "...", "weight": 1.0}],
          "denoising_step_list": [1000, 500],
-         "lora_stack": [{"path": "...", "scale": 0.9}]
+         "lora_scales": [{"path": "...", "scale": 0.9}]
        }
 
 GET    /v1/sessions/{id}/last_prompt   # See what was actually sent to pipeline
@@ -1242,8 +1347,11 @@ GET    /v1/sessions/{id}/last_prompt   # See what was actually sent to pipeline
 ```
 PUT    /v1/sessions/{id}/prompt
        {
-         "prompts": [{"text": "Laura running in neon alley", "weight": 1.0}],
-         "transition": {"type": "ramp", "chunks": 4}
+         "transition": {
+           "target_prompts": [{"text": "Laura running in neon alley", "weight": 1.0}],
+           "num_steps": 4,
+           "temporal_interpolation_method": "linear"
+         }
        }
 ```
 
@@ -1316,12 +1424,12 @@ sequenceDiagram
   
   Note over Driver: Next chunk boundary
   
-  Driver->>Driver: apply pending updates
+  Driver->>Driver: drain/apply ControlBus events
   Driver->>Compiler: compile(WorldState)
   Compiler->>Compiler: translate via StyleManifest
   Compiler->>Control: prompts=[{text: "stop-motion puppet..."}]
   
-  Driver->>Pipe: __call__(prompts, lora_stack, ...)
+  Driver->>Pipe: __call__(prompts, lora_scales?, transition?, ...)
   
   Note over Pipe: TextConditioningBlock
   Note over Pipe: EmbeddingBlendingBlock
@@ -1360,7 +1468,7 @@ sequenceDiagram
   Dev->>API: POST /step
   API->>Driver: step()
   
-  Driver->>Driver: apply pending (uses direct prompts, skips compiler)
+  Driver->>Driver: drain/apply ControlBus events (uses direct prompts, skips compiler)
   Driver->>Driver: generate one chunk
   Driver-->>API: GenerationResult
   API-->>Dev: {frames, timing_ms, control_state_snapshot}
@@ -1399,20 +1507,14 @@ sequenceDiagram
 
   UI->>API: POST /rollout {count: 4, horizon: 6, mutations: [...]}
   
-  par Branch 1
+  Note over API,Driver: On a single pipeline instance, rollouts run sequentially by default
+  loop Branch 1..N (sequential)
     API->>Driver: restore(snapshot)
-    API->>Driver: apply mutation (seed +1)
+    API->>Driver: apply mutation (seed / prompt / world)
     loop 6 chunks
       Driver->>Driver: generate chunk
       Driver->>Graph: store preview
     end
-  and Branch 2
-    API->>Driver: restore(snapshot)
-    API->>Driver: apply mutation (tension +0.2)
-    loop 6 chunks
-      Driver->>Driver: generate chunk
-    end
-  and Branch 3, 4...
   end
 
   Graph-->>UI: preview URLs for all branches
@@ -1587,7 +1689,7 @@ These bypass deep optimization work and give immediate speed gains:
 | Knob | Default | Fast Setting | Tradeoff |
 |------|---------|--------------|----------|
 | `denoising_step_list` | `[1000,750,500,250]` (4 steps) | `[1000,500]` (2 steps) | ~2x faster, lower quality |
-| `num_frames_per_block` | 3 | 1 | More overhead, finer control |
+| `num_frame_per_block` | 3 | 1 | More overhead, finer control |
 | Resolution | Full | 50% | 4x fewer tokens |
 | KV recompute | Every block | Every N blocks | More drift, faster |
 
@@ -1716,7 +1818,7 @@ This document intentionally simplifies several things to keep the Day 2-16 build
 
 **Current (Day 2-10)**: Hard-cut snapshots
 - Stores WorldState, ControlState, chunk_index
-- Attempts to capture pipeline continuity buffers if available
+- Captures pipeline continuity from `pipeline.state` keys when available
 - If buffers are missing or incompatible, restore produces a visible cut (acceptable for branching)
 
 **Upgrade 1**: Continuity snapshots
@@ -1785,7 +1887,8 @@ class OutputPaths:
 ### Pipeline Kwargs Coverage
 
 **Current**: Partial
-- `to_pipeline_kwargs()` includes core params + lora_stack + kv_cache_attention_bias
+- `to_pipeline_kwargs()` includes core params + `kv_cache_attention_bias` (+ optional `transition`)
+- LoRA updates (`lora_scales`) are edge-triggered and should be mediated by a PipelineAdapter to avoid accidental cache resets
 - May not cover all KREA pipeline options
 
 **Upgrade**: Full pipeline config
@@ -1823,10 +1926,16 @@ The convergence validates the design. Key additions from synthesis:
 **Surgical fixes applied (v1.1)**:
 - Fixed world update recompile bug (was checking after clear, always false)
 - Fixed resume() concurrency (guards against spawning multiple loops)
-- Fixed to_pipeline_kwargs() (now includes lora_stack, kv_cache_attention_bias)
+- Fixed to_pipeline_kwargs() example (kwarg coverage + kv_cache_attention_bias)
 - Fixed kv_cache_attention_bias default (0.3, matching KREA)
 - Fixed FrameBus buffer sizing (chunks, not frames)
 - Added generator continuity buffers to snapshot/restore
 - Added Known Limitations & Upgrade Paths section
 
-*Last updated: Day 2 of 16-day sprint (v1.1 with surgical fixes).*
+**v1.2 alignment pass**:
+- Added `Pipeline Adapter Contract` and chunk-boundary semantics to match Scope/KREA state layout
+- Updated continuity snapshot examples to read/write `pipeline.state` keys (not `hasattr()` attributes)
+- Updated prompt ramps to use pipeline-native `transition` dict (EmbeddingBlendingBlock)
+- Renamed `lora_stack` → `lora_scales` in the runtime contract examples
+
+*Last updated: Day 2 of 16-day sprint (v1.2, implementation-aligned).*
