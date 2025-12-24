@@ -78,25 +78,72 @@ Main gaps to call out explicitly in future doc revisions and implementation plan
 
 Goal: **reuse existing server threading + WebRTC wiring**, and move the *tested control semantics* into the runtime.
 
-Target shape:
+#### Key Decisions (RESOLVED)
 
-- `FrameProcessor` owns:
-  - `ControlBus` (deterministic ordering at chunk boundaries)
-  - `PipelineAdapter` (kwargs mapping, continuity snapshot keys, LoRA edge-trigger)
-  - a “current state” object (either `ControlState` or a small wrapper that preserves the current flexible dict-based kwargs model)
+1. **Thread safety**: Keep `queue.Queue` as cross-thread boundary. Translate dict updates → events inside `process_chunk()`. Worker thread remains single owner of pipeline state.
 
-Key decisions to make before refactor:
+2. **Unknown params**: Keep `self.parameters: dict` as source-of-truth. Use control-plane abstractions only for semantics that matter (ordering, LoRA edge-triggering, snapshot continuity later). No `passthrough_params` needed in Phase 1.
 
-- **Thread safety**: `ControlBus` is not thread-safe; either protect with a lock or keep using the existing `queue.Queue` and translate queued dict updates → events at the top of `process_chunk()`.
-- **Merge semantics**: current runtime merges dict updates and effectively gives “last write wins” per key; event application must preserve this.
-- **Unknown params**: `ControlState` is currently a minimal typed surface; the server runtime supports many additional kwargs (`noise_scale`, `manage_cache`, `vace_ref_images`, Spout config, etc.). Decide whether to:
-  - add a `passthrough_params: dict[str, Any]` to `ControlState`, or
-  - keep the dict as source-of-truth and use the control plane only for the special-case semantics.
+3. **Drain-all semantics**: Drain ALL pending queue entries at top of each chunk (not just one). Treat queue as "mailbox since last boundary" - cleaner semantic, reduces dropped updates.
 
-TDD approach:
+#### Implementation Flow
 
-- Add **characterization tests** for current `FrameProcessor.process_chunk()` semantics (pause, init_cache/reset_cache, lora_scales one-shot, transition lifecycle, input gating).
-- Refactor incrementally until the same tests pass, then swap implementation details to use `ControlBus`/`PipelineAdapter`.
+```
+┌─────────────────────────────────────────────────────────────┐
+│ INGEST (top of process_chunk)                               │
+├─────────────────────────────────────────────────────────────┤
+│ 1. Drain ALL queue entries (while not empty)                │
+│ 2. Merge with "last write wins" → merged_dict               │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│ TRANSLATE (dict → typed events)                             │
+├─────────────────────────────────────────────────────────────┤
+│ Use EXISTING EventTypes only:                               │
+│   if "paused" in merged      → PAUSE/RESUME                 │
+│   if "prompts"/"transition"  → SET_PROMPT                   │
+│   if "lora_scales"           → SET_LORA_SCALES              │
+│   if "base_seed"             → SET_SEED                     │
+│   if "denoising_step_list"   → SET_DENOISE_STEPS            │
+│   remaining keys             → merge into self.parameters   │
+│                                (no new event type needed)   │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│ ORDER + APPLY                                               │
+├─────────────────────────────────────────────────────────────┤
+│ control_bus.drain_pending() → deterministic order           │
+│ Apply each event → mutate self.parameters, self.paused, etc │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│ CALL PIPELINE (existing logic, but use PipelineAdapter)     │
+├─────────────────────────────────────────────────────────────┤
+│ - reset_cache consumed HERE (after pause check, like today) │
+│ - PipelineAdapter.kwargs_for_call() handles:                │
+│     - init_cache (always explicit)                          │
+│     - lora_scales edge-triggering                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Ordering Nuance
+
+Keep `reset_cache` consumption AFTER the pause check (current behavior). If `reset_cache` is sent while paused, it doesn't clear output / pop until generation resumes. Event application can set `self.parameters["reset_cache"] = True`, but only act on it in the "call pipeline" section when not paused.
+
+#### Characterization Tests (DONE - 6 tests passing)
+
+- `test_init_cache_true_first_call_then_false`
+- `test_reset_cache_clears_output_queue_and_forces_init_cache`
+- `test_lora_scales_is_one_shot`
+- `test_transition_completion_clears_transition_and_updates_prompts`
+- `test_new_prompts_without_transition_clears_stale_transition`
+- `test_video_mode_requires_input_frames_before_call`
+
+#### What FrameProcessor Will Own (After Integration)
+
+- `control_bus: ControlBus` (deterministic ordering at chunk boundaries)
+- `adapter: PipelineAdapter` (kwargs mapping, LoRA edge-trigger; continuity for Phase 2)
+- `self.parameters: dict` (source-of-truth for all params, including passthrough)
 
 ### Phase 2: Snapshot/Restore (Server-Visible)
 
@@ -136,14 +183,26 @@ Implementation suggestion:
 ## Git State
 
 - Branch: `feature/stream-recording`
-- Scaffold commits:
-  - `8d93448` - realtime control plane TDD plan
-  - `0655010` - Scaffold realtime control plane with tests
-  - `6d07931` - Add smoke harness script
+- Key commits:
+  - `0655010` - Scaffold realtime control plane with 84 tests
+  - `6d07931` - Smoke harness script (validated on B300)
+  - `2a6d9c5` - Characterization tests (6 passing) + updated plan
+
+## Test Coverage
+
+- **84 tests** for control plane abstractions (`tests/realtime/`)
+- **6 tests** characterizing FrameProcessor behavior (`tests/test_frame_processor_characterization.py`)
 
 ## Next Action
 
-Start Phase 1 with TDD:
-1. Add characterization tests around `FrameProcessor.process_chunk()`
-2. Introduce `ControlBus` + `PipelineAdapter` into `FrameProcessor` behind a small translation layer
-3. Preserve existing behavior, then iterate towards the cleaner control-state model
+**Phase 1 Integration** (decisions resolved, ready to implement):
+
+1. Add `control_bus: ControlBus` and `adapter: PipelineAdapter` to `FrameProcessor.__init__()`
+2. Modify `process_chunk()`:
+   - Drain ALL queue entries → merge with last-write-wins
+   - Translate to typed events (PAUSE/RESUME, SET_PROMPT, SET_LORA_SCALES, SET_SEED, SET_DENOISE_STEPS)
+   - Remaining keys merge directly into `self.parameters`
+   - `control_bus.drain_pending()` for ordering
+   - Apply events → mutate `self.parameters`, `self.paused`, etc.
+3. Replace manual `init_cache` / `lora_scales` handling with `adapter.kwargs_for_call()`
+4. Ensure all 6 characterization tests still pass
