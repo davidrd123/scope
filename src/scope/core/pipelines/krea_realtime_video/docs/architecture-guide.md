@@ -1020,6 +1020,15 @@ with _ProfileBlock("self_attn_kv_bias"):
 #   ffn: 95.3ms (28.8%)
 ```
 
+Enable per-block pipeline timing with `PROFILE_PIPELINE_BLOCKS=1` (printed at process exit):
+
+```bash
+PROFILE_PIPELINE_BLOCKS=1 PROFILE_PIPELINE_BLOCKS_JSON=/tmp/krea_blocks.json uv run daydream-scope
+```
+
+Note: this synchronizes after each block, so it reduces FPS; use it to find bottlenecks and compare B200/B300/H100
+breakdowns, not for absolute performance numbers.
+
 ---
 
 ## 12. Usage Example (test.py)
@@ -1096,6 +1105,8 @@ output = pipeline(prompts=prompts, init_cache=True)
 | `SCOPE_KV_CACHE_ATTENTION_BIAS` | 0.3 | Past-frame attention weight |
 | `SCOPE_KV_BIAS_BACKEND` | auto | `fa4`, `flash`, `triton`, or `flex` |
 | `PROFILE_ATTENTION` | 0 | Enable attention profiling |
+| `PROFILE_PIPELINE_BLOCKS` | 0 | Enable per-block pipeline profiling |
+| `PROFILE_PIPELINE_BLOCKS_JSON` | (empty) | Write pipeline block profile JSON |
 | `DISABLE_FLEX_ATTENTION_COMPILE` | 0 | Use eager flex_attention |
 | `TRITON_PTXAS_PATH` | auto | Path to ptxas for Triton |
 

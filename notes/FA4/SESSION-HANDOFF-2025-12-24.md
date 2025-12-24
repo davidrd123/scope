@@ -97,9 +97,19 @@ Expected: H100 should work at decent FPS with standard code paths.
 
 **The key insight:** Attention backend changes don't move FPS. The bottleneck is elsewhere.
 
-**Diagnostic steps (not yet done):**
-1. `nvidia-smi dmon -s pucvmet -d 1` during inference - check SM clocks, thermal throttling
-2. Full pipeline profile on B300 (not just attention kernels)
+**New profiling tools (added by Codex):**
+```bash
+# Per-block pipeline profiling (CPU+GPU time per block)
+uv run python scripts/profile_krea_pipeline_blocks.py --iters 10 --skip 2 \
+  --profile-blocks --profile-blocks-json /tmp/<gpu>.json
+
+# Environment variable alternative
+PROFILE_PIPELINE_BLOCKS=1 PROFILE_PIPELINE_BLOCKS_JSON=/tmp/out.json uv run daydream-scope
+```
+
+**Diagnostic steps:**
+1. Run the block profiler on both B200 and B300, diff the JSONs
+2. `nvidia-smi dmon -s pucvmet -d 1` during inference - check SM clocks, thermal throttling
 3. Check if cuBLAS GEMMs are falling back to suboptimal SM103 kernels
 4. Compare GPU utilization - high util + low clocks = thermal; low util = CPU/sync bound
 
