@@ -120,6 +120,9 @@ fa4 = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.ruff]
 line-length = 88
 target-version = "py310"
