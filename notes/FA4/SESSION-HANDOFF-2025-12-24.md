@@ -95,29 +95,33 @@ Expected: H100 should work at decent FPS with standard code paths.
 
 ### If someone wants to continue B300 investigation:
 
+**Primary resource:** `notes/FA4/B300-INVESTIGATION-RUNBOOK.md` - systematic tests with specific commands.
+
 **The key insight:** Attention backend changes don't move FPS. The bottleneck is elsewhere.
 
-**New profiling tools (added by Codex):**
+**Quick start:**
 ```bash
-# Per-block pipeline profiling (CPU+GPU time per block)
-uv run python scripts/profile_krea_pipeline_blocks.py --iters 10 --skip 2 \
-  --profile-blocks --profile-blocks-json /tmp/<gpu>.json
+export GPU_TAG=h100  # or b200, b300
+export OUT_DIR=/tmp/gpu-investigation/$GPU_TAG
+mkdir -p $OUT_DIR
 
-# Environment variable alternative
-PROFILE_PIPELINE_BLOCKS=1 PROFILE_PIPELINE_BLOCKS_JSON=/tmp/out.json uv run daydream-scope
+uv run python scripts/profile_krea_pipeline_blocks.py \
+  --iters 20 --skip 3 --profile-blocks \
+  --profile-blocks-json $OUT_DIR/block-profile.json
 ```
 
-**Diagnostic steps:**
-1. Run the block profiler on both B200 and B300, diff the JSONs
-2. `nvidia-smi dmon -s pucvmet -d 1` during inference - check SM clocks, thermal throttling
-3. Check if cuBLAS GEMMs are falling back to suboptimal SM103 kernels
-4. Compare GPU utilization - high util + low clocks = thermal; low util = CPU/sync bound
+**Hypotheses (see runbook for full tests):**
+| ID | Hypothesis | Quick check |
+|----|------------|-------------|
+| H1 | Pacing/backpressure limit | gpu_ms << wall_ms? |
+| H2 | CPU bound | Low GPU util, high CPU? |
+| H3 | Thermal/power throttling | High util, low clocks? |
+| H4 | Shared GPU (MIG/vGPU) | Other processes visible? |
+| H5 | Kernel fallback (cuBLAS SM103) | GEMMs slow? |
 
-**Hypotheses to test:**
-- QKV projection (20.8% of self_attn) - cuBLAS SM103 support may be immature
-- Memory hierarchy differences - L2 eviction patterns that work on B200 may thrash on B300
+**Additional B300-specific concerns:**
+- Memory hierarchy - L2 eviction patterns may differ from B200
 - Driver/runtime overhead - CUDA 12.9 SM103 support is fresh
-- Thermal/power throttling - new silicon, different thermal envelope
 
 ## Claude Code Version
 Locked at 2.0.62 (see notes/TODO-next-session.md for unlock instructions)
