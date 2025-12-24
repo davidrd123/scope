@@ -6,7 +6,11 @@ from collections import deque
 from typing import Any
 
 import torch
-from aiortc.mediastreams import VideoFrame
+
+try:
+    from aiortc.mediastreams import VideoFrame
+except ImportError:  # pragma: no cover
+    VideoFrame = Any  # type: ignore[misc,assignment]
 
 from .pipeline_manager import PipelineManager, PipelineNotAvailableException
 
