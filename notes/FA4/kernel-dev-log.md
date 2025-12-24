@@ -957,13 +957,24 @@ batch, `freqs.split()`, `torch.stack()`).
 B300 (SM103) INVESTIGATION (2025-12-23/24)
 -------------------------------------------
 
+### Code Churn Context
+
+**Dec 22-23:** 12 commits in 2 days on causal_model.py (1,493 → 2,093 lines, +40%)
+- Multiple attention backends added (FA4, flash, triton, flex)
+- RoPE optimizations with temporary regressions (fixed, ended at ~20.2 FPS on B200)
+- Profiling infrastructure added
+- All performance testing was on **B200**
+
+**Dec 23:** B300 work started after B200 optimizations complete
+- B300 immediately showed 8.8 FPS at same settings where B200 hit ~20 FPS
+
 ### Current Status: B300 is 2x slower than B200
 
 **Test conditions (same for both):** 320x576 resolution, 4 denoising steps
 
 | GPU | FPS | Notes |
 |-----|-----|-------|
-| B200 (SM100) | ~18 FPS | Baseline, working |
+| B200 (SM100) | ~20 FPS | Final state after optimizations |
 | B300 (SM103) | 8.8 FPS | 2x slower, unexplained |
 
 ### What We Know (Facts):
