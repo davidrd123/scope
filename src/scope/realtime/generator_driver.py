@@ -14,7 +14,7 @@ from enum import Enum
 from typing import Any, Callable, Optional
 
 from scope.realtime.control_bus import ControlBus, EventType
-from scope.realtime.control_state import ControlState
+from scope.realtime.control_state import ControlState, GenerationMode
 from scope.realtime.pipeline_adapter import PipelineAdapter, PipelineProtocol
 
 
@@ -239,6 +239,9 @@ class GeneratorDriver:
         ctrl_data = snapshot.get("control_state", {})
         for key, value in ctrl_data.items():
             if hasattr(self.control_state, key):
+                if key == "mode":
+                    if isinstance(value, str):
+                        value = GenerationMode(value)
                 setattr(self.control_state, key, value)
 
         # Restore chunk index

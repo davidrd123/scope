@@ -5,7 +5,7 @@ import asyncio
 import pytest
 
 from scope.realtime.control_bus import ApplyMode, EventType
-from scope.realtime.control_state import ControlState
+from scope.realtime.control_state import ControlState, GenerationMode
 from scope.realtime.generator_driver import (
     DriverState,
     GenerationResult,
@@ -272,6 +272,31 @@ class TestSnapshot:
         assert driver.control_state.base_seed == 999
         assert driver.control_state.prompts == [{"text": "restored", "weight": 1.0}]
         assert driver.chunk_index == 10
+
+    @pytest.mark.asyncio
+    async def test_restore_converts_mode_string_to_enum(self, fake_pipeline):
+        """restore() converts serialized mode string back to GenerationMode."""
+        driver = GeneratorDriver(fake_pipeline)
+
+        snapshot = {
+            "control_state": {"mode": "video_to_video"},
+            "chunk_index": 0,
+        }
+
+        driver.restore(snapshot)
+
+        assert driver.control_state.mode == GenerationMode.V2V
+
+    @pytest.mark.asyncio
+    async def test_snapshot_restore_then_step_does_not_crash(self, fake_pipeline):
+        """Snapshot restore roundtrip keeps ControlState serializable and usable."""
+        driver = GeneratorDriver(fake_pipeline)
+
+        snapshot = driver.snapshot()
+        driver.restore(snapshot)
+
+        result = await driver.step()
+        assert result is not None
 
     @pytest.mark.asyncio
     async def test_restore_sets_is_prepared(self, fake_pipeline):

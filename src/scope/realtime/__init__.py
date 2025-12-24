@@ -25,6 +25,11 @@ from scope.realtime.control_bus import (
     world_state_event,
 )
 from scope.realtime.pipeline_adapter import PipelineAdapter
+from scope.realtime.generator_driver import (
+    DriverState,
+    GenerationResult,
+    GeneratorDriver,
+)
 
 __all__ = [
     # control_state
@@ -41,4 +46,8 @@ __all__ = [
     "world_state_event",
     # pipeline_adapter
     "PipelineAdapter",
+    # generator_driver
+    "DriverState",
+    "GenerationResult",
+    "GeneratorDriver",
 ]
