@@ -94,9 +94,20 @@ Expected: H100 should work at decent FPS with standard code paths.
 4. **Get teammates demo-ready** - Hackathon deadline Jan 9
 
 ### If someone wants to continue B300 investigation:
-- Full pipeline profile needed (not just attention kernels)
-- Compare B200 vs B300 profiles at same settings
-- The bottleneck is NOT attention - look elsewhere
+
+**The key insight:** Attention backend changes don't move FPS. The bottleneck is elsewhere.
+
+**Diagnostic steps (not yet done):**
+1. `nvidia-smi dmon -s pucvmet -d 1` during inference - check SM clocks, thermal throttling
+2. Full pipeline profile on B300 (not just attention kernels)
+3. Check if cuBLAS GEMMs are falling back to suboptimal SM103 kernels
+4. Compare GPU utilization - high util + low clocks = thermal; low util = CPU/sync bound
+
+**Hypotheses to test:**
+- QKV projection (20.8% of self_attn) - cuBLAS SM103 support may be immature
+- Memory hierarchy differences - L2 eviction patterns that work on B200 may thrash on B300
+- Driver/runtime overhead - CUDA 12.9 SM103 support is fresh
+- Thermal/power throttling - new silicon, different thermal envelope
 
 ## Claude Code Version
 Locked at 2.0.62 (see notes/TODO-next-session.md for unlock instructions)
