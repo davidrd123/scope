@@ -78,7 +78,7 @@ Expected: H100 should work at decent FPS with standard code paths.
   - Read "FINE-GRAINED PROFILING" for where time goes in the pipeline
 
 ### 3. B300-Specific (if revisiting)
-- `notes/FA4/B300-FA4-PATCHES.md` - SM103 patches for nvidia-cutlass-dsl
+- `notes/FA4/b300/fa4-patches.md` - SM103 patches for nvidia-cutlass-dsl
 - Environment: `TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas`
 
 ### 4. Code
@@ -95,7 +95,7 @@ Expected: H100 should work at decent FPS with standard code paths.
 
 ### If someone wants to continue B300 investigation:
 
-**Primary resource:** `notes/FA4/B300-INVESTIGATION-RUNBOOK.md` - systematic tests with specific commands.
+**Primary resource:** `notes/FA4/b300/investigation-runbook.md` - systematic tests with specific commands.
 
 **The key insight:** Attention backend changes don't move FPS. The bottleneck is elsewhere.
 

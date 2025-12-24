@@ -81,7 +81,7 @@ uv pip install nvidia-cutlass-dsl==4.1.0
 python -c "from flash_attn.cute.interface import _flash_attn_fwd; print('FA4 OK')"
 ```
 
-**Note**: FA4 with `score_mod` (for Kernel B equivalent) doesn't work yet due to version mismatches. See `notes/FA4/B300-FA4-PATCHES.md` for details.
+**Note**: FA4 with `score_mod` (for Kernel B equivalent) doesn't work yet due to version mismatches. See `notes/FA4/b300/fa4-patches.md` for details.
 
 ## Troubleshooting
 
@@ -109,8 +109,8 @@ export TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
 1. `.venv/bin/activate` - Added `TRITON_PTXAS_PATH`
 2. `src/scope/core/compat/sm103.py` - SM103 compatibility utilities
 3. `src/scope/core/compat/__init__.py` - Compat module init
-4. `notes/FA4/b300-investigation.md` - Full investigation log
-5. `notes/FA4/B300-FA4-PATCHES.md` - FA4/CUTE SM103 patch documentation
+4. `notes/FA4/b300/investigation.md` - Full investigation log
+5. `notes/FA4/b300/fa4-patches.md` - FA4/CUTE SM103 patch documentation
 6. `scripts/patch_cutlass_sm103.sh` - Automated CUTLASS patching script
 
 ### Files Patched for FA4 (by patch script)

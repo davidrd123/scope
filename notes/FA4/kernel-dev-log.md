@@ -11,13 +11,13 @@ Current status (2025-12-23)
   - Commit: `c19d828`
   - Env var: `SCOPE_KV_BIAS_BACKEND=fa4|triton|flex` (default: triton)
   - Deps: `nvidia-cutlass-dsl>=4.3.3`, `apache-tvm-ffi`
-  - Details: `notes/FA4/phase4-fa4-score-mod.md`
+  - Details: `notes/FA4/fa4/phase4-score-mod.md`
   - Test script: `scripts/test_fa4_kv_bias.py`
 - **RoPE Phase 3 Step 2 COMPLETE**: v2 fused kernel achieves **20.2 FPS** (fixed 17.8 FPS regression from v1 padding overhead)
   - v2 uses unified 64-pair arange (no per-chunk padding)
   - 2.2x faster than Step 0 baseline in microbench
   - Tag: `v0.3.0-phase3-step2`
-  - Details: `notes/FA4/phase3-triton-rope.md`
+  - Details: `notes/FA4/rope/phase3-triton-rope.md`
 - Kernel B (KV-cache bias): Triton integrated + pinned for B200; real runs show ~20% FPS uplift at 320x576; profiling shows `p_bias≈89.5%` of **attention-kernel** time (Kernel A is small).
 - Fine-grained `self_attn` breakdown (targeting "what moves the needle"): `self_attn_kv_bias` 27.4%, `qkv_projection` 20.8%, `rope_apply` 15.8%, `self_attn_block_mask` 3.4% → kernel work needs to shift toward RoPE/QKV (and/or a much faster Kernel B backend).
 - Next bets (highest upside per effort): (1) ~~RoPE fusion~~ **DONE**, (2) ~~FA4/CUTE score_mod~~ **DONE**, (3) Make FA4 the default backend, (4) RoPE Step 3 tuning (BLOCK_M/H, Q+K fusion), (5) Update pyproject.toml with FA4 deps.
@@ -798,7 +798,7 @@ Status
 - ✅ Phase 1: remove float64 upcast + avoid complex multiply (use sin/cos directly) — `78b835c`
 - ✅ Phase 2: cache `(cos, sin)` by `(device, dtype, f, h, w, start_frame, c)` — `eb280ba`
 - ✅ Phase 2.5: generate RoPE freqs as complex64 (float32) to reduce cast overhead — `eba19ce`
-- Notes: `notes/FA4/rope-optimization.md`
+- Notes: `notes/FA4/rope/optimization.md`
 - Post-change profiling snapshot:
   - `rope_apply` timer: 0.48ms → 0.42ms per call (~12.5% faster)
   - Share of `self_attn`: 15.8% → ~14.0%
@@ -822,7 +822,7 @@ Status
 1. **Phase 2.6: avoid `freqs_i` materialization (next “no-kernel” win)**
    - Reshape `x[:seq_len]` to `(f, h, w, n, c, 2)` and apply RoPE in three channel chunks (temporal/height/width) using broadcast `cos/sin`.
    - Removes `torch.cat + reshape` entirely and avoids reading a fully materialized `(seq_len, c)` table.
-   - See `notes/FA4/rope-optimization.md`.
+   - See `notes/FA4/rope/optimization.md`.
 
 2. **Triton RoPE kernel**
    - Fuse: load Q/K → apply rotation in registers → store
@@ -869,7 +869,7 @@ Kernel B tuning results (B200, 2025-12-22):
   Action: Pinned winning config for B200 (compute capability >= 10) in triton_attention.py.
   Commit: d18e7d7
 
-  Nsight Compute snapshot (B200, real shape; see `notes/FA4/phase3-triton-rope.md`):
+  Nsight Compute snapshot (B200, real shape; see `notes/FA4/rope/phase3-triton-rope.md`):
   - Shape: B=1 H=16 Lq=4680 Lk=9360 D=128 dtype=bf16
   - SM throughput: ~39%
   - Memory throughput: ~12% (DRAM ~0.7%)
@@ -887,7 +887,7 @@ RoPE Phase 2.6 attempt (2025-12-22) - ROLLED BACK:
           3 separate rotation blocks + concat added more overhead than cache-based approach.
           Complex broadcast patterns less efficient than simple contiguous ops.
   Conclusion: Cache-based Phase 2.5 is sweet spot before Triton fusion.
-  See: notes/FA4/rope-optimization.md for full details.
+  See: notes/FA4/rope/optimization.md for full details.
 
 RoPE Phase 3 planning (2025-12-22):
   Status: Plan written, implementation pending
@@ -896,7 +896,7 @@ RoPE Phase 3 planning (2025-12-22):
     Step 2: Fuse 3-way lookup into kernel (compute f_idx/h_idx/w_idx in-kernel)
     Step 3: Optimize memory access patterns
   Target file: src/scope/core/kernels/triton_rope.py (new)
-  See: notes/FA4/rope-optimization.md for full plan
+  See: notes/FA4/rope/optimization.md for full plan
 
 RoPE Phase 3 Step 0: FA's Existing Rotary Kernel (2025-12-23)
 --------------------------------------------------------------
@@ -952,7 +952,7 @@ batch, `freqs.split()`, `torch.stack()`).
 - `src/scope/core/pipelines/krea_realtime_video/modules/model.py` (USE_TRITON_ROTARY, rope_apply)
 - `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` (causal_rope_apply)
 
-**Detailed doc:** `notes/FA4/phase3-triton-rope.md`
+**Detailed doc:** `notes/FA4/rope/phase3-triton-rope.md`
 
 B300 (SM103) INVESTIGATION (2025-12-23/24)
 -------------------------------------------
