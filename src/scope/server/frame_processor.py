@@ -12,6 +12,8 @@ try:
 except ImportError:  # pragma: no cover
     VideoFrame = Any  # type: ignore[misc,assignment]
 
+from scope.realtime.control_bus import ControlBus, EventType
+
 from .pipeline_manager import PipelineManager, PipelineNotAvailableException
 
 logger = logging.getLogger(__name__)
@@ -91,6 +93,10 @@ class FrameProcessor:
         self.input_fps_lock = threading.Lock()
 
         self.paused = False
+
+        # Control bus for deterministic event ordering at chunk boundaries
+        self.control_bus = ControlBus()
+        self.chunk_index = 0
 
         # Spout integration
         self.spout_sender = None
@@ -639,38 +645,122 @@ class FrameProcessor:
 
     def process_chunk(self):
         start_time = time.time()
-        try:
-            # Check if there are new parameters
-            new_parameters = self.parameters_queue.get_nowait()
-            if new_parameters != self.parameters:
-                # Clear stale transition when new prompts arrive without transition
-                if (
-                    "prompts" in new_parameters
-                    and "transition" not in new_parameters
-                    and "transition" in self.parameters
-                ):
-                    self.parameters.pop("transition", None)
 
-                # Update video mode if input_mode parameter changes
-                if "input_mode" in new_parameters:
-                    self._video_mode = new_parameters.get("input_mode") == "video"
-
-                # Merge new parameters with existing ones to preserve any missing keys
-                self.parameters = {**self.parameters, **new_parameters}
-        except queue.Empty:
-            pass
-
-        # Get the current pipeline using sync wrapper
-        pipeline = self.pipeline_manager.get_pipeline()
-
-        # Pause or resume the processing
+        # Legacy safety: ensure we don't persist "paused" inside self.parameters.
+        # Pause state is tracked separately in self.paused and updated via events.
         paused = self.parameters.pop("paused", None)
         if paused is not None and paused != self.paused:
             self.paused = paused
+
+        # ========================================================================
+        # INGEST: Drain ALL pending queue entries (mailbox semantics)
+        # ========================================================================
+        # Intentional behavior change from "drain 1" to "drain all":
+        # - Old: at most 1 update per chunk (10 rapid updates → 10 chunks to apply)
+        # - New: all pending updates per chunk (commit at boundary)
+        merged_updates: dict = {}
+        while True:
+            try:
+                update = self.parameters_queue.get_nowait()
+                # Last-write-wins merge
+                merged_updates = {**merged_updates, **update}
+            except queue.Empty:
+                break
+
+        # ========================================================================
+        # TRANSLATE: Convert dict updates to typed events for ordering
+        # ========================================================================
+        if merged_updates:
+            # Handle pause/resume via events
+            if "paused" in merged_updates:
+                paused_val = merged_updates.pop("paused")
+                if paused_val:
+                    self.control_bus.enqueue(EventType.PAUSE)
+                else:
+                    self.control_bus.enqueue(EventType.RESUME)
+
+            # Handle prompts/transition via events
+            if "prompts" in merged_updates or "transition" in merged_updates:
+                payload = {}
+                if "prompts" in merged_updates:
+                    payload["prompts"] = merged_updates.pop("prompts")
+                if "transition" in merged_updates:
+                    payload["transition"] = merged_updates.pop("transition")
+                self.control_bus.enqueue(EventType.SET_PROMPT, payload=payload)
+
+            # Handle lora_scales via events
+            if "lora_scales" in merged_updates:
+                self.control_bus.enqueue(
+                    EventType.SET_LORA_SCALES,
+                    payload={"lora_scales": merged_updates.pop("lora_scales")},
+                )
+
+            # Handle base_seed via events
+            if "base_seed" in merged_updates:
+                self.control_bus.enqueue(
+                    EventType.SET_SEED,
+                    payload={"base_seed": merged_updates.pop("base_seed")},
+                )
+
+            # Handle denoising_step_list via events
+            if "denoising_step_list" in merged_updates:
+                self.control_bus.enqueue(
+                    EventType.SET_DENOISE_STEPS,
+                    payload={
+                        "denoising_step_list": merged_updates.pop("denoising_step_list")
+                    },
+                )
+
+            # Update video mode if input_mode parameter changes
+            if "input_mode" in merged_updates:
+                self._video_mode = merged_updates.get("input_mode") == "video"
+
+            # Remaining keys merge directly into self.parameters (no event needed)
+            if merged_updates:
+                self.parameters = {**self.parameters, **merged_updates}
+
+        # ========================================================================
+        # ORDER + APPLY: Apply events in deterministic order
+        # ========================================================================
+        events = self.control_bus.drain_pending(
+            is_paused=self.paused, chunk_index=self.chunk_index
+        )
+
+        for event in events:
+            if event.type == EventType.PAUSE:
+                self.paused = True
+            elif event.type == EventType.RESUME:
+                self.paused = False
+            elif event.type == EventType.SET_PROMPT:
+                # Clear stale transition when new prompts arrive without transition
+                if (
+                    "prompts" in event.payload
+                    and "transition" not in event.payload
+                    and "transition" in self.parameters
+                ):
+                    self.parameters.pop("transition", None)
+                # Apply prompt/transition to parameters
+                if "prompts" in event.payload:
+                    self.parameters["prompts"] = event.payload["prompts"]
+                if "transition" in event.payload:
+                    self.parameters["transition"] = event.payload["transition"]
+            elif event.type == EventType.SET_LORA_SCALES:
+                self.parameters["lora_scales"] = event.payload["lora_scales"]
+            elif event.type == EventType.SET_SEED:
+                self.parameters["base_seed"] = event.payload["base_seed"]
+            elif event.type == EventType.SET_DENOISE_STEPS:
+                self.parameters["denoising_step_list"] = event.payload[
+                    "denoising_step_list"
+                ]
+
+        # Check if paused after applying events
         if self.paused:
             # Sleep briefly to avoid busy waiting
             self.shutdown_event.wait(SLEEP_TIME)
             return
+
+        # Get the current pipeline using sync wrapper
+        pipeline = self.pipeline_manager.get_pipeline()
 
         # prepare() will handle any required preparation based on parameters internally
         reset_cache = self.parameters.pop("reset_cache", None)
@@ -814,6 +904,7 @@ class FrameProcessor:
                 raise e
 
         self.is_prepared = True
+        self.chunk_index += 1
 
     def prepare_chunk(self, chunk_size: int) -> list[torch.Tensor]:
         """

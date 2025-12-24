@@ -86,6 +86,8 @@ Goal: **reuse existing server threading + WebRTC wiring**, and move the *tested 
 
 3. **Drain-all semantics**: Drain ALL pending queue entries at top of each chunk (not just one). Treat queue as "mailbox since last boundary" - cleaner semantic, reduces dropped updates.
 
+   **⚠️ INTENTIONAL BEHAVIOR CHANGE**: Current `FrameProcessor` drains at most 1 update per chunk. New behavior drains ALL pending updates. Edge case: 10 rapid updates during one chunk → old behavior applies them over 10 chunks; new behavior applies all at once. This is intentional and usually better (commit all pending at boundary). Characterization tests should catch regressions.
+
 #### Implementation Flow
 
 ```

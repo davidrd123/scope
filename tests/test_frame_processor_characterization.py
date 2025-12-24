@@ -73,6 +73,42 @@ class FakePipelineManager:
     "torch and scope.server.frame_processor are required for these tests",
 )
 class FrameProcessorCharacterizationTests(unittest.TestCase):
+    def test_drains_all_parameter_updates_at_chunk_boundary(self):
+        pipeline = FakePipeline()
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"prompts": [{"text": "init", "weight": 1.0}]},
+        )
+
+        fp.update_parameters({"prompts": [{"text": "b", "weight": 1.0}]})
+        fp.update_parameters({"prompts": [{"text": "c", "weight": 1.0}]})
+        fp.update_parameters({"kv_cache_attention_bias": 0.1})
+        fp.process_chunk()
+
+        self.assertEqual(
+            pipeline.call_history[0]["prompts"],
+            [{"text": "c", "weight": 1.0}],
+        )
+        self.assertEqual(pipeline.call_history[0]["kv_cache_attention_bias"], 0.1)
+
+    def test_pause_update_can_apply_other_state_without_generating(self):
+        pipeline = FakePipeline()
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"prompts": [{"text": "init", "weight": 1.0}]},
+        )
+
+        fp.update_parameters(
+            {"paused": True, "prompts": [{"text": "paused_prompt", "weight": 1.0}]}
+        )
+        fp.process_chunk()
+
+        self.assertTrue(fp.paused)
+        self.assertEqual(pipeline.call_history, [])
+        self.assertEqual(fp.parameters["prompts"], [{"text": "paused_prompt", "weight": 1.0}])
+
     def test_init_cache_true_first_call_then_false(self):
         pipeline = FakePipeline()
         pm = FakePipelineManager(pipeline)
