@@ -1,8 +1,27 @@
-# B300 Session State - 2025-12-23 (Updated)
+# B300 Session State - 2025-12-24 (Updated)
 
 ## Current Status
 
-**B300 is at 8.8 FPS - suspiciously constant regardless of changes made**
+**B300 is ~8.8 FPS at `320x576` (reference resolution) and the number is stable across iterations.**
+
+**Key update:** This no longer looks like an “invisible FPS cap” caused by WebRTC/codec pacing or CPU stalls. A block-level CUDA-event profile shows GPU time ≈ wall time, and the dominant blocks are `denoise` and `decode` (not the KV-bias attention microkernel).
+
+See also: `notes/FA4/b300/investigation-runbook.md` (“Ground Truth” section).
+
+## New Evidence (Zoom-Out Block Profile)
+
+Artifact: `outputs/b300_pipeline_blocks_profile.json` (generated via `PROFILE_PIPELINE_BLOCKS=1`).
+
+Per-block GPU time breakdown (4 pipeline calls):
+
+| Block | GPU ms | Share (of total GPU) | Per-call |
+|------:|-------:|----------------------:|---------:|
+| `denoise` | ~4208 | ~46% | ~1052 ms |
+| `decode` | ~3010 | ~33% | ~752 ms |
+| `recompute_kv_cache` | ~1218 | ~13% | ~305 ms |
+| `text_conditioning` | ~655 | ~7% | ~164 ms |
+
+**Interpretation:** End-to-end throughput is largely compute-bound inside `denoise` (+ `decode`), so swapping KV-bias backends (Triton Kernel B vs FA4 vs segment-combine) won’t materially move FPS unless it changes time inside `denoise` (or reduces work in `decode` / `recompute_kv_cache`).
 
 ## Key Discovery This Session
 
@@ -15,7 +34,7 @@ The `flash-attention` symlink was shadowing the working FA4 package. Removed it,
 - Setting `SCOPE_KV_CACHE_ATTENTION_BIAS=1.0` (bypasses Triton Kernel B)
 - Changing codec MAX_FRAME_RATE from 8 to 30
 
-This suggests a **hard limiter we haven't found yet**.
+This originally suggested a “hard limiter”, but the block profile above points to a more mundane explanation: **the slow path is dominated by non-attention work** (`denoise` / `decode` / `recompute_kv_cache`).
 
 ## Two Codex Agents Working
 
@@ -50,6 +69,11 @@ _KV_BIAS_BACKEND = "flash" if _is_sm103() else "triton"
 - `triton`: Triton Kernel B (slow on B300: 1.6ms)
 - `flex`: flex_attention fallback
 
+## Repo/Packaging Note (Reproducibility)
+
+- `flash-attention.bak/` is gitignored and not available to RepoPrompt / other machines by default.
+- If/when we want the FA4 score_mod path reproducible in-repo, prefer vendoring the minimal CuTe sources (already present at `vendored/flash_attn_cute_score_mod/`) rather than relying on `flash-attention.bak/`.
+
 ## To Test When Codex1 Finishes
 
 ```bash
@@ -66,18 +90,15 @@ SCOPE_KV_BIAS_BACKEND=fa4 TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas uv ru
 TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas uv run daydream-scope
 ```
 
-## Mystery: Why Always 8.8 FPS?
+## Next Questions (Now That It Looks Compute-Bound)
 
-Investigated but not found:
-- Codec cap (was 8, changed to 30 - no effect)
-- KV-cache bias path (bypassed with bias=1.0 - no effect)
-- Attention backend (FA4 vs Triton - no effect on FPS)
+Priority is to drill into the *dominant* blocks:
 
-Possible unexplored causes:
-- FPS calculation/reporting bug
-- Some synchronization in frame_processor.py
-- Input frame rate limiting
-- Something in the actual pipeline execution path
+- Within `denoise`: how much is attention vs other ops (conv/linear/norm/rope/etc.)?
+- Within `decode`: is VAE decode unusually slow on SM103 (cuDNN algo selection / kernel fallback / precision path)?
+- Can we reduce `recompute_kv_cache` work without hurting quality (knobs like cache lengths / frames)?
+
+Practical note: `torch.profiler` CUDA timelines appear broken on this environment (CUPTI errors). Prefer CUDA-event based probes (`PROFILE_PIPELINE_BLOCKS`, `PROFILE_ATTENTION`) or external `nsys` if available.
 
 ## Files to Investigate
 

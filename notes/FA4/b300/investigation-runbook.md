@@ -6,6 +6,62 @@
 
 ---
 
+## Ground Truth (Already Measured on B300)
+
+These observations are meant to prevent re-running the same “is it pacing?” and “is it attention?” loops.
+
+### Repro Settings (Reference)
+
+- **Resolution:** `320x576` (reference resolution for comparisons)
+- **Denoising steps:** `4` (current reference)
+- **KV-cache attention bias:** `0.3` (unless explicitly testing bias off/on)
+- **Typical steady-state:** ~`8.7–8.8 FPS` on B300, stable across iterations
+
+Repro command (includes per-block CUDA-event timings):
+
+```bash
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+PROFILE_PIPELINE_BLOCKS=1 \
+PROFILE_PIPELINE_BLOCKS_JSON=outputs/b300_pipeline_blocks_profile.json \
+uv run python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 10 --skip 3 \
+  --kv-cache-attention-bias 0.3
+```
+
+### “Zoom-Out” Block Profile (Key Finding)
+
+`outputs/b300_pipeline_blocks_profile.json` shows **GPU time ~= CPU time**, i.e. the pipeline is not obviously paced or CPU-stalled; it’s largely **compute-bound** at the block level (CUDA events + `synchronize()` per block).
+
+Dominant blocks (4 pipeline calls):
+
+| Block | GPU ms | Share (of total GPU) | Per-call |
+|------:|-------:|----------------------:|---------:|
+| `denoise` | ~4208 | ~46% | ~1052 ms |
+| `decode` | ~3010 | ~33% | ~752 ms |
+| `recompute_kv_cache` | ~1218 | ~13% | ~305 ms |
+| `text_conditioning` | ~655 | ~7% | ~164 ms |
+
+Implication: attention micro-optimizations (FA4 score_mod, Triton Kernel B tuning, etc.) will not move end-to-end FPS unless they materially reduce time inside `denoise` (and possibly also reduce work in `decode` / `recompute_kv_cache`).
+
+### Why This Profile Is Trustworthy
+
+- Per-block GPU timing is implemented via CUDA events in `src/scope/core/pipelines/krea_realtime_video/modular_blocks.py` (records start/end, then `synchronize()`).
+- This makes timings “real” but also disables async overlap while profiling; use it for relative breakdown, not absolute peak throughput.
+
+### Known Profiling Constraint (CUPTI)
+
+On this B300 environment, `torch.profiler` CUDA timelines are currently unusable (observed `CUPTI_ERROR_INVALID_DEVICE` / `device_time=0`). Prefer:
+- `PROFILE_PIPELINE_BLOCKS=1` (block-level CUDA events)
+- `PROFILE_ATTENTION=1` (attention-level logging where available)
+- External `nsys` if accessible on the host
+
+### Repo/Packaging Reality (Important for Repro + RepoPrompt)
+
+- `flash-attention.bak/` exists locally but is **ignored** by git (`.gitignore`), so other machines/models won’t see it.
+- Minimal CuTe sources needed for FA4 `score_mod` experimentation are already vendored in-repo at `vendored/flash_attn_cute_score_mod/` and are referenced by the path-injection logic when `SCOPE_KV_BIAS_BACKEND=fa4`.
+- Small artifacts live in `outputs/` (e.g. `outputs/b300_320x576_fa4.log`). The block-profile JSON is currently a local artifact; if it’s useful long-term, consider checking it in (or keep the table above as the durable record).
+
 ## Quick Reference
 
 ```bash
@@ -71,6 +127,37 @@ uv run python scripts/profile_krea_pipeline_blocks.py \
 - Compare GPU time vs wall time per block
 - If `gpu_ms << wall_ms` consistently → pacing/backpressure (H1)
 - If `gpu_ms ≈ wall_ms` → compute bound, continue to H2-H5
+
+### Test 1b: Drill Into `denoise` and `decode` (B300 Priority)
+
+Once you know the pipeline is compute-bound, go one level deeper:
+
+- **Denoise step profiler:** splits `denoise` into `generator` vs `randn` vs `scheduler_add_noise`
+- **WanVAE decode profiler:** splits decode into wrapper-level steps (`prep_permute_cast`, `stream_decode`, `postprocess`)
+- **WanVAE inner decode profiler (optional):** splits `stream_decode()` into `apply_scale`, `conv2`, decoder phases
+
+Example (writes JSON artifacts into `$OUT_DIR/`):
+
+```bash
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+PROFILE_PIPELINE_BLOCKS=1 \
+PROFILE_PIPELINE_BLOCKS_JSON=$OUT_DIR/block-profile.json \
+PROFILE_DENOISE_STEPS=1 \
+PROFILE_DENOISE_STEPS_JSON=$OUT_DIR/denoise-steps.json \
+PROFILE_WANVAE_DECODE=1 \
+PROFILE_WANVAE_DECODE_JSON=$OUT_DIR/vae-decode.json \
+PROFILE_WANVAE_DECODE_INNER=1 \
+PROFILE_WANVAE_DECODE_INNER_JSON=$OUT_DIR/vae-decode-inner.json \
+PROFILE_ATTENTION=1 \
+uv run python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 10 --skip 3 \
+  --kv-cache-attention-bias 0.3
+```
+
+Notes:
+- These profilers use CUDA events + `synchronize()`, so they reduce overlap and will lower absolute throughput while enabled.
+- `PROFILE_ATTENTION=1` helps answer “how much of `denoise` is attention vs everything else?”
 
 ---
 
@@ -271,6 +358,9 @@ $INVESTIGATION_DIR/<gpu>/
 ├── memory-info.txt
 ├── block-profile.json
 ├── profile-output.log
+├── denoise-steps.json
+├── vae-decode.json
+├── vae-decode-inner.json
 ├── dmon.log
 ├── power-clocks.txt
 ├── clocks-timeseries.csv

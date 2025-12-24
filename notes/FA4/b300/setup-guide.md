@@ -18,6 +18,54 @@ uv run python scripts/triton_sdpa.py --kernel-b
 uv run daydream-scope  # Full server
 ```
 
+## Recommended: Two Virtual Environments (B200 vs B300)
+
+The repo default environment (`torch==2.8.0+cu128`, `cuda==12.8`) is “good enough to run” on SM103 once you point Triton at a newer `ptxas`,
+but it is **not an SM103-native runtime stack** (cuDNN/cuBLAS/etc are still the cu128 bundle).
+
+Given B300’s perf issue appears dominated by **`denoise` + `decode`** (not just attention), it’s worth having a clean way to experiment with a
+newer CUDA-runtime PyTorch build without destabilizing the B200 environment.
+
+### How to do it with `uv`
+
+`uv` supports selecting the environment directory via `UV_PROJECT_ENVIRONMENT` (this is already used by the app setup code).
+
+Create two environments:
+
+```bash
+# Baseline (keep current lockfile / cu128 stack) – good for B200
+UV_PROJECT_ENVIRONMENT=.venv-b200 uv sync
+
+# Experimental (for B300) – start from the lock, then override torch
+UV_PROJECT_ENVIRONMENT=.venv-b300 uv sync
+```
+
+Run commands against a chosen env:
+
+```bash
+UV_PROJECT_ENVIRONMENT=.venv-b300 TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas uv run daydream-scope
+UV_PROJECT_ENVIRONMENT=.venv-b200 uv run daydream-scope
+```
+
+### “SM103-native” stack (what it means)
+
+To be truly SM103-native, you want:
+
+- **PyTorch built with CUDA >= 12.9 / 13.x** (e.g. `cu129` / `cu130` wheels if available)
+- A CUDA toolkit `ptxas` that recognizes `sm_103` (already handled via `TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas`)
+
+Why this might matter:
+
+- Decode is heavy **3D conv** (`WanVAE_.stream_decode`), which is typically **cuDNN**-dominated.
+- It’s plausible `torch==+cu128`’s bundled cuDNN doesn’t have the best SM103 kernels yet, even if GEMM looks great.
+
+Practical experiment:
+
+1) Keep `.venv-b200` unchanged (working baseline).
+2) In `.venv-b300`, install a CUDA 12.9/13 build of PyTorch if/when available, then re-run the block profile at `320x576` and compare `decode` + `denoise`.
+
+Note: wheel availability / exact index URLs change quickly; check your preferred PyTorch index for `cu129`/`cu130` before pinning anything.
+
 ### Alternative: Per-command (no persistence)
 ```bash
 TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas uv run daydream-scope
