@@ -24,8 +24,9 @@ This doc is a plan + integration sketch so other models/people can critique it q
 
 ### What changed to make “CuTe score_mod” work
 - The installed wheel `flash-attn==2.8.3` exposes `flash_attn.cute.flash_attn_varlen_func(...)`, but it **does not accept `score_mod`**.
-- We use the newer CuTe interface with `score_mod` support from `flash-attention.bak/flash_attn/cute/interface.py`:
-  - Local path is enabled via `flash-attention -> flash-attention.bak` symlink (the directory is gitignored).
+- We use the newer CuTe interface with `score_mod` support from the vendored CuTe sources:
+  - `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py`
+  - This is injected at runtime by extending `flash_attn.__path__` (see `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`).
   - KV-bias FA4 path imports and calls `flash_attn.cute.interface._flash_attn_fwd(...)` directly (not the wheel’s `flash_attn.cute.flash_attn_varlen_func`).
 
 ## Goal (Phase 4)
@@ -92,9 +93,12 @@ We need `flash_attn.cute.flash_attn_varlen_func` to accept `score_mod=...` (and 
 
 Two options:
 
-**Option 0A (preferred for iteration): use local `flash-attention.bak` code**
-- ✅ Create `flash-attention/` (symlink to `flash-attention.bak/`) so local CuTe code is importable.
-- ✅ Import `flash_attn.cute.interface._flash_attn_fwd` (supports `score_mod`) from the local tree.
+**Option 0A (preferred for repo tools + reproducibility): use vendored CuTe code**
+- ✅ Use `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py` (tracked in Git).
+- ✅ Import `flash_attn.cute.interface._flash_attn_fwd` (supports `score_mod`) after path injection.
+
+**Option 0B (still useful for fast iteration): use a local clone**
+- Keep a local `flash-attention.bak/` checkout and inject it via `flash_attn.__path__` if you prefer.
 
 **Option 0B: upgrade/replace the wheel**
 - Install a flash-attn build that exposes the score_mod CuTe interface.
@@ -196,9 +200,9 @@ Once FA4 score_mod runs:
 - `scripts/triton_sdpa.py`
 - `scripts/tune_kernel_b.py`
 - `notes/FA4/DeepResearch/2025-12-23/CuTeDSL_score_mod.md`
-- `flash-attention.bak/flash_attn/cute/interface.py`
-- `flash-attention.bak/flash_attn/cute/softmax.py`
-- `flash-attention.bak/tests/cute/score_mod_definitions.py`
+- `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py`
+- `vendored/flash_attn_cute_score_mod/flash_attn/cute/softmax.py`
+- `vendored/flash_attn_cute_score_mod/flash_attn/cute/utils.py`
 
 **Query (paste into RepoPrompt)**
 

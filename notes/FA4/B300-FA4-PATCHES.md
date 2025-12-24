@@ -7,6 +7,14 @@
 
 FA4/CUTE can run on B300 (SM103) after patching `nvidia-cutlass-dsl` to accept the `sm_103a` architecture. Without patches, CUTLASS DSL rejects SM103 because it only allows `sm_100a` and `sm_100f`.
 
+### KV-bias gotcha (why you might see Triton bottlenecks)
+
+Our `KV-cache attention bias` default on SM103 is the **flash segment-combine** backend (not score_mod). That path needs **LSE**.
+
+If your installed `flash_attn.cute.interface._flash_attn_fwd` does **not** support `return_lse=True` (common for older wheels), the flash backend will raise a `TypeError` and trip-breaker to **Triton Kernel B** — which is much slower on B300.
+
+Fix: detect missing `return_lse` in `_get_fa4_fwd()` and fall back to `flash_attn.flash_attn_interface._flash_attn_varlen_forward` for `(out, lse)` instead.
+
 ### Results After Patching
 
 | Kernel | B300 (SM103) | Notes |
