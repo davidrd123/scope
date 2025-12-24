@@ -2,25 +2,27 @@
 
 ## Current State
 
-### The Mystery
+### The Mystery (UNSOLVED)
 - **B200**: ~20 FPS at 320x576, 4 steps
 - **B300**: 8.8 FPS at same settings (2x slower)
 - Kernel optimizations show expected speedups in microbenchmarks but FPS doesn't change
 
-### What Codex Just Found
-Codex identified that the "flash segment-combine" path was **silently failing** on B300:
-- Needs `return_lse=True` support
-- Installed `_flash_attn_fwd` didn't support it
-- Exception → trip-breaker → **silently fell back to Triton Kernel B**
-- Triton Kernel B is slow on B300 (1.6ms vs 0.38ms FA4)
+### What Was Tried
 
-**Fix applied:** `_get_fa4_fwd()` now checks for `return_lse` support and uses `_flash_attn_varlen_forward` as fallback.
+**Codex LSE Fix (2025-12-24):**
+- Hypothesis: Flash segment-combine was silently failing due to missing `return_lse` support
+- Fix applied: `_get_fa4_fwd()` checks for `return_lse`, uses `_flash_attn_varlen_forward` as fallback
+- **Result: Still 8.8 FPS** - hypothesis was wrong, mystery remains
 
-### Currently Testing
-```bash
-SCOPE_KV_BIAS_BACKEND=flash TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas uv run daydream-scope
-```
-If FPS improves from 8.8 → Codex found the culprit.
+**Other attempts (all still 8.8 FPS):**
+- Enable FA4 for main attention
+- `SCOPE_KV_CACHE_ATTENTION_BIAS=1.0`
+- MAX_FRAME_RATE 8→30
+- Switch FA4↔Triton backend
+- LSE fallback fix
+
+### Conclusion
+The B300 8.8 FPS issue is **not** an attention backend problem. Something else in the pipeline is the bottleneck, but we don't know what.
 
 ## Git State
 
@@ -43,36 +45,58 @@ Key uncommitted changes:
 2. **vendored/flash_attn_cute_score_mod/**: 34 FA4/CUTE files from flash-attention.bak
 3. **test_fa4_score_mod_smoke.py**: New smoke test for score_mod patterns
 
-## Parallel Workstream: H100 Fallback
+## Next Step: H100 Fallback
 
-B200 spot instances unavailable (GPU mode hackathon eating capacity). H100 is available and should work:
-- No SM103 patches needed (H100 is SM90)
+B300 mystery is unsolved. Pragmatic path forward is H100:
+- B200 spot instances unavailable (GPU mode hackathon eating capacity)
+- H100 is available and should work without SM103 complications
+- No patches needed (H100 is SM90, not SM103)
 - No CUDA 12.9 ptxas override needed
-- Standard paths that worked before B300 work
 
 ```bash
 # On H100 - just run it
 uv run daydream-scope
 ```
 
+Expected: H100 should work at decent FPS with standard code paths.
+
 ## Hackathon Context
 - Deadline: January 9th
 - Goal: Real-time video generation for teammates to experience
 - B200 was ideal ($0.95/hr, 20 FPS), now unavailable
-- B300 ($1.24/hr) running at 8.8 FPS - testing Codex fix now
-- H100 fallback if B300 fix doesn't work
+- B300 ($1.24/hr) stuck at 8.8 FPS despite all attempts
+- **H100 is the pragmatic fallback**
 
-## Key Files
-- `notes/FA4/kernel-dev-log.md` - Full journey, B300 investigation section
-- `notes/FA4/B300-FA4-PATCHES.md` - SM103 patch guide
+## Key Documentation (Read Order)
+
+### 1. Quick Start
+- **This file** (`SESSION-HANDOFF-2025-12-24.md`) - Current state and next steps
+
+### 2. Understanding the Journey
+- `notes/FA4/kernel-dev-log.md` - Full optimization journey, B200 wins, B300 mystery
+  - Read "B300 (SM103) INVESTIGATION" section for the unsolved problem
+  - Read "FINE-GRAINED PROFILING" for where time goes in the pipeline
+
+### 3. B300-Specific (if revisiting)
+- `notes/FA4/B300-FA4-PATCHES.md` - SM103 patches for nvidia-cutlass-dsl
+- Environment: `TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas`
+
+### 4. Code
 - `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` - Attention backends
+- `scripts/test_fa4_kv_bias.py` - FA4 test script
+- `vendored/flash_attn_cute_score_mod/` - Vendored FA4 files (uncommitted)
 
 ## Next Steps (Priority Order)
 
-1. **Check test result** - Did `SCOPE_KV_BIAS_BACKEND=flash` fix B300 FPS?
-2. **If yes** - Commit Codex changes, B300 is usable
-3. **If no** - Spin up H100, verify it works at decent FPS
-4. **Either way** - Get teammates demo-ready for hackathon
+1. **Spin up H100** - Verify it runs at decent FPS with `uv run daydream-scope`
+2. **If H100 works** - Use it for hackathon, defer B300 investigation
+3. **Document H100 baseline** - What FPS do we get?
+4. **Get teammates demo-ready** - Hackathon deadline Jan 9
+
+### If someone wants to continue B300 investigation:
+- Full pipeline profile needed (not just attention kernels)
+- Compare B200 vs B300 profiles at same settings
+- The bottleneck is NOT attention - look elsewhere
 
 ## Claude Code Version
 Locked at 2.0.62 (see notes/TODO-next-session.md for unlock instructions)
