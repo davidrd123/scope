@@ -61,11 +61,18 @@ class FakeVideoPipeline(FakePipeline):
 
 
 class FakePipelineManager:
-    def __init__(self, pipeline: Any):
+    def __init__(self, pipeline: Any, pipeline_id: str = "test-pipeline"):
         self._pipeline = pipeline
+        self._pipeline_id = pipeline_id
 
     def get_pipeline(self):
         return self._pipeline
+
+    def get_status_info(self) -> dict[str, Any]:
+        return {
+            "pipeline_id": self._pipeline_id,
+            "load_params": {"width": 512, "height": 512},
+        }
 
 
 @unittest.skipIf(
@@ -211,6 +218,352 @@ class FrameProcessorCharacterizationTests(unittest.TestCase):
 
         self.assertEqual(pipeline.call_history, [])
         self.assertFalse(fp.is_prepared)
+
+    # =========================================================================
+    # Snapshot/Restore Tests (Phase 2)
+    # =========================================================================
+
+    def test_snapshot_request_creates_snapshot(self):
+        """Snapshot request via reserved key creates a snapshot with metadata."""
+        pipeline = FakePipeline()
+        pipeline.state.set("current_start_frame", 42)
+        pipeline.state.set("first_context_frame", torch.zeros(1, 1, 16, 64, 64))
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"prompts": [{"text": "a", "weight": 1.0}]},
+        )
+        fp.chunk_index = 5
+
+        # Track response via callback
+        responses = []
+        fp.snapshot_response_callback = responses.append
+
+        fp.update_parameters({"_rcp_snapshot_request": True})
+        fp.process_chunk()
+
+        # Verify snapshot was created
+        self.assertEqual(len(fp.snapshots), 1)
+        snapshot_id = list(fp.snapshots.keys())[0]
+        snapshot = fp.snapshots[snapshot_id]
+
+        self.assertEqual(snapshot.chunk_index, 5)
+        self.assertEqual(snapshot.current_start_frame, 42)
+        self.assertIsNotNone(snapshot.first_context_frame)
+        self.assertEqual(snapshot.parameters["prompts"], [{"text": "a", "weight": 1.0}])
+
+        # Verify response callback was called
+        self.assertEqual(len(responses), 1)
+        self.assertEqual(responses[0]["type"], "snapshot_response")
+        self.assertEqual(responses[0]["snapshot_id"], snapshot_id)
+        self.assertEqual(responses[0]["chunk_index"], 5)
+
+    def test_restore_clears_output_queue(self):
+        """Restore clears output queue to prevent stale pre-restore frames."""
+        pipeline = FakePipeline()
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"prompts": [{"text": "a", "weight": 1.0}]},
+        )
+
+        # Create a snapshot
+        fp.update_parameters({"_rcp_snapshot_request": True})
+        fp.process_chunk()
+        snapshot_id = list(fp.snapshots.keys())[0]
+
+        # Add frames to output queue
+        fp.output_queue.put_nowait(torch.tensor(1, dtype=torch.uint8))
+        fp.output_queue.put_nowait(torch.tensor(2, dtype=torch.uint8))
+        self.assertEqual(fp.output_queue.qsize(), 5)  # 3 from chunk + 2 added
+
+        # Restore should clear the queue
+        fp.update_parameters({"_rcp_restore_snapshot": {"snapshot_id": snapshot_id}})
+        fp.process_chunk()
+
+        # Queue should be empty after restore, then filled with new chunk
+        # (restore clears, then process_chunk adds 3 frames)
+        self.assertEqual(fp.output_queue.qsize(), 3)
+
+    def test_restore_sets_is_prepared_true(self):
+        """Restore sets is_prepared=True to avoid accidental cache reset."""
+        pipeline = FakePipeline()
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"prompts": [{"text": "a", "weight": 1.0}]},
+        )
+
+        # Create a snapshot (is_prepared becomes True after process_chunk)
+        fp.update_parameters({"_rcp_snapshot_request": True})
+        fp.process_chunk()
+        snapshot_id = list(fp.snapshots.keys())[0]
+
+        # Reset is_prepared to False
+        fp.is_prepared = False
+
+        # Restore should set is_prepared=True
+        fp.update_parameters({"_rcp_restore_snapshot": {"snapshot_id": snapshot_id}})
+        fp.process_chunk()
+
+        self.assertTrue(fp.is_prepared)
+
+    def test_restore_invalid_snapshot_id_fails_gracefully(self):
+        """Restore with invalid snapshot_id returns error response, doesn't crash."""
+        pipeline = FakePipeline()
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"prompts": [{"text": "a", "weight": 1.0}]},
+        )
+
+        # Track response via callback
+        responses = []
+        fp.snapshot_response_callback = responses.append
+
+        fp.update_parameters({"_rcp_restore_snapshot": {"snapshot_id": "nonexistent-id"}})
+        fp.process_chunk()
+
+        # Verify error response
+        self.assertEqual(len(responses), 1)
+        self.assertEqual(responses[0]["type"], "restore_response")
+        self.assertFalse(responses[0]["success"])
+
+    def test_snapshot_lru_eviction(self):
+        """Snapshots beyond MAX_SNAPSHOTS are evicted (oldest first)."""
+        from scope.server.frame_processor import MAX_SNAPSHOTS
+
+        pipeline = FakePipeline()
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"prompts": [{"text": "a", "weight": 1.0}]},
+        )
+
+        # Create MAX_SNAPSHOTS + 2 snapshots
+        snapshot_ids = []
+        for i in range(MAX_SNAPSHOTS + 2):
+            fp.chunk_index = i
+            fp.update_parameters({"_rcp_snapshot_request": True})
+            fp.process_chunk()
+            snapshot_ids.append(list(fp.snapshots.keys())[-1])
+
+        # Should have exactly MAX_SNAPSHOTS snapshots
+        self.assertEqual(len(fp.snapshots), MAX_SNAPSHOTS)
+
+        # First two snapshots should be evicted
+        self.assertNotIn(snapshot_ids[0], fp.snapshots)
+        self.assertNotIn(snapshot_ids[1], fp.snapshots)
+
+        # Last MAX_SNAPSHOTS should still exist
+        for sid in snapshot_ids[2:]:
+            self.assertIn(sid, fp.snapshots)
+
+    def test_restore_restores_parameters_and_paused_state(self):
+        """Restore restores both parameters and paused state."""
+        pipeline = FakePipeline()
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"prompts": [{"text": "original", "weight": 1.0}]},
+        )
+
+        # Create a snapshot with specific state
+        fp.paused = True
+        fp.update_parameters({"_rcp_snapshot_request": True})
+        fp.process_chunk()
+        snapshot_id = list(fp.snapshots.keys())[0]
+
+        # Change state
+        fp.paused = False
+        fp.parameters["prompts"] = [{"text": "changed", "weight": 1.0}]
+
+        # Restore should bring back original state
+        fp.update_parameters({"_rcp_restore_snapshot": {"snapshot_id": snapshot_id}})
+        fp.process_chunk()
+
+        self.assertTrue(fp.paused)
+        self.assertEqual(fp.parameters["prompts"], [{"text": "original", "weight": 1.0}])
+
+    def test_restore_clears_missing_continuity_keys(self):
+        """Restore clears continuity keys that were absent in the snapshot."""
+        pipeline = FakePipeline()
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"prompts": [{"text": "a", "weight": 1.0}]},
+        )
+
+        # Snapshot at a point where first_context_frame is unset (None)
+        fp.update_parameters({"_rcp_snapshot_request": True})
+        fp.process_chunk()
+        snapshot_id = list(fp.snapshots.keys())[0]
+
+        # Mutate pipeline state to simulate later continuity being present
+        pipeline.state.set("first_context_frame", torch.ones(1, 1, 16, 64, 64))
+
+        # Restore should clear it back to None
+        fp.update_parameters({"_rcp_restore_snapshot": {"snapshot_id": snapshot_id}})
+        fp.process_chunk()
+        self.assertIsNone(pipeline.state.get("first_context_frame"))
+
+    def test_restore_restores_video_mode_and_clears_frame_buffer(self):
+        """Restore restores video mode and clears frame buffer when in V2V."""
+        pipeline = FakePipeline()
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"input_mode": "video"},
+        )
+        fp.paused = True
+
+        fp.update_parameters({"_rcp_snapshot_request": True})
+        fp.process_chunk()
+        snapshot_id = list(fp.snapshots.keys())[0]
+
+        # Simulate state drift
+        fp._video_mode = False
+        with fp.frame_buffer_lock:
+            fp.frame_buffer.append(object())
+
+        fp.update_parameters({"_rcp_restore_snapshot": {"snapshot_id": snapshot_id}})
+        fp.process_chunk()
+
+        self.assertTrue(fp._video_mode)
+        with fp.frame_buffer_lock:
+            self.assertEqual(len(fp.frame_buffer), 0)
+
+    # =========================================================================
+    # Step Tests (Phase 3)
+    # =========================================================================
+
+    def test_step_generates_chunk_while_paused(self):
+        """Step generates exactly one chunk even when paused."""
+        pipeline = FakePipeline()
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"prompts": [{"text": "a", "weight": 1.0}]},
+        )
+        fp.paused = True
+
+        # Without step, paused means no generation
+        fp.process_chunk()
+        self.assertEqual(len(pipeline.call_history), 0)
+
+        # With step, generate one chunk
+        fp.update_parameters({"_rcp_step": True})
+        fp.process_chunk()
+
+        self.assertEqual(len(pipeline.call_history), 1)
+        self.assertTrue(fp.paused)  # Still paused after step
+
+    def test_step_sends_response_with_chunk_index(self):
+        """Step sends response with chunk_index after successful generation."""
+        pipeline = FakePipeline()
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"prompts": [{"text": "a", "weight": 1.0}]},
+        )
+        fp.paused = True
+        fp.chunk_index = 10
+
+        responses = []
+        fp.snapshot_response_callback = responses.append
+
+        fp.update_parameters({"_rcp_step": True})
+        fp.process_chunk()
+
+        self.assertEqual(len(responses), 1)
+        self.assertEqual(responses[0]["type"], "step_response")
+        self.assertEqual(responses[0]["chunk_index"], 11)  # Incremented
+        self.assertTrue(responses[0]["success"])
+
+    def test_step_works_when_not_paused(self):
+        """Step also works when not paused (just generates normally)."""
+        pipeline = FakePipeline()
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"prompts": [{"text": "a", "weight": 1.0}]},
+        )
+        fp.paused = False
+
+        responses = []
+        fp.snapshot_response_callback = responses.append
+
+        fp.update_parameters({"_rcp_step": True})
+        fp.process_chunk()
+
+        self.assertEqual(len(pipeline.call_history), 1)
+        self.assertEqual(len(responses), 1)
+        self.assertEqual(responses[0]["type"], "step_response")
+
+    def test_snapshot_lru_updates_on_restore(self):
+        """Restored snapshot moves to end of LRU order (most recently used)."""
+        pipeline = FakePipeline()
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"prompts": [{"text": "a", "weight": 1.0}]},
+        )
+
+        # Create 3 snapshots
+        snapshot_ids = []
+        for i in range(3):
+            fp.chunk_index = i
+            fp.update_parameters({"_rcp_snapshot_request": True})
+            fp.process_chunk()
+            snapshot_ids.append(list(fp.snapshots.keys())[-1])
+
+        # Order should be [0, 1, 2]
+        self.assertEqual(fp.snapshot_order, snapshot_ids)
+
+        # Restore snapshot 0 - should move to end
+        fp.update_parameters({"_rcp_restore_snapshot": {"snapshot_id": snapshot_ids[0]}})
+        fp.process_chunk()
+
+        # Order should now be [1, 2, 0]
+        self.assertEqual(fp.snapshot_order, [snapshot_ids[1], snapshot_ids[2], snapshot_ids[0]])
+
+    def test_step_not_dropped_when_video_input_not_ready(self):
+        """Step persists until V2V input requirements are met (no lost step)."""
+        pipeline = FakeVideoPipeline(input_size=2)
+        pm = FakePipelineManager(pipeline)
+        fp = FrameProcessor(
+            pipeline_manager=pm,
+            initial_parameters={"input_mode": "video"},
+        )
+        fp.paused = True
+
+        # Avoid numpy dependency in prepare_chunk by stubbing it.
+        def fake_prepare_chunk(chunk_size: int):
+            for _ in range(chunk_size):
+                fp.frame_buffer.popleft()
+            return [torch.zeros((1, 1, 1, 3), dtype=torch.float32) for _ in range(chunk_size)]
+
+        fp.prepare_chunk = fake_prepare_chunk  # type: ignore[method-assign]
+
+        responses = []
+        fp.snapshot_response_callback = responses.append
+
+        fp.update_parameters({"_rcp_step": True})
+        fp.process_chunk()
+
+        self.assertEqual(len(pipeline.call_history), 0)
+        self.assertEqual(responses, [])
+
+        with fp.frame_buffer_lock:
+            fp.frame_buffer.append(object())
+            fp.frame_buffer.append(object())
+
+        fp.process_chunk()
+
+        self.assertEqual(len(pipeline.call_history), 1)
+        self.assertEqual(len(responses), 1)
+        self.assertEqual(responses[0]["type"], "step_response")
+        self.assertTrue(responses[0]["success"])
 
 
 if __name__ == "__main__":

@@ -232,6 +232,27 @@ class WebRTCManager:
                         if "paused" in data and session.video_track:
                             session.video_track.pause(data["paused"])
 
+                        # Translate snapshot/restore/step messages to reserved keys
+                        # These are consumed by FrameProcessor and never forwarded to pipeline
+                        msg_type = data.get("type")
+                        if msg_type == "snapshot_request":
+                            # Translate to reserved key for thread-safe processing
+                            data = {"_rcp_snapshot_request": True}
+                        elif msg_type == "restore_snapshot":
+                            # Translate to reserved key with snapshot_id
+                            snapshot_id = data.get("snapshot_id")
+                            if snapshot_id:
+                                data = {"_rcp_restore_snapshot": {"snapshot_id": snapshot_id}}
+                            else:
+                                logger.warning("restore_snapshot message missing snapshot_id")
+                                return
+                        elif msg_type == "step":
+                            # Generate exactly one chunk even while paused
+                            data = {"_rcp_step": True}
+                        else:
+                            # Don't forward protocol-level message keys to the pipeline kwargs layer.
+                            data.pop("type", None)
+
                         # Send parameters to the frame processor
                         if session.video_track and hasattr(
                             session.video_track, "frame_processor"

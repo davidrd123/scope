@@ -1,8 +1,11 @@
+import copy
 import logging
 import queue
 import threading
 import time
+import uuid
 from collections import deque
+from dataclasses import dataclass, field
 from typing import Any
 
 import torch
@@ -31,6 +34,49 @@ SLEEP_TIME = 0.01
 # Input FPS measurement constants
 INPUT_FPS_SAMPLE_SIZE = 30  # Number of frame intervals to track
 INPUT_FPS_MIN_SAMPLES = 5  # Minimum samples needed before using input FPS
+
+# Snapshot constants
+MAX_SNAPSHOTS = 10  # Maximum number of snapshots to keep (LRU eviction)
+
+# Continuity keys from pipeline.state that define generation continuity
+CONTINUITY_KEYS = [
+    "current_start_frame",
+    "first_context_frame",
+    "context_frame_buffer",
+    "decoded_frame_buffer",
+    "context_frame_buffer_max_size",
+    "decoded_frame_buffer_max_size",
+]
+
+
+@dataclass
+class Snapshot:
+    """Server-side snapshot of generation state at a chunk boundary.
+
+    Snapshots are stored in-memory and contain cloned GPU tensors.
+    Clients receive only snapshot_id + metadata, not the actual tensor data.
+    """
+
+    snapshot_id: str
+    chunk_index: int
+    created_at: float
+
+    # Continuity state (cloned tensors from pipeline.state)
+    current_start_frame: int = 0
+    first_context_frame: torch.Tensor | None = None
+    context_frame_buffer: torch.Tensor | None = None
+    decoded_frame_buffer: torch.Tensor | None = None
+    context_frame_buffer_max_size: int = 0
+    decoded_frame_buffer_max_size: int = 0
+
+    # Control state (deep copy of parameters)
+    parameters: dict[str, Any] = field(default_factory=dict)
+    paused: bool = False
+    video_mode: bool = False
+
+    # Compatibility metadata (for future validation)
+    pipeline_id: str | None = None
+    resolution: tuple[int, int] | None = None
 
 
 class _SpoutFrame:
@@ -97,6 +143,16 @@ class FrameProcessor:
         # Control bus for deterministic event ordering at chunk boundaries
         self.control_bus = ControlBus()
         self.chunk_index = 0
+
+        # Step mode: allow generating N chunks even while paused.
+        # Stored on the worker thread for deterministic semantics.
+        self._pending_steps = 0
+
+        # Snapshot store (server-side, in-memory)
+        # Keys are snapshot_id, values are Snapshot objects with cloned tensors
+        self.snapshots: dict[str, Snapshot] = {}
+        self.snapshot_order: list[str] = []  # For LRU eviction (oldest first)
+        self.snapshot_response_callback: callable | None = None
 
         # Spout integration
         self.spout_sender = None
@@ -668,6 +724,67 @@ class FrameProcessor:
                 break
 
         # ========================================================================
+        # RESERVED KEYS: Handle snapshot/restore commands (not forwarded to pipeline)
+        # ========================================================================
+        # These reserved keys route through parameters_queue for thread safety,
+        # but are consumed here and never forwarded to the pipeline or events.
+        if "_rcp_snapshot_request" in merged_updates:
+            merged_updates.pop("_rcp_snapshot_request")
+            try:
+                snapshot = self._create_snapshot()
+                # Send response via callback if registered
+                if self.snapshot_response_callback:
+                    self.snapshot_response_callback(
+                        {
+                            "type": "snapshot_response",
+                            "snapshot_id": snapshot.snapshot_id,
+                            "chunk_index": snapshot.chunk_index,
+                            "current_start_frame": snapshot.current_start_frame,
+                        }
+                    )
+            except Exception as e:
+                logger.error(f"Error creating snapshot: {e}")
+                if self.snapshot_response_callback:
+                    self.snapshot_response_callback(
+                        {"type": "snapshot_response", "error": str(e)}
+                    )
+
+        if "_rcp_restore_snapshot" in merged_updates:
+            restore_data = merged_updates.pop("_rcp_restore_snapshot")
+            snapshot_id = restore_data.get("snapshot_id") if restore_data else None
+            if snapshot_id:
+                success = self._restore_snapshot(snapshot_id)
+                if self.snapshot_response_callback:
+                    self.snapshot_response_callback(
+                        {
+                            "type": "restore_response",
+                            "snapshot_id": snapshot_id,
+                            "success": success,
+                        }
+                    )
+            else:
+                logger.warning("restore_snapshot called without snapshot_id")
+                if self.snapshot_response_callback:
+                    self.snapshot_response_callback(
+                        {
+                            "type": "restore_response",
+                            "error": "snapshot_id required",
+                            "success": False,
+                        }
+                    )
+
+        # Step: generate exactly one chunk even while paused.
+        # Keep a small backlog so step isn't dropped when input frames aren't ready.
+        if "_rcp_step" in merged_updates:
+            step_val = merged_updates.pop("_rcp_step")
+            step_count = 1
+            if isinstance(step_val, int) and not isinstance(step_val, bool):
+                step_count = max(1, step_val)
+            self._pending_steps += step_count
+
+        step_requested = self._pending_steps > 0
+
+        # ========================================================================
         # TRANSLATE: Convert dict updates to typed events for ordering
         # ========================================================================
         if merged_updates:
@@ -753,8 +870,8 @@ class FrameProcessor:
                     "denoising_step_list"
                 ]
 
-        # Check if paused after applying events
-        if self.paused:
+        # Check if paused after applying events (step overrides pause)
+        if self.paused and not step_requested:
             # Sleep briefly to avoid busy waiting
             self.shutdown_event.wait(SLEEP_TIME)
             return
@@ -797,6 +914,7 @@ class FrameProcessor:
                     self.shutdown_event.wait(SLEEP_TIME)
                     return
                 video_input = self.prepare_chunk(current_chunk_size)
+        chunk_error: Exception | None = None
         try:
             # Pass parameters (excluding prepare-only parameters)
             call_params = dict(self.parameters.items())
@@ -897,6 +1015,7 @@ class FrameProcessor:
             # Update FPS calculation based on processing time and frame count
             self._calculate_pipeline_fps(start_time, num_frames)
         except Exception as e:
+            chunk_error = e
             if self._is_recoverable(e):
                 # Handle recoverable errors with full stack trace and continue processing
                 logger.error(f"Error processing chunk: {e}", exc_info=True)
@@ -905,6 +1024,20 @@ class FrameProcessor:
 
         self.is_prepared = True
         self.chunk_index += 1
+
+        # Send step response after completing a step-driven chunk generation.
+        if self._pending_steps > 0:
+            self._pending_steps = max(0, self._pending_steps - 1)
+
+        if step_requested and self.snapshot_response_callback:
+            self.snapshot_response_callback(
+                {
+                    "type": "step_response",
+                    "chunk_index": self.chunk_index,
+                    "success": chunk_error is None,
+                    "error": str(chunk_error) if chunk_error is not None else None,
+                }
+            )
 
     def prepare_chunk(self, chunk_size: int) -> list[torch.Tensor]:
         """
@@ -954,6 +1087,186 @@ class FrameProcessor:
             tensor_frames.append(tensor)
 
         return tensor_frames
+
+    def _create_snapshot(self) -> Snapshot:
+        """Create a snapshot of current generation state.
+
+        Captures:
+        - Continuity state from pipeline.state (cloned tensors)
+        - Control state (deep copy of parameters)
+        - Metadata (chunk_index, timestamp, resolution)
+
+        Returns:
+            Snapshot object with unique ID
+        """
+        snapshot_id = str(uuid.uuid4())
+        pipeline = self.pipeline_manager.get_pipeline()
+
+        # Capture continuity state from pipeline.state
+        current_start_frame = 0
+        first_context_frame = None
+        context_frame_buffer = None
+        decoded_frame_buffer = None
+        context_frame_buffer_max_size = 0
+        decoded_frame_buffer_max_size = 0
+
+        if hasattr(pipeline, "state"):
+            state = pipeline.state
+            current_start_frame = state.get("current_start_frame", 0)
+            context_frame_buffer_max_size = state.get(
+                "context_frame_buffer_max_size", 0
+            )
+            decoded_frame_buffer_max_size = state.get(
+                "decoded_frame_buffer_max_size", 0
+            )
+
+            # Clone tensors to avoid mutation
+            fcf = state.get("first_context_frame")
+            if fcf is not None and isinstance(fcf, torch.Tensor):
+                first_context_frame = fcf.detach().clone()
+
+            cfb = state.get("context_frame_buffer")
+            if cfb is not None and isinstance(cfb, torch.Tensor):
+                context_frame_buffer = cfb.detach().clone()
+
+            dfb = state.get("decoded_frame_buffer")
+            if dfb is not None and isinstance(dfb, torch.Tensor):
+                decoded_frame_buffer = dfb.detach().clone()
+
+        # Get resolution from pipeline manager
+        resolution = self._get_pipeline_dimensions()
+
+        # Get pipeline_id if available
+        pipeline_id = None
+        try:
+            status_info = self.pipeline_manager.get_status_info()
+            pipeline_id = status_info.get("pipeline_id")
+        except Exception:
+            pass
+
+        snapshot = Snapshot(
+            snapshot_id=snapshot_id,
+            chunk_index=self.chunk_index,
+            created_at=time.time(),
+            current_start_frame=current_start_frame,
+            first_context_frame=first_context_frame,
+            context_frame_buffer=context_frame_buffer,
+            decoded_frame_buffer=decoded_frame_buffer,
+            context_frame_buffer_max_size=context_frame_buffer_max_size,
+            decoded_frame_buffer_max_size=decoded_frame_buffer_max_size,
+            parameters=copy.deepcopy(self.parameters),
+            paused=self.paused,
+            video_mode=self._video_mode,
+            pipeline_id=pipeline_id,
+            resolution=resolution,
+        )
+
+        # Store snapshot with LRU eviction
+        self.snapshots[snapshot_id] = snapshot
+        self.snapshot_order.append(snapshot_id)
+
+        # Evict oldest if over limit
+        while len(self.snapshots) > MAX_SNAPSHOTS:
+            oldest_id = self.snapshot_order.pop(0)
+            old_snapshot = self.snapshots.pop(oldest_id, None)
+            if old_snapshot:
+                # Release tensor memory explicitly
+                old_snapshot.first_context_frame = None
+                old_snapshot.context_frame_buffer = None
+                old_snapshot.decoded_frame_buffer = None
+                logger.debug(f"Evicted snapshot {oldest_id} (LRU)")
+
+        logger.info(
+            f"Created snapshot {snapshot_id} at chunk {self.chunk_index}, "
+            f"total snapshots: {len(self.snapshots)}"
+        )
+
+        return snapshot
+
+    def _restore_snapshot(self, snapshot_id: str) -> bool:
+        """Restore generation state from a snapshot.
+
+        Restores:
+        - Continuity state to pipeline.state
+        - Control state to self.parameters
+        - Clears output_queue to prevent stale frames
+        - Sets is_prepared=True to avoid accidental cache reset
+
+        Args:
+            snapshot_id: ID of snapshot to restore
+
+        Returns:
+            True if restore succeeded, False if snapshot not found
+        """
+        snapshot = self.snapshots.get(snapshot_id)
+        if snapshot is None:
+            logger.warning(f"Snapshot {snapshot_id} not found")
+            return False
+
+        # LRU: move restored snapshot to end of order (most recently used)
+        if snapshot_id in self.snapshot_order:
+            self.snapshot_order.remove(snapshot_id)
+            self.snapshot_order.append(snapshot_id)
+
+        pipeline = self.pipeline_manager.get_pipeline()
+
+        # Restore continuity state to pipeline.state
+        if hasattr(pipeline, "state"):
+            state = pipeline.state
+            state.set("current_start_frame", snapshot.current_start_frame)
+            state.set(
+                "context_frame_buffer_max_size", snapshot.context_frame_buffer_max_size
+            )
+            state.set(
+                "decoded_frame_buffer_max_size", snapshot.decoded_frame_buffer_max_size
+            )
+
+            # Restore tensors back to pipeline.state (or clear when None).
+            state.set(
+                "first_context_frame",
+                snapshot.first_context_frame.detach().clone()
+                if snapshot.first_context_frame is not None
+                else None,
+            )
+            state.set(
+                "context_frame_buffer",
+                snapshot.context_frame_buffer.detach().clone()
+                if snapshot.context_frame_buffer is not None
+                else None,
+            )
+            state.set(
+                "decoded_frame_buffer",
+                snapshot.decoded_frame_buffer.detach().clone()
+                if snapshot.decoded_frame_buffer is not None
+                else None,
+            )
+
+        # Restore control state
+        self.parameters = copy.deepcopy(snapshot.parameters)
+        self.paused = snapshot.paused
+        self._video_mode = snapshot.video_mode
+        self.chunk_index = snapshot.chunk_index
+
+        # Clear output_queue to prevent stale pre-restore frames
+        while not self.output_queue.empty():
+            try:
+                self.output_queue.get_nowait()
+            except queue.Empty:
+                break
+
+        # Clear frame_buffer in V2V mode to prevent stale input frames
+        if self._video_mode:
+            with self.frame_buffer_lock:
+                self.frame_buffer.clear()
+
+        # Set is_prepared=True to avoid accidental cache reset on next chunk
+        self.is_prepared = True
+
+        logger.info(
+            f"Restored snapshot {snapshot_id} to chunk {snapshot.chunk_index}"
+        )
+
+        return True
 
     def __enter__(self):
         self.start()

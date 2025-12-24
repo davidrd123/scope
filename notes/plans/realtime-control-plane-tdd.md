@@ -1,7 +1,7 @@
 # Realtime Control Plane - TDD Implementation Plan
 
 **Created**: 2025-12-24
-**Status**: Scaffold complete; integrate into server runtime next
+**Status**: Phase 1 complete; Phase 2/3 staged (snapshot + step)
 
 ## Context
 
@@ -9,7 +9,7 @@ Architecture doc v1.2 is complete (`notes/realtime_video_architecture.md`) and a
 
 We now have a **tested, pure-Python control plane scaffold** (`src/scope/realtime/` + `tests/realtime/`) that encodes the chunk-boundary semantics, continuity snapshot keys, and LoRA edge-triggering.
 
-The next step is to **integrate these abstractions into the existing server runtime** instead of building a parallel “driver loop” that duplicates `FrameProcessor`.
+The next step is to **keep integrating into the existing server runtime** instead of building a parallel “driver loop” that duplicates `FrameProcessor`.
 
 ## What We're Building
 
@@ -74,7 +74,7 @@ Main gaps to call out explicitly in future doc revisions and implementation plan
 - **Schema vocabulary mismatch**: pipeline config uses `denoising_steps`; runtime control uses `denoising_step_list`. UI/schema-default mapping needs an explicit translation layer.
 - **LoRA merge mode caps “live knobs”**: `PERMANENT_MERGE` implies no runtime updates; `RUNTIME_PEFT` enables them at reduced FPS.
 
-### Phase 1: Integrate Into `FrameProcessor` (Start Here)
+### Phase 1 (Done): Integrate Into `FrameProcessor`
 
 Goal: **reuse existing server threading + WebRTC wiring**, and move the *tested control semantics* into the runtime.
 
@@ -141,22 +141,34 @@ Keep `reset_cache` consumption AFTER the pause check (current behavior). If `res
 - `test_new_prompts_without_transition_clears_stale_transition`
 - `test_video_mode_requires_input_frames_before_call`
 
-#### What FrameProcessor Will Own (After Integration)
+#### What FrameProcessor Owns (After Phase 1)
 
 - `control_bus: ControlBus` (deterministic ordering at chunk boundaries)
 - `adapter: PipelineAdapter` (kwargs mapping, LoRA edge-trigger; continuity for Phase 2)
 - `self.parameters: dict` (source-of-truth for all params, including passthrough)
 
-### Phase 2: Snapshot/Restore (Server-Visible)
+### Phase 2 (Staged): Snapshot/Restore (Server-Visible)
 
 Add snapshot/restore endpoints or messages (design choice: WebRTC-only vs REST+WebRTC), implemented via `PipelineAdapter.capture_continuity()` / `.restore_continuity()` plus control state capture.
 
-### Phase 3: Step Mode API (Optional / Product Choice)
+**Current staged approach** (minimally invasive, thread-safe):
+- WebRTC data-channel “protocol” messages translate to reserved keys consumed by `FrameProcessor`:
+  - `{"type":"snapshot_request"}` → `{"_rcp_snapshot_request": true}`
+  - `{"type":"restore_snapshot","snapshot_id":"..."}` → `{"_rcp_restore_snapshot": {"snapshot_id":"..."}}`
+- Snapshots are stored server-side only (in-memory, LRU) because continuity buffers are GPU tensors.
+
+### Phase 3 (Staged): Step Mode (Dev Console / Tooling)
 
 Expose “generate one chunk” control for dev console/testing:
 
 - In T2V: step always advances.
-- In V2V: step must define behavior when insufficient input frames (stall vs reuse vs error).
+- In V2V: step should **not be dropped** when insufficient input frames; treat it as pending until input is ready.
+
+**Pause nuance (important)**:
+- The repo currently has *two* pause effects:
+  - generator pause (`FrameProcessor.paused`) stops generation state advancing
+  - track pause (`VideoProcessingTrack.pause`) freezes output playback
+- Step needs to cooperate with both: while paused, a step should still be *visible* (output new frames), without “unpausing” continuous generation.
 
 ### Phase 4: Smoke Harness (Real GPU, not CI)
 
@@ -192,19 +204,33 @@ Implementation suggestion:
 
 ## Test Coverage
 
-- **84 tests** for control plane abstractions (`tests/realtime/`)
-- **6 tests** characterizing FrameProcessor behavior (`tests/test_frame_processor_characterization.py`)
+- **84 tests** for control plane abstractions (`tests/realtime/` - control_bus, control_state, pipeline_adapter, generator_driver)
+- **21 tests** for style layer (`tests/realtime/test_style_layer.py` - StyleManifest, WorldState, PromptCompiler)
+- **21 tests** characterizing FrameProcessor behavior (`tests/test_frame_processor_characterization.py`)
+- **Total: 126 tests** (105 realtime + 21 characterization)
+
+## Current Status (2025-12-24)
+
+**Phase 0-3: Complete**
+- Control plane scaffold with ControlBus, PipelineAdapter
+- FrameProcessor integration
+- Snapshot/restore (server-side, LRU)
+- Step mode with pending counter
+
+**Days 5-7 (Style Layer): In Progress**
+- StyleManifest + StyleRegistry (YAML-based vocab)
+- WorldState schema (domain-agnostic scene representation)
+- PromptCompiler interface (pluggable: Template, LLM, Cached)
+- InstructionSheet loader for LLM few-shot examples
+- Awaiting Codex review
+
+**Decisions Made:**
+- V2V step: "pending until ready" (not immediate fail)
+- Style compilation: LLM-in-the-loop with instruction sheets
 
 ## Next Action
 
-**Phase 1 Integration** (decisions resolved, ready to implement):
-
-1. Add `control_bus: ControlBus` and `adapter: PipelineAdapter` to `FrameProcessor.__init__()`
-2. Modify `process_chunk()`:
-   - Drain ALL queue entries → merge with last-write-wins
-   - Translate to typed events (PAUSE/RESUME, SET_PROMPT, SET_LORA_SCALES, SET_SEED, SET_DENOISE_STEPS)
-   - Remaining keys merge directly into `self.parameters`
-   - `control_bus.drain_pending()` for ordering
-   - Apply events → mutate `self.parameters`, `self.paused`, etc.
-3. Replace manual `init_cache` / `lora_scales` handling with `adapter.kwargs_for_call()`
-4. Ensure all 6 characterization tests still pass
+1. Codex review of style layer scaffolding
+2. Wire style layer into FrameProcessor control flow
+3. User provides real manifest vocab from LoRA experiments
+4. Integrate LLM callable (Gemini Flash or similar)

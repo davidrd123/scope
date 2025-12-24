@@ -1,6 +1,7 @@
 import asyncio
 import fractions
 import logging
+import queue
 import threading
 import time
 
@@ -99,6 +100,8 @@ class VideoProcessingTrack(MediaStreamTrack):
                 initial_parameters=self.initial_parameters,
                 notification_callback=self.notification_callback,
             )
+            # Wire up snapshot response callback to use the same notification channel
+            self.frame_processor.snapshot_response_callback = self.notification_callback
             self.frame_processor.start()
 
     def initialize_input_processing(self, track: MediaStreamTrack):
@@ -125,8 +128,15 @@ class VideoProcessingTrack(MediaStreamTrack):
 
                 frame = None
                 if paused:
-                    # When video is paused, return the last frame to freeze the playback video
-                    frame = self._last_frame
+                    # When paused, freeze playback unless new frames are available
+                    # (e.g., one-shot generation via "step").
+                    frame_tensor = self.frame_processor.get()
+                    if frame_tensor is not None:
+                        frame = VideoFrame.from_ndarray(
+                            frame_tensor.numpy(), format="rgb24"
+                        )
+                    else:
+                        frame = self._last_frame
                 else:
                     # When video is not paused, get the next frame from the frame processor
                     frame_tensor = self.frame_processor.get()
@@ -156,6 +166,14 @@ class VideoProcessingTrack(MediaStreamTrack):
         """Pause or resume the video track processing"""
         with self._paused_lock:
             self._paused = paused
+        if paused and self.frame_processor is not None:
+            # Drop any queued frames so playback freezes immediately.
+            # This also ensures step output (generated after pause) isn't polluted by stale frames.
+            while True:
+                try:
+                    self.frame_processor.output_queue.get_nowait()
+                except queue.Empty:
+                    break
         logger.info(f"Video track {'paused' if paused else 'resumed'}")
 
     async def stop(self):

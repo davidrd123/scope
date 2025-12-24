@@ -87,6 +87,8 @@ export function useWebRTC(options?: UseWebRTCOptions) {
 
         dataChannel.onopen = () => {
           console.log("Data channel opened");
+          // Expose for console debugging
+          (window as unknown as { dataChannel: RTCDataChannel }).dataChannel = dataChannel;
         };
 
         dataChannel.onmessage = event => {
