@@ -1,0 +1,70 @@
+{
+  "blocks": {
+    "auto_prepare_latents": {
+      "calls": 4,
+      "cpu_ms": 2.084912000100303,
+      "gpu_ms": 2.00911995023489
+    },
+    "auto_preprocess_video": {
+      "calls": 4,
+      "cpu_ms": 0.15823700050532352,
+      "gpu_ms": 0.0822720006108284
+    },
+    "decode": {
+      "calls": 4,
+      "cpu_ms": 3010.0801890002913,
+      "gpu_ms": 3009.744384765625
+    },
+    "denoise": {
+      "calls": 4,
+      "cpu_ms": 4207.95103600085,
+      "gpu_ms": 4207.794097900391
+    },
+    "embedding_blending": {
+      "calls": 4,
+      "cpu_ms": 52.60420000013255,
+      "gpu_ms": 52.51299103349447
+    },
+    "prepare_context_frames": {
+      "calls": 4,
+      "cpu_ms": 1.839479000409483,
+      "gpu_ms": 1.4587839841842651
+    },
+    "prepare_next": {
+      "calls": 4,
+      "cpu_ms": 0.18729700059338938,
+      "gpu_ms": 0.10793600045144558
+    },
+    "recompute_kv_cache": {
+      "calls": 4,
+      "cpu_ms": 1218.4930640005405,
+      "gpu_ms": 1218.3971289470792
+    },
+    "set_timesteps": {
+      "calls": 4,
+      "cpu_ms": 0.33944200004043523,
+      "gpu_ms": 0.2638080008327961
+    },
+    "setup_caches": {
+      "calls": 4,
+      "cpu_ms": 13.399674001448147,
+      "gpu_ms": 13.324447847902775
+    },
+    "text_conditioning": {
+      "calls": 4,
+      "cpu_ms": 655.2598079997551,
+      "gpu_ms": 655.0974771976471
+    }
+  },
+  "meta": {
+    "cuda": "12.8",
+    "cuda_capability": [
+      10,
+      3
+    ],
+    "cuda_device": "NVIDIA B300 SXM6 AC",
+    "torch": "2.8.0+cu128"
+  },
+  "total_cpu_ms": 9162.397338004666,
+  "total_gpu_ms": 9160.792447628453
+}

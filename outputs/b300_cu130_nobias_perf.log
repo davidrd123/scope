@@ -1,0 +1,4 @@
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+/root/scope/.venv-b300-cu130-decode/lib/python3.12/site-packages/torch/__init__.py:1551: UserWarning: Please use the new API settings to control TF32 behavior, such as torch.backends.cudnn.conv.fp32_precision = 'tf32' or torch.backends.cuda.matmul.fp32_precision = 'ieee'. Old settings, e.g, torch.backends.cuda.matmul.allow_tf32 = True, torch.backends.cudnn.allow_tf32 = True, allowTF32CuDNN() and allowTF32CuBLAS() will be deprecated after Pytorch 2.9. Please see https://pytorch.org/docs/main/notes/cuda.html#tensorfloat-32-tf32-on-ampere-and-later-devices (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:80.)
+  return _C._get_float32_matmul_precision()
+LLVM ERROR: Cannot select: intrinsic %llvm.nvvm.tcgen05.wait.st

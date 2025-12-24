@@ -1,0 +1,27 @@
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Fetching 6 files: 100%|██████████| 6/6 [00:00<00:00, 125829.12it/s]
+Warning: Could not load sageattention: No module named 'sageattention'
+sageattention package is not installed
+SAGEATTN_AVAILABLE: False
+TRITON_ROTARY_AVAILABLE: True, USE_TRITON_ROTARY: True
+TRITON_ROPE_FUSED_AVAILABLE: True, USE_TRITON_ROPE_FUSED: True
+CUDA device: NVIDIA B300 SXM6 AC
+Compute capability: (10, 3)
+torch: 2.8.0+cu128 (cuda=12.8)
+Loaded diffusion model in 0.077138s
+Quantized diffusion model to fp8 in 2.418s
+Loaded text encoder in 0.304371s
+Loaded VAE in 0.137s
+Warmed up (3 runs) in 8.28s
+iter=000 frames=  9 seconds=1.1090 fps=8.12
+iter=001 frames= 12 seconds=1.4177 fps=8.46
+iter=002 frames= 12 seconds=1.4762 fps=8.13
+iter=003 frames= 12 seconds=1.4769 fps=8.12
+
+Avg FPS (skip=1): 8.24
+Exception ignored in atexit callback: <function move_cutlass_compiled_cache at 0x74e53095b600>
+Traceback (most recent call last):
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_inductor/codegen/cuda/cutlass_utils.py", line 39, in move_cutlass_compiled_cache
+    if not os.path.exists(cutlass.CACHE_FILE):
+                          ^^^^^^^^^^^^^^^^^^
+AttributeError: module 'cutlass' has no attribute 'CACHE_FILE'

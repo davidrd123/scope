@@ -1,0 +1,1153 @@
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Fetching 6 files: 100%|██████████| 6/6 [00:00<00:00, 96420.78it/s]
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0] Backend compiler exception
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]   Explanation: Backend compiler `inductor` failed with aten._local_scalar_dense.default
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0] 
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]     While executing %item : [num_users=2] = call_method[target=item](args = (%getitem_1,), kwargs = {})
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]     GraphModule: class GraphModule(torch.nn.Module):
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         def forward(self, L_grid_sizes_: "i64[1, 3][3, 1]"):
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             l_grid_sizes_ = L_grid_sizes_
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]              # File: /root/scope/src/scope/core/kernels/triton_rope_fused.py:468 in _as_int3, code: f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             getitem: "i64[3][1]" = l_grid_sizes_[0];  l_grid_sizes_ = None
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             getitem_1 = getitem[0]
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             item: "Sym(u0)" = getitem_1.item();  getitem_1 = None
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             getitem_2 = getitem[1]
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             item_1: "Sym(u1)" = getitem_2.item();  getitem_2 = None
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             getitem_3 = getitem[2];  getitem = None
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             item_2: "Sym(u2)" = getitem_3.item();  getitem_3 = None
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]              # File: /root/scope/src/scope/core/kernels/triton_rope_fused.py:533 in rope_fused_3way, code: seq_len = int(f) * int(gh) * int(gw)
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             mul: "Sym(u0*u1)" = item * item_1
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             mul_1: "Sym(u0*u1*u2)" = mul * item_2;  mul = None
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]              # File: /root/scope/src/scope/core/kernels/triton_rope_fused.py:536 in rope_fused_3way, code: if seq_len > L:
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             gt: "Sym(u0*u1*u2 > 2160)" = mul_1 > 2160
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             return (gt, item, item_1, item_2, mul_1)
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0] 
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]     Original traceback:
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 532, in rope_fused_3way
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         f, gh, gw = _as_int3(grid_sizes, batch=B)
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 468, in _as_int3
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]     . Adding a graph break.
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]   Hint: Report an issue to the backend compiler repo.
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0] 
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]   Developer debug context: Backend: inductor
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]     Exception:aten._local_scalar_dense.default
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0] 
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]     While executing %item : [num_users=2] = call_method[target=item](args = (%getitem_1,), kwargs = {})
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]     GraphModule: class GraphModule(torch.nn.Module):
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         def forward(self, L_grid_sizes_: "i64[1, 3][3, 1]"):
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             l_grid_sizes_ = L_grid_sizes_
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]              # File: /root/scope/src/scope/core/kernels/triton_rope_fused.py:468 in _as_int3, code: f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             getitem: "i64[3][1]" = l_grid_sizes_[0];  l_grid_sizes_ = None
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             getitem_1 = getitem[0]
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             item: "Sym(u0)" = getitem_1.item();  getitem_1 = None
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             getitem_2 = getitem[1]
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             item_1: "Sym(u1)" = getitem_2.item();  getitem_2 = None
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             getitem_3 = getitem[2];  getitem = None
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             item_2: "Sym(u2)" = getitem_3.item();  getitem_3 = None
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]              # File: /root/scope/src/scope/core/kernels/triton_rope_fused.py:533 in rope_fused_3way, code: seq_len = int(f) * int(gh) * int(gw)
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             mul: "Sym(u0*u1)" = item * item_1
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             mul_1: "Sym(u0*u1*u2)" = mul * item_2;  mul = None
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]              # File: /root/scope/src/scope/core/kernels/triton_rope_fused.py:536 in rope_fused_3way, code: if seq_len > L:
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             gt: "Sym(u0*u1*u2 > 2160)" = mul_1 > 2160
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]             return (gt, item, item_1, item_2, mul_1)
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0] 
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]     Original traceback:
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 532, in rope_fused_3way
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         f, gh, gw = _as_int3(grid_sizes, batch=B)
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 468, in _as_int3
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0] 
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]     Traceback:
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 536, in rope_fused_3way
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0]         if seq_len > L:
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0] 
+W1224 08:00:53.883000 77111 torch/_dynamo/exc.py:525] [5/0] 
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1] Backend compiler exception
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]   Explanation: Backend compiler `inductor` failed with aten._local_scalar_dense.default
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1] 
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]     While executing %item : [num_users=2] = call_method[target=item](args = (%getitem_1,), kwargs = {})
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]     GraphModule: class GraphModule(torch.nn.Module):
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]         def forward(self, L_grid_sizes_: "i64[1, 3][3, 1]"):
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             l_grid_sizes_ = L_grid_sizes_
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]         
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]              # File: /root/scope/src/scope/core/kernels/triton_rope_fused.py:468 in _as_int3, code: f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             getitem: "i64[3][1]" = l_grid_sizes_[0];  l_grid_sizes_ = None
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             getitem_1 = getitem[0]
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             item: "Sym(u0)" = getitem_1.item();  getitem_1 = None
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             getitem_2 = getitem[1]
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             item_1: "Sym(u1)" = getitem_2.item();  getitem_2 = None
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             getitem_3 = getitem[2];  getitem = None
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             item_2: "Sym(u2)" = getitem_3.item();  getitem_3 = None
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]         
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]              # File: /root/scope/src/scope/core/kernels/triton_rope_fused.py:533 in rope_fused_3way, code: seq_len = int(f) * int(gh) * int(gw)
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             mul: "Sym(u0*u1)" = item * item_1
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             mul_1: "Sym(u0*u1*u2)" = mul * item_2;  mul = None
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             return (item, item_1, item_2, mul_1)
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]         
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1] 
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]     Original traceback:
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 532, in rope_fused_3way
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]         f, gh, gw = _as_int3(grid_sizes, batch=B)
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 468, in _as_int3
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]         f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]     . Adding a graph break.
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]   Hint: Report an issue to the backend compiler repo.
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1] 
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]   Developer debug context: Backend: inductor
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]     Exception:aten._local_scalar_dense.default
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1] 
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]     While executing %item : [num_users=2] = call_method[target=item](args = (%getitem_1,), kwargs = {})
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]     GraphModule: class GraphModule(torch.nn.Module):
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]         def forward(self, L_grid_sizes_: "i64[1, 3][3, 1]"):
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             l_grid_sizes_ = L_grid_sizes_
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]         
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]              # File: /root/scope/src/scope/core/kernels/triton_rope_fused.py:468 in _as_int3, code: f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             getitem: "i64[3][1]" = l_grid_sizes_[0];  l_grid_sizes_ = None
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             getitem_1 = getitem[0]
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             item: "Sym(u0)" = getitem_1.item();  getitem_1 = None
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             getitem_2 = getitem[1]
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             item_1: "Sym(u1)" = getitem_2.item();  getitem_2 = None
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             getitem_3 = getitem[2];  getitem = None
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             item_2: "Sym(u2)" = getitem_3.item();  getitem_3 = None
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]         
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]              # File: /root/scope/src/scope/core/kernels/triton_rope_fused.py:533 in rope_fused_3way, code: seq_len = int(f) * int(gh) * int(gw)
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             mul: "Sym(u0*u1)" = item * item_1
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             mul_1: "Sym(u0*u1*u2)" = mul * item_2;  mul = None
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]             return (item, item_1, item_2, mul_1)
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]         
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1] 
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]     Original traceback:
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 532, in rope_fused_3way
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]         f, gh, gw = _as_int3(grid_sizes, batch=B)
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 468, in _as_int3
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]         f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1] 
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]     Traceback:
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 536, in rope_fused_3way
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1]         if seq_len > L:
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1] 
+W1224 08:00:53.896000 77111 torch/_dynamo/exc.py:525] [5/0_1] 
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0] Backend compiler exception
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]   Explanation: Backend compiler `inductor` failed with aten._local_scalar_dense.default
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0] 
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]     While executing %item : [num_users=1] = call_method[target=item](args = (%getitem_1,), kwargs = {})
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]     GraphModule: class GraphModule(torch.nn.Module):
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]         def forward(self, L_grid_sizes_: "i64[1, 3][3, 1]"):
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             l_grid_sizes_ = L_grid_sizes_
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]         
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]              # File: /root/scope/src/scope/core/kernels/triton_rope_fused.py:468 in _as_int3, code: f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             getitem: "i64[3][1]" = l_grid_sizes_[0];  l_grid_sizes_ = None
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             getitem_1 = getitem[0]
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             item: "Sym(u0)" = getitem_1.item();  getitem_1 = None
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             getitem_2 = getitem[1]
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             item_1: "Sym(u1)" = getitem_2.item();  getitem_2 = None
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             getitem_3 = getitem[2];  getitem = None
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             item_2: "Sym(u2)" = getitem_3.item();  getitem_3 = None
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             return (item, item_1, item_2)
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]         
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0] 
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]     Original traceback:
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 468, in _as_int3
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]         f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]     . Adding a graph break.
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]   Hint: Report an issue to the backend compiler repo.
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0] 
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]   Developer debug context: Backend: inductor
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]     Exception:aten._local_scalar_dense.default
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0] 
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]     While executing %item : [num_users=1] = call_method[target=item](args = (%getitem_1,), kwargs = {})
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]     GraphModule: class GraphModule(torch.nn.Module):
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]         def forward(self, L_grid_sizes_: "i64[1, 3][3, 1]"):
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             l_grid_sizes_ = L_grid_sizes_
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]         
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]              # File: /root/scope/src/scope/core/kernels/triton_rope_fused.py:468 in _as_int3, code: f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             getitem: "i64[3][1]" = l_grid_sizes_[0];  l_grid_sizes_ = None
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             getitem_1 = getitem[0]
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             item: "Sym(u0)" = getitem_1.item();  getitem_1 = None
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             getitem_2 = getitem[1]
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             item_1: "Sym(u1)" = getitem_2.item();  getitem_2 = None
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             getitem_3 = getitem[2];  getitem = None
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             item_2: "Sym(u2)" = getitem_3.item();  getitem_3 = None
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]             return (item, item_1, item_2)
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]         
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0] 
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]     Original traceback:
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 468, in _as_int3
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]         f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0] 
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]     Traceback:
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 469, in _as_int3
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0]         return int(f), int(gh), int(gw)
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0] 
+W1224 08:00:53.910000 77111 torch/_dynamo/exc.py:525] [6/0] 
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1] Backend compiler exception
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]   Explanation: Backend compiler `inductor` failed with aten._local_scalar_dense.default
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1] 
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]     While executing %item : [num_users=1] = call_method[target=item](args = (%getitem_1,), kwargs = {})
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]     GraphModule: class GraphModule(torch.nn.Module):
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]         def forward(self, L_grid_sizes_: "i64[1, 3][3, 1]"):
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             l_grid_sizes_ = L_grid_sizes_
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]         
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]              # File: /root/scope/src/scope/core/kernels/triton_rope_fused.py:468 in _as_int3, code: f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             getitem: "i64[3][1]" = l_grid_sizes_[0];  l_grid_sizes_ = None
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             getitem_1 = getitem[0]
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             item: "Sym(u0)" = getitem_1.item();  getitem_1 = None
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             getitem_2 = getitem[1]
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             item_1: "Sym(u1)" = getitem_2.item();  getitem_2 = None
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             getitem_3 = getitem[2];  getitem = None
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             item_2: "Sym(u2)" = getitem_3.item();  getitem_3 = None
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             return (item, item_1, item_2)
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]         
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1] 
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]     Original traceback:
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 468, in _as_int3
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]         f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]     . Adding a graph break.
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]   Hint: Report an issue to the backend compiler repo.
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1] 
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]   Developer debug context: Backend: inductor
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]     Exception:aten._local_scalar_dense.default
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1] 
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]     While executing %item : [num_users=1] = call_method[target=item](args = (%getitem_1,), kwargs = {})
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]     GraphModule: class GraphModule(torch.nn.Module):
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]         def forward(self, L_grid_sizes_: "i64[1, 3][3, 1]"):
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             l_grid_sizes_ = L_grid_sizes_
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]         
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]              # File: /root/scope/src/scope/core/kernels/triton_rope_fused.py:468 in _as_int3, code: f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             getitem: "i64[3][1]" = l_grid_sizes_[0];  l_grid_sizes_ = None
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             getitem_1 = getitem[0]
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             item: "Sym(u0)" = getitem_1.item();  getitem_1 = None
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             getitem_2 = getitem[1]
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             item_1: "Sym(u1)" = getitem_2.item();  getitem_2 = None
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             getitem_3 = getitem[2];  getitem = None
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             item_2: "Sym(u2)" = getitem_3.item();  getitem_3 = None
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]             return (item, item_1, item_2)
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]         
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1] 
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]     Original traceback:
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 468, in _as_int3
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]         f, gh, gw = grid_sizes[0].tolist()
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1] 
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]     Traceback:
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]       File "/root/scope/src/scope/core/kernels/triton_rope_fused.py", line 469, in _as_int3
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1]         return int(f), int(gh), int(gw)
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1] 
+W1224 08:00:53.919000 77111 torch/_dynamo/exc.py:525] [6/0_1] 
+/root/scope/.venv/lib/python3.12/site-packages/torch/_inductor/lowering.py:1890: UserWarning: Torchinductor does not support code generation for complex operators. Performance may be worse than eager.
+  warnings.warn(
+W1224 08:00:56.498000 77111 torch/_dynamo/variables/tensor.py:1047] [11/0] Graph break from `Tensor.item()`, consider setting:
+W1224 08:00:56.498000 77111 torch/_dynamo/variables/tensor.py:1047] [11/0]     torch._dynamo.config.capture_scalar_outputs = True
+W1224 08:00:56.498000 77111 torch/_dynamo/variables/tensor.py:1047] [11/0] or:
+W1224 08:00:56.498000 77111 torch/_dynamo/variables/tensor.py:1047] [11/0]     env TORCHDYNAMO_CAPTURE_SCALAR_OUTPUTS=1
+W1224 08:00:56.498000 77111 torch/_dynamo/variables/tensor.py:1047] [11/0] to include these operations in the captured graph.
+W1224 08:00:56.498000 77111 torch/_dynamo/variables/tensor.py:1047] [11/0] 
+W1224 08:00:56.498000 77111 torch/_dynamo/variables/tensor.py:1047] [11/0] Graph break: from user code at:
+W1224 08:00:56.498000 77111 torch/_dynamo/variables/tensor.py:1047] [11/0]   File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py", line 314, in _kv_bias_flash_combine
+W1224 08:00:56.498000 77111 torch/_dynamo/variables/tensor.py:1047] [11/0]     block_start = max(0, min(int(current_block_start), lk))
+W1224 08:00:56.498000 77111 torch/_dynamo/variables/tensor.py:1047] [11/0] 
+W1224 08:00:56.498000 77111 torch/_dynamo/variables/tensor.py:1047] [11/0] 
+WARNING:scope.core.pipelines.krea_realtime_video.modules.causal_model:KV-bias flash backend failed; falling back to Triton: Dynamo failed to run FX node with fake tensors: call_method __dlpack__(*(FakeTensor(..., device='cuda:0', size=(2160, 40, 128), dtype=torch.bfloat16),), **{}): got RuntimeError("Cannot access data pointer of Tensor (e.g. FakeTensor, FunctionalTensor). If you're using torch.compile/export/fx, it is likely that we are erroneously tracing into a custom kernel. To fix this, please wrap the custom kernel into an opaque custom op. Please see the following for details: https://pytorch.org/tutorials/advanced/custom_ops_landing_page.html")
+
+from user code:
+   File "/root/scope/src/scope/core/pipelines/wan2_1/modules/attention.py", line 206, in torch_dynamo_resume_in_flash_attention_at_198
+    cu_seqlens_q=torch.cat([q_lens.new_zeros([1]), q_lens])
+  File "/root/scope/.venv/lib/python3.12/site-packages/flash_attn/cute/interface.py", line 563, in flash_attn_varlen_func
+    return FlashAttnVarlenFunc.apply(
+  File "/root/scope/.venv/lib/python3.12/site-packages/flash_attn/cute/interface.py", line 491, in forward
+    out, lse = _flash_attn_fwd(
+  File "/root/scope/.venv/lib/python3.12/site-packages/flash_attn/cute/interface.py", line 146, in _flash_attn_fwd
+    from_dlpack(t.detach(), assumed_align=16).mark_layout_dynamic(leading_dim=t.ndim - 1)
+  File "/root/scope/.venv/lib/python3.12/site-packages/nvidia_cutlass_dsl/python_packages/cutlass/cute/runtime.py", line 421, in from_dlpack
+    return _Tensor(
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/polyfills/__init__.py", line 209, in instantiate_user_defined_class_object
+    obj.__init__(*args, **kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/nvidia_cutlass_dsl/python_packages/cutlass/cute/runtime.py", line 164, in __init__
+    self._dlpack_data = tensor.__dlpack__()
+
+Set TORCHDYNAMO_VERBOSE=1 for the internal stack trace (please do this especially if you're reporting a bug to PyTorch). For even more developer context, set TORCH_LOGS="+dynamo"
+
+ERROR:scope.core.pipelines.krea_realtime_video.modular_blocks:
+Error in block: (denoise, DenoiseBlock)
+Error details: Dynamo failed to run FX node with fake tensors: call_method __dlpack__(*(FakeTensor(..., device='cuda:0', size=(2160, 40, 128), dtype=torch.bfloat16),), **{}): got RuntimeError("Cannot access data pointer of Tensor (e.g. FakeTensor, FunctionalTensor). If you're using torch.compile/export/fx, it is likely that we are erroneously tracing into a custom kernel. To fix this, please wrap the custom kernel into an opaque custom op. Please see the following for details: https://pytorch.org/tutorials/advanced/custom_ops_landing_page.html")
+
+from user code:
+   File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py", line 1295, in torch_dynamo_resume_in_forward_at_1262
+    x = x + self.cross_attn(
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modules/model.py", line 372, in forward
+    x = flash_attention(q, k, v, k_lens=context_lens)
+  File "/root/scope/src/scope/core/pipelines/wan2_1/modules/attention.py", line 202, in flash_attention
+    x = flash_attn_4_varlen_func(
+  File "/root/scope/.venv/lib/python3.12/site-packages/flash_attn/cute/interface.py", line 563, in flash_attn_varlen_func
+    return FlashAttnVarlenFunc.apply(
+  File "/root/scope/.venv/lib/python3.12/site-packages/flash_attn/cute/interface.py", line 491, in forward
+    out, lse = _flash_attn_fwd(
+  File "/root/scope/.venv/lib/python3.12/site-packages/flash_attn/cute/interface.py", line 146, in _flash_attn_fwd
+    from_dlpack(t.detach(), assumed_align=16).mark_layout_dynamic(leading_dim=t.ndim - 1)
+  File "/root/scope/.venv/lib/python3.12/site-packages/nvidia_cutlass_dsl/python_packages/cutlass/cute/runtime.py", line 421, in from_dlpack
+    return _Tensor(
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/polyfills/__init__.py", line 209, in instantiate_user_defined_class_object
+    obj.__init__(*args, **kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/nvidia_cutlass_dsl/python_packages/cutlass/cute/runtime.py", line 164, in __init__
+    self._dlpack_data = tensor.__dlpack__()
+
+Set TORCHDYNAMO_VERBOSE=1 for the internal stack trace (please do this especially if you're reporting a bug to PyTorch). For even more developer context, set TORCH_LOGS="+dynamo"
+
+Traceback:
+Traceback (most recent call last):
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modular_blocks.py", line 174, in __call__
+    pipeline, state = block(pipeline, state)
+                      ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/src/scope/core/pipelines/wan2_1/blocks/denoise.py", line 304, in __call__
+    _, denoised_pred = components.generator(
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/src/scope/core/pipelines/wan2_1/components/generator.py", line 230, in forward
+    flow_pred = self._call_model(
+                ^^^^^^^^^^^^^^^^^
+  File "/root/scope/src/scope/core/pipelines/wan2_1/components/generator.py", line 199, in _call_model
+    return self.model(*args, **accepted)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py", line 2076, in forward
+    result = self._forward_inference(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py", line 1874, in _forward_inference
+    x = block(x, **kwargs)
+        ^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1771, in _wrapped_call_impl
+    return self._compiled_call_impl(*args, **kwargs)  # type: ignore[misc]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 736, in compile_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py", line 1262, in forward
+    y = self.self_attn(
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 1495, in __call__
+    return self._torchdynamo_orig_callable(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 1272, in __call__
+    result = self._inner_convert(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 629, in __call__
+    return _compile(
+           ^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 1111, in _compile
+    guarded_code = compile_inner(code, one_graph, hooks, transform)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_utils_internal.py", line 97, in wrapper_function
+    return function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 793, in compile_inner
+    return _compile_inner(code, one_graph, hooks, transform)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 832, in _compile_inner
+    out_code = transform_code_object(code, transform)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/bytecode_transformation.py", line 1424, in transform_code_object
+    transformations(instructions, code_options)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 267, in _fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 753, in transform
+    tracer.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3497, in run
+    super().run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/lazy.py", line 201, in realize_and_forward
+    return getattr(self.realize(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/nn_module.py", line 1000, in call_function
+    return variables.UserFunctionVariable(fn, source=source).call_function(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 529, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 293, in call_function
+    return tx.inline_user_function_return(self, [*self.self_args(), *args], kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/lazy.py", line 201, in realize_and_forward
+    return getattr(self.realize(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 529, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 293, in call_function
+    return tx.inline_user_function_return(self, [*self.self_args(), *args], kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/lazy.py", line 201, in realize_and_forward
+    return getattr(self.realize(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 529, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 293, in call_function
+    return tx.inline_user_function_return(self, [*self.self_args(), *args], kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/misc.py", line 1111, in call_function
+    return self.obj.call_method(tx, self.name, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/misc.py", line 815, in call_method
+    return self.call_apply(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/misc.py", line 757, in call_apply
+    return variables.UserFunctionVariable(fn, source=source).call_function(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 529, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 293, in call_function
+    return tx.inline_user_function_return(self, [*self.self_args(), *args], kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/lazy.py", line 201, in realize_and_forward
+    return getattr(self.realize(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 529, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 293, in call_function
+    return tx.inline_user_function_return(self, [*self.self_args(), *args], kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/lazy.py", line 201, in realize_and_forward
+    return getattr(self.realize(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 529, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 293, in call_function
+    return tx.inline_user_function_return(self, [*self.self_args(), *args], kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/lazy.py", line 201, in realize_and_forward
+    return getattr(self.realize(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/user_defined.py", line 706, in call_function
+    return tx.inline_user_function_return(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2228, in CALL_FUNCTION_EX
+    self.call_function(fn, argsvars.items, kwargsvars)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 1055, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 529, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 293, in call_function
+    return tx.inline_user_function_return(self, [*self.self_args(), *args], kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/misc.py", line 1111, in call_function
+    return self.obj.call_method(tx, self.name, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/tensor.py", line 712, in call_method
+    return wrap_fx_proxy(
+           ^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py", line 2559, in wrap_fx_proxy
+    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py", line 2625, in wrap_fx_proxy_cls
+    return _wrap_fx_proxy(
+           ^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py", line 2723, in _wrap_fx_proxy
+    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/utils.py", line 3355, in get_fake_value
+    raise TorchRuntimeError(str(e)).with_traceback(e.__traceback__) from None
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/utils.py", line 3253, in get_fake_value
+    ret_val = wrap_fake_exception(
+              ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/utils.py", line 2753, in wrap_fake_exception
+    return fn()
+           ^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/utils.py", line 3254, in <lambda>
+    lambda: run_node(tx.output, node, args, kwargs, nnmodule)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/utils.py", line 3462, in run_node
+    raise RuntimeError(make_error_message(e)).with_traceback(
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/utils.py", line 3432, in run_node
+    return getattr(args[0], node.target)(*args[1:], **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_tensor.py", line 1745, in __dlpack__
+    return torch.to_dlpack(self)
+           ^^^^^^^^^^^^^^^^^^^^^
+torch._dynamo.exc.TorchRuntimeError: Dynamo failed to run FX node with fake tensors: call_method __dlpack__(*(FakeTensor(..., device='cuda:0', size=(2160, 40, 128), dtype=torch.bfloat16),), **{}): got RuntimeError("Cannot access data pointer of Tensor (e.g. FakeTensor, FunctionalTensor). If you're using torch.compile/export/fx, it is likely that we are erroneously tracing into a custom kernel. To fix this, please wrap the custom kernel into an opaque custom op. Please see the following for details: https://pytorch.org/tutorials/advanced/custom_ops_landing_page.html")
+
+from user code:
+   File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py", line 1295, in torch_dynamo_resume_in_forward_at_1262
+    x = x + self.cross_attn(
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modules/model.py", line 372, in forward
+    x = flash_attention(q, k, v, k_lens=context_lens)
+  File "/root/scope/src/scope/core/pipelines/wan2_1/modules/attention.py", line 202, in flash_attention
+    x = flash_attn_4_varlen_func(
+  File "/root/scope/.venv/lib/python3.12/site-packages/flash_attn/cute/interface.py", line 563, in flash_attn_varlen_func
+    return FlashAttnVarlenFunc.apply(
+  File "/root/scope/.venv/lib/python3.12/site-packages/flash_attn/cute/interface.py", line 491, in forward
+    out, lse = _flash_attn_fwd(
+  File "/root/scope/.venv/lib/python3.12/site-packages/flash_attn/cute/interface.py", line 146, in _flash_attn_fwd
+    from_dlpack(t.detach(), assumed_align=16).mark_layout_dynamic(leading_dim=t.ndim - 1)
+  File "/root/scope/.venv/lib/python3.12/site-packages/nvidia_cutlass_dsl/python_packages/cutlass/cute/runtime.py", line 421, in from_dlpack
+    return _Tensor(
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/polyfills/__init__.py", line 209, in instantiate_user_defined_class_object
+    obj.__init__(*args, **kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/nvidia_cutlass_dsl/python_packages/cutlass/cute/runtime.py", line 164, in __init__
+    self._dlpack_data = tensor.__dlpack__()
+
+Set TORCHDYNAMO_VERBOSE=1 for the internal stack trace (please do this especially if you're reporting a bug to PyTorch). For even more developer context, set TORCH_LOGS="+dynamo"
+
+
+Warning: Could not load sageattention: No module named 'sageattention'
+sageattention package is not installed
+SAGEATTN_AVAILABLE: False
+TRITON_ROTARY_AVAILABLE: True, USE_TRITON_ROTARY: True
+TRITON_ROPE_FUSED_AVAILABLE: True, USE_TRITON_ROPE_FUSED: True
+CUDA device: NVIDIA B300 SXM6 AC
+Compute capability: (10, 3)
+torch: 2.8.0+cu128 (cuda=12.8)
+Loaded diffusion model in 0.076727s
+Quantized diffusion model to fp8 in 2.397s
+Loaded text encoder in 0.321114s
+Loaded VAE in 0.137s
+Traceback (most recent call last):
+  File "/root/scope/scripts/profile_krea_pipeline_blocks.py", line 149, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/root/scope/scripts/profile_krea_pipeline_blocks.py", line 111, in main
+    pipeline = KreaRealtimeVideoPipeline(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/pipeline.py", line 190, in __init__
+    self._generate(
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/pipeline.py", line 239, in _generate
+    _, self.state = self.blocks(self.components, self.state)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modular_blocks.py", line 174, in __call__
+    pipeline, state = block(pipeline, state)
+                      ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/src/scope/core/pipelines/wan2_1/blocks/denoise.py", line 304, in __call__
+    _, denoised_pred = components.generator(
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/src/scope/core/pipelines/wan2_1/components/generator.py", line 230, in forward
+    flow_pred = self._call_model(
+                ^^^^^^^^^^^^^^^^^
+  File "/root/scope/src/scope/core/pipelines/wan2_1/components/generator.py", line 199, in _call_model
+    return self.model(*args, **accepted)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py", line 2076, in forward
+    result = self._forward_inference(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py", line 1874, in _forward_inference
+    x = block(x, **kwargs)
+        ^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1771, in _wrapped_call_impl
+    return self._compiled_call_impl(*args, **kwargs)  # type: ignore[misc]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 736, in compile_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py", line 1262, in forward
+    y = self.self_attn(
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 1495, in __call__
+    return self._torchdynamo_orig_callable(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 1272, in __call__
+    result = self._inner_convert(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 629, in __call__
+    return _compile(
+           ^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 1111, in _compile
+    guarded_code = compile_inner(code, one_graph, hooks, transform)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_utils_internal.py", line 97, in wrapper_function
+    return function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 793, in compile_inner
+    return _compile_inner(code, one_graph, hooks, transform)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 832, in _compile_inner
+    out_code = transform_code_object(code, transform)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/bytecode_transformation.py", line 1424, in transform_code_object
+    transformations(instructions, code_options)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 267, in _fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py", line 753, in transform
+    tracer.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3497, in run
+    super().run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/lazy.py", line 201, in realize_and_forward
+    return getattr(self.realize(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/nn_module.py", line 1000, in call_function
+    return variables.UserFunctionVariable(fn, source=source).call_function(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 529, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 293, in call_function
+    return tx.inline_user_function_return(self, [*self.self_args(), *args], kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/lazy.py", line 201, in realize_and_forward
+    return getattr(self.realize(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 529, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 293, in call_function
+    return tx.inline_user_function_return(self, [*self.self_args(), *args], kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/lazy.py", line 201, in realize_and_forward
+    return getattr(self.realize(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 529, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 293, in call_function
+    return tx.inline_user_function_return(self, [*self.self_args(), *args], kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/misc.py", line 1111, in call_function
+    return self.obj.call_method(tx, self.name, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/misc.py", line 815, in call_method
+    return self.call_apply(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/misc.py", line 757, in call_apply
+    return variables.UserFunctionVariable(fn, source=source).call_function(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 529, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 293, in call_function
+    return tx.inline_user_function_return(self, [*self.self_args(), *args], kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/lazy.py", line 201, in realize_and_forward
+    return getattr(self.realize(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 529, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 293, in call_function
+    return tx.inline_user_function_return(self, [*self.self_args(), *args], kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/lazy.py", line 201, in realize_and_forward
+    return getattr(self.realize(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 529, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 293, in call_function
+    return tx.inline_user_function_return(self, [*self.self_args(), *args], kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/lazy.py", line 201, in realize_and_forward
+    return getattr(self.realize(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/user_defined.py", line 706, in call_function
+    return tx.inline_user_function_return(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2228, in CALL_FUNCTION_EX
+    self.call_function(fn, argsvars.items, kwargsvars)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 1055, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 529, in call_function
+    return super().call_function(tx, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/functions.py", line 293, in call_function
+    return tx.inline_user_function_return(self, [*self.self_args(), *args], kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1210, in inline_user_function_return
+    return InliningInstructionTranslator.inline_call(self, fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3698, in inline_call
+    return tracer.inline_call_()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 3901, in inline_call_
+    self.run()
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1363, in run
+    while self.step():
+          ^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1267, in step
+    self.dispatch_table[inst.opcode](self, inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 834, in wrapper
+    return inner_fn(self, inst)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2910, in CALL
+    self._call(inst)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 2904, in _call
+    self.call_function(fn, args, kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py", line 1193, in call_function
+    self.push(fn.call_function(self, args, kwargs))  # type: ignore[arg-type]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/misc.py", line 1111, in call_function
+    return self.obj.call_method(tx, self.name, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/tensor.py", line 712, in call_method
+    return wrap_fx_proxy(
+           ^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py", line 2559, in wrap_fx_proxy
+    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py", line 2625, in wrap_fx_proxy_cls
+    return _wrap_fx_proxy(
+           ^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py", line 2723, in _wrap_fx_proxy
+    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/utils.py", line 3355, in get_fake_value
+    raise TorchRuntimeError(str(e)).with_traceback(e.__traceback__) from None
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/utils.py", line 3253, in get_fake_value
+    ret_val = wrap_fake_exception(
+              ^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/utils.py", line 2753, in wrap_fake_exception
+    return fn()
+           ^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/utils.py", line 3254, in <lambda>
+    lambda: run_node(tx.output, node, args, kwargs, nnmodule)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/utils.py", line 3462, in run_node
+    raise RuntimeError(make_error_message(e)).with_traceback(
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/utils.py", line 3432, in run_node
+    return getattr(args[0], node.target)(*args[1:], **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_tensor.py", line 1745, in __dlpack__
+    return torch.to_dlpack(self)
+           ^^^^^^^^^^^^^^^^^^^^^
+torch._dynamo.exc.TorchRuntimeError: Dynamo failed to run FX node with fake tensors: call_method __dlpack__(*(FakeTensor(..., device='cuda:0', size=(2160, 40, 128), dtype=torch.bfloat16),), **{}): got RuntimeError("Cannot access data pointer of Tensor (e.g. FakeTensor, FunctionalTensor). If you're using torch.compile/export/fx, it is likely that we are erroneously tracing into a custom kernel. To fix this, please wrap the custom kernel into an opaque custom op. Please see the following for details: https://pytorch.org/tutorials/advanced/custom_ops_landing_page.html")
+
+from user code:
+   File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py", line 1295, in torch_dynamo_resume_in_forward_at_1262
+    x = x + self.cross_attn(
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/modules/model.py", line 372, in forward
+    x = flash_attention(q, k, v, k_lens=context_lens)
+  File "/root/scope/src/scope/core/pipelines/wan2_1/modules/attention.py", line 202, in flash_attention
+    x = flash_attn_4_varlen_func(
+  File "/root/scope/.venv/lib/python3.12/site-packages/flash_attn/cute/interface.py", line 563, in flash_attn_varlen_func
+    return FlashAttnVarlenFunc.apply(
+  File "/root/scope/.venv/lib/python3.12/site-packages/flash_attn/cute/interface.py", line 491, in forward
+    out, lse = _flash_attn_fwd(
+  File "/root/scope/.venv/lib/python3.12/site-packages/flash_attn/cute/interface.py", line 146, in _flash_attn_fwd
+    from_dlpack(t.detach(), assumed_align=16).mark_layout_dynamic(leading_dim=t.ndim - 1)
+  File "/root/scope/.venv/lib/python3.12/site-packages/nvidia_cutlass_dsl/python_packages/cutlass/cute/runtime.py", line 421, in from_dlpack
+    return _Tensor(
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_dynamo/polyfills/__init__.py", line 209, in instantiate_user_defined_class_object
+    obj.__init__(*args, **kwargs)
+  File "/root/scope/.venv/lib/python3.12/site-packages/nvidia_cutlass_dsl/python_packages/cutlass/cute/runtime.py", line 164, in __init__
+    self._dlpack_data = tensor.__dlpack__()
+
+Set TORCHDYNAMO_VERBOSE=1 for the internal stack trace (please do this especially if you're reporting a bug to PyTorch). For even more developer context, set TORCH_LOGS="+dynamo"
+
+Exception ignored in atexit callback: <function move_cutlass_compiled_cache at 0x7e9813394d60>
+Traceback (most recent call last):
+  File "/root/scope/.venv/lib/python3.12/site-packages/torch/_inductor/codegen/cuda/cutlass_utils.py", line 39, in move_cutlass_compiled_cache
+    if not os.path.exists(cutlass.CACHE_FILE):
+                          ^^^^^^^^^^^^^^^^^^
+AttributeError: module 'cutlass' has no attribute 'CACHE_FILE'

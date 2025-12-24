@@ -11,6 +11,10 @@ set -e
 
 VENV_PATH="${1:-.venv}"
 CUTLASS_PATH="$VENV_PATH/lib/python3.12/site-packages/nvidia_cutlass_dsl/python_packages/cutlass"
+PYTHON_BIN="$VENV_PATH/bin/python"
+if [ ! -x "$PYTHON_BIN" ]; then
+    PYTHON_BIN="python"
+fi
 
 # Check if running on B300
 if command -v nvidia-smi &> /dev/null; then
@@ -34,7 +38,9 @@ if [ ! -d "$CUTLASS_PATH" ]; then
 fi
 
 # Check version
-CUTLASS_VERSION=$(python -c "import nvidia_cutlass_dsl; print(nvidia_cutlass_dsl.__version__)" 2>/dev/null || echo "unknown")
+CUTLASS_VERSION=$(
+    "$PYTHON_BIN" -c "import importlib.metadata as m; print(m.version('nvidia-cutlass-dsl'))" 2>/dev/null || echo "unknown"
+)
 if [ "$CUTLASS_VERSION" != "4.1.0" ]; then
     echo "Warning: Expected nvidia-cutlass-dsl==4.1.0, found $CUTLASS_VERSION"
     echo "This script was tested with 4.1.0 and may not work with other versions."

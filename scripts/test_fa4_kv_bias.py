@@ -20,18 +20,37 @@ import torch
 
 def _extend_flash_attn_path_for_score_mod() -> None:
     import flash_attn as _flash_attn
+    import sys
 
     try:
         base_path = Path(__file__).resolve()
     except Exception:
         return
     for parent in base_path.parents:
+        vendored = parent / "vendored" / "flash_attn_cute_score_mod" / "flash_attn"
+        if vendored.is_dir():
+            vendored_str = str(vendored)
+            if vendored_str not in _flash_attn.__path__:
+                _flash_attn.__path__.insert(0, vendored_str)
+            cute_mod = sys.modules.get("flash_attn.cute")
+            if cute_mod is not None and hasattr(cute_mod, "__path__"):
+                vendored_cute = str(vendored / "cute")
+                if vendored_cute not in cute_mod.__path__:
+                    cute_mod.__path__.insert(0, vendored_cute)
+            sys.modules.pop("flash_attn.cute.interface", None)
+            return
         for repo_dir in ("flash-attention", "flash-attention.bak"):
             candidate = parent / repo_dir / "flash_attn"
             if candidate.is_dir():
                 candidate_str = str(candidate)
                 if candidate_str not in _flash_attn.__path__:
                     _flash_attn.__path__.insert(0, candidate_str)
+                cute_mod = sys.modules.get("flash_attn.cute")
+                if cute_mod is not None and hasattr(cute_mod, "__path__"):
+                    candidate_cute = str(candidate / "cute")
+                    if candidate_cute not in cute_mod.__path__:
+                        cute_mod.__path__.insert(0, candidate_cute)
+                sys.modules.pop("flash_attn.cute.interface", None)
                 return
 
 import cutlass
@@ -43,7 +62,8 @@ from flash_attn.cute.interface import _flash_attn_fwd
 if "score_mod" not in inspect.signature(_flash_attn_fwd).parameters:
     raise SystemExit(
         "flash_attn.cute.interface._flash_attn_fwd() does not support score_mod. "
-        "Ensure the local flash-attention repo is available (flash-attention.bak)."
+        "Ensure the vendored CuTe sources are present (vendored/flash_attn_cute_score_mod) "
+        "or a local flash-attention checkout is available."
     )
 
 # Try to import FlexAttention for reference
@@ -59,7 +79,7 @@ except ImportError:
 # CUTE score_mod for KV-cache bias
 # =============================================================================
 
-def make_kv_bias_score_mod(frame_seqlen: int, block_size: int, log_bias: float):
+def make_kv_bias_score_mod(frame_seqlen: int, block_start: int, log_bias: float):
     """
     Factory that creates a score_mod with constants captured in closure.
 
@@ -67,36 +87,18 @@ def make_kv_bias_score_mod(frame_seqlen: int, block_size: int, log_bias: float):
 
     Bias rule (3 regions):
       - Region 1: First frame (kv_idx < frame_seqlen) → NO BIAS
-      - Region 2: Past frames (frame_seqlen ≤ kv_idx < Lk - block_size) → +log_bias
-      - Region 3: Current block (kv_idx ≥ Lk - block_size) → NO BIAS
+      - Region 2: Past frames (frame_seqlen ≤ kv_idx < block_start) → +log_bias
+      - Region 3: Current block (kv_idx ≥ block_start) → NO BIAS
     """
     # Closure constants (compile-time)
     _frame_seqlen = frame_seqlen
-    _block_size = block_size
+    _block_start = max(0, int(block_start))
     _log_bias = log_bias
 
     @cute.jit
     def score_mod_kv_bias(tSrS_ssa, b_idx, h_idx, q_idx, kv_idx, seqlen_info, aux_tensors):
-        # Get runtime Lk from seqlen_info
-        Lk = seqlen_info.seqlen_k
-
-        # Compute block_start = max(0, Lk - block_size)
-        # Use kv_idx to create tensors of matching shape
-        block_start_val = Lk - _block_size
-
-        # Create tensor versions using kv_idx shape
-        # block_start as tensor: broadcast scalar to match kv_idx shape
-        block_start_tensor = cute.full_like(kv_idx, 0) + block_start_val
-        # Clamp to >= 0
-        zero_tensor = cute.full_like(kv_idx, 0)
-        block_start_tensor = cute.where(
-            operator.ge(block_start_tensor, zero_tensor),
-            block_start_tensor,
-            zero_tensor
-        )
-
-        # Build Region 2 mask: frame_seqlen ≤ kv_idx < block_start
         frame_seqlen_tensor = cute.full_like(kv_idx, _frame_seqlen)
+        block_start_tensor = cute.full_like(kv_idx, _block_start)
         cond_ge = operator.ge(kv_idx, frame_seqlen_tensor)
         cond_lt = operator.lt(kv_idx, block_start_tensor)
         past_frame_mask = cond_ge & cond_lt
@@ -145,13 +147,14 @@ def test_fa4_basic(B=1, H=16, Lq=64, Lk=128, D=128, dtype=torch.bfloat16):
     # Test parameters
     frame_seqlen = Lk // 4  # First 1/4 is "first frame"
     block_size = Lk // 4    # Last 1/4 is "current block"
+    block_start = Lk - block_size
     kv_cache_attention_bias = 0.3
     log_bias = math.log(kv_cache_attention_bias)
 
-    print(f"  frame_seqlen={frame_seqlen}, block_size={block_size}, log_bias={log_bias:.4f}")
+    print(f"  frame_seqlen={frame_seqlen}, block_start={block_start}, log_bias={log_bias:.4f}")
 
     # Create score_mod
-    score_mod = make_kv_bias_score_mod(frame_seqlen, block_size, log_bias)
+    score_mod = make_kv_bias_score_mod(frame_seqlen, block_start, log_bias)
 
     # Run FA4 forward
     print("  Running FA4 forward...")
@@ -199,7 +202,7 @@ def test_fa4_vs_flex(B=1, H=16, Lq=64, Lk=128, D=128, dtype=torch.bfloat16):
     print(f"  frame_seqlen={frame_seqlen}, block_start={block_start}, log_bias={log_bias:.4f}")
 
     # FA4 path
-    score_mod_cute = make_kv_bias_score_mod(frame_seqlen, block_size, log_bias)
+    score_mod_cute = make_kv_bias_score_mod(frame_seqlen, block_start, log_bias)
     out_fa4, _ = _flash_attn_fwd(
         q, k, v,
         score_mod=score_mod_cute,

@@ -772,6 +772,19 @@ Recommended deterministic application order at each boundary:
 
 The tick loop that owns the pipeline and applies control events.
 
+#### Repo Mapping (Scope Today)
+
+In the current Scope server codebase, this “driver” already exists and should be *extended* (not duplicated):
+
+- **Driver loop**: `src/scope/server/frame_processor.py` (`FrameProcessor` worker thread)
+- **Generator pipeline**: `src/scope/core/pipelines/krea_realtime_video/pipeline.py` (`KreaRealtimeVideoPipeline`, continuity in `pipeline.state`)
+- **Control plane**: WebRTC data channel JSON → `src/scope/server/webrtc.py` → `src/scope/server/tracks.py` → `FrameProcessor.update_parameters(...)`
+
+Practical implications:
+- **Chunk boundary** == one `pipeline(**kwargs)` call.
+- **Video mode is input-gated**: generation is blocked until `pipeline.prepare()` returns requirements and enough input frames are buffered.
+- **Pause is dual**: track pause freezes playback; generator pause stops state advancing. “Step” semantics must explicitly define how it interacts with both.
+
 ```python
 import asyncio
 from dataclasses import dataclass
@@ -1282,7 +1295,23 @@ class BranchGraph:
 
 ## API Surface
 
-### Session Lifecycle
+### Session Lifecycle (Current: WebRTC)
+
+In the Scope repo today, “sessions” are **WebRTC sessions**, and the primary control surface is **JSON messages over the WebRTC data channel**.
+
+**Data channel messages (current)**
+
+```json
+{"paused": true}
+{"paused": false}
+{"type": "step"}
+{"type": "snapshot_request"}
+{"type": "restore_snapshot", "snapshot_id": "…"}
+```
+
+Implementation note: protocol-style messages (those with `"type"`) should be translated to reserved internal keys (e.g. `_rcp_step`) and **must not** be forwarded as pipeline kwargs.
+
+### Future (Optional): REST Session API
 
 ```
 POST   /v1/sessions                    → {session_id}
@@ -1869,11 +1898,18 @@ This document intentionally simplifies several things to keep the Day 2-16 build
 - Include top K in prompt, others implied
 - Implement when you have multi-character scenes that look wrong
 
+### Session Isolation
+
+**Current (Scope repo)**: WebRTC sessions exist, but generator state is not obviously session-scoped
+- `WebRTCManager` supports multiple sessions, but `PipelineManager.get_pipeline()` is not session-aware.
+- Snapshots/branching assume **session-owned** continuity (`pipeline.state`); multi-session correctness likely requires per-session pipeline instances or strict serialization.
+
 ### Streaming Output
 
-**Current**: Unspecified (whatever works)
-- Doc mentions both WebRTC and WebSocket without deciding
-- For Day 2, any preview that shows frames is fine
+**Current (Scope repo)**: WebRTC video + data channel
+- Frames: WebRTC `VideoProcessingTrack` output
+- Control/messages: WebRTC data channel JSON
+- Optional: add a WebSocket fan-out later for debug tooling / timeline playback
 
 **Upgrade**: Dual output paths
 ```python
@@ -1937,5 +1973,6 @@ The convergence validates the design. Key additions from synthesis:
 - Updated continuity snapshot examples to read/write `pipeline.state` keys (not `hasattr()` attributes)
 - Updated prompt ramps to use pipeline-native `transition` dict (EmbeddingBlendingBlock)
 - Renamed `lora_stack` → `lora_scales` in the runtime contract examples
+- Mapped “GeneratorDriver” → existing `FrameProcessor` + WebRTC data-channel control plane
 
 *Last updated: Day 2 of 16-day sprint (v1.2, implementation-aligned).*

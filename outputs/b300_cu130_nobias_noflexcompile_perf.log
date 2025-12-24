@@ -1,0 +1,28 @@
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+Warning: Could not load sageattention: No module named 'sageattention'
+sageattention package is not installed
+SAGEATTN_AVAILABLE: False
+TRITON_ROTARY_AVAILABLE: True, USE_TRITON_ROTARY: False
+TRITON_ROPE_FUSED_AVAILABLE: True, USE_TRITON_ROPE_FUSED: False
+CUDA device: NVIDIA B300 SXM6 AC
+Compute capability: (10, 3)
+torch: 2.9.0+cu130 (cuda=13.0)
+cudnn.benchmark: True
+Loaded diffusion model in 0.081980s
+Loaded text encoder in 0.331886s
+Loaded VAE in 0.137s
+/root/scope/.venv-b300-cu130-decode/lib/python3.12/site-packages/torch/nn/attention/flex_attention.py:1687: UserWarning: flex_attention called without torch.compile() - this will use an unfused implementation that materializes the full scores matrix instead of generating a fused kernel.
+
+SOLUTION: Use torch.compile(flex_attention)(...)
+
+If you want to debug your score_mod/mask_mod, you can set:
+torch.nn.attention.flex_attention._FLEX_ATTENTION_DISABLE_COMPILE_DEBUG = True
+
+This will allow you to use print statements or breakpoints. Note: This doesn't work with the backwards pass and may produce incorrect results.
+  _warn_once(
+Warmed up (3 runs) in 16.43s
+iter=000 frames=  9 seconds=0.6833 fps=13.17
+iter=001 frames= 12 seconds=0.9539 fps=12.58
+
+Avg FPS (skip=0): 12.88
+Wrote per-iter JSON: outputs/b300_cu130_nobias_noflexcompile_perf.json

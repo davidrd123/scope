@@ -1,0 +1,29 @@
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Fetching 6 files: 100%|██████████| 6/6 [00:00<00:00, 168898.15it/s]
+Warning: Could not load sageattention: No module named 'sageattention'
+sageattention package is not installed
+SAGEATTN_AVAILABLE: False
+TRITON_ROTARY_AVAILABLE: True, USE_TRITON_ROTARY: True
+TRITON_ROPE_FUSED_AVAILABLE: True, USE_TRITON_ROPE_FUSED: True
+CUDA device: NVIDIA B300 SXM6 AC
+Compute capability: (10, 3)
+torch: 2.8.0+cu129 (cuda=12.9)
+cudnn.benchmark: True
+Loaded diffusion model in 0.213470s
+Quantized diffusion model to fp8 in 2.190s
+Loaded text encoder in 0.309099s
+Loaded VAE in 0.138s
+Warmed up (3 runs) in 16.23s
+iter=000 frames=  9 seconds=1.0675 fps=8.43
+iter=001 frames= 12 seconds=1.3505 fps=8.89
+iter=002 frames= 12 seconds=1.4047 fps=8.54
+iter=003 frames= 12 seconds=1.4033 fps=8.55
+iter=004 frames= 12 seconds=1.4017 fps=8.56
+iter=005 frames= 12 seconds=1.3985 fps=8.58
+iter=006 frames= 12 seconds=1.3958 fps=8.60
+iter=007 frames= 12 seconds=1.3945 fps=8.61
+iter=008 frames= 12 seconds=1.3923 fps=8.62
+iter=009 frames= 12 seconds=1.4525 fps=8.26
+
+Avg FPS (skip=3): 8.54
+Wrote per-iter JSON: outputs/b300_cu129_perf_dmon_320x576.json

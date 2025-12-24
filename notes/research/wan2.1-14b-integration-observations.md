@@ -1,8 +1,36 @@
 # Wan 2.1 14B T2V Base Model - Observations & Research Plan
 
 **Date**: 2024-12-24
-**Status**: Information Gathering
-**Purpose**: Document what we know from codebase, identify gaps for web research
+**Updated**: 2024-12-24 (added external research findings)
+**Status**: External research complete, actionable next steps identified
+**Purpose**: Document what we know from codebase + external sources, plan integration work
+
+---
+
+## 0. Key Findings from External Research
+
+### Architecture Specs Confirmed (from upstream config.json)
+
+| Spec | Wan2.1-T2V-1.3B | Wan2.1-T2V-14B | Notes |
+|------|----------------:|---------------:|-------|
+| `dim` | 1536 | 5120 | Transformer hidden size |
+| `ffn_dim` | 8960 | 13824 | MLP hidden size |
+| `num_heads` | 12 | 40 | Attention heads |
+| `num_layers` | 30 | 40 | Transformer depth |
+| `head_dim` | 128 | 128 | **Identical** - so "weird config" isn't head_dim |
+
+### VACE-14B Exists Upstream!
+
+This was the key blocker assumption that turns out to be wrong:
+
+- **Full model repo**: `Wan-AI/Wan2.1-VACE-14B`
+- **Module file**: `Wan2_1-VACE_module_14B_bf16.safetensors` (community packaging)
+
+**Implication**: Adding VACE to Krea 14B is now **artifact + wiring work**, not "requires training".
+
+### VAE Sharing Question (Still Open)
+
+Are the 1.3B and 14B VAEs identical? Scope currently only downloads 1.3B VAE but Krea looks for 14B path. Need to verify via checksum or upstream docs.
 
 ---
 
@@ -199,18 +227,83 @@ From `pipeline_artifacts.py`:
 
 ---
 
-## 9. Summary
+## 9. Summary & Actionable Next Steps
 
 **Current Working State:**
 - Krea Realtime Video: 14B, T2V only, works with FP8 quantization
 - Other pipelines: 1.3B, have VACE support
 
-**Key Gaps:**
-- No VACE for 14B
+**Key Gaps (Updated):**
+- ~~No VACE for 14B~~ → **VACE-14B exists upstream, just needs wiring**
 - No I2V for 14B (in this codebase)
-- Unknown if 14B variants of LongLive/StreamDiffusion exist
+- No 14B variants of LongLive/StreamDiffusion (would need new distillations)
 
-**Research Priority:**
-1. Understand 14B vs 1.3B architecture differences
-2. Find if VACE-14B exists anywhere
-3. Evaluate if 14B is worth porting other pipelines to (vs just using 1.3B+VACE)
+---
+
+## 10. Concrete Next Steps
+
+### A) Add VACE to Krea 14B (Unblocked!)
+
+1. **Add artifact** for `Wan2_1-VACE_module_14B_bf16.safetensors`:
+   ```python
+   # In pipeline_artifacts.py
+   VACE_14B_ARTIFACT = HuggingfaceRepoArtifact(
+       repo_id="Kijai/WanVideo_comfy",  # or wherever it's hosted
+       files=["Wan2_1-VACE_module_14B_bf16.safetensors"],
+   )
+   ```
+
+2. **Add mixin to Krea pipeline**:
+   ```python
+   # In krea_realtime_video/pipeline.py
+   from ..wan2_1.vace.mixin import VACEEnabledPipeline
+
+   class KreaRealtimeVideoPipeline(Pipeline, LoRAEnabledPipeline, VACEEnabledPipeline):
+   ```
+
+3. **Wire up in __init__** (after LoRA, before quantization):
+   ```python
+   generator.model = self._init_vace(config, generator.model, device, dtype)
+   ```
+
+4. **Re-run projection fusing** after VACE wrapping (VACE replaces blocks)
+
+5. **Add VaceEncodingBlock** to modular_blocks.py
+
+### B) Verify VAE Sharing
+
+```bash
+# Compare checksums
+md5sum wan_models/Wan2.1-T2V-1.3B/Wan2.1_VAE.pth
+md5sum wan_models/Wan2.1-T2V-14B/Wan2.1_VAE.pth  # if exists
+```
+
+Or check upstream HuggingFace - if same file, standardize to shared path.
+
+### C) Investigate "Weird Head Config" (Lower Priority)
+
+The 1.3B flex_attention issue isn't head_dim (both are 128). Likely:
+- Non-power-of-2 total dim (1536 vs 5120)?
+- Num heads (12 vs 40)?
+- Some other kernel tuning heuristic?
+
+Reference: PyTorch issue #133254
+
+### D) 14B Distillations for Other Pipelines (Future)
+
+No 14B LongLive/StreamDiffusion found. Would require:
+- Training new distillations on 14B base
+- Or using Krea 14B as the 14B realtime option (current state)
+
+---
+
+## 11. Risk Checklist for VACE-14B Integration
+
+Before declaring VACE-14B working:
+
+- [ ] VACE module keys match Scope wrapper (`vace_blocks.*`, `vace_patch_embedding.*`)
+- [ ] Number of VACE blocks matches `vace_layers = range(0, num_layers, 2)` for 40 layers
+- [ ] Shape check passes in `load_vace_weights_only()`
+- [ ] Projection fusing still works after VACE block replacement
+- [ ] Minimal R2V generation produces reasonable output
+- [ ] Memory footprint acceptable (14B + VACE + FP8)
