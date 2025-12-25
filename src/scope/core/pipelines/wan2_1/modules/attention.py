@@ -36,6 +36,27 @@ def _extend_flash_attn_path() -> None:
     except Exception:
         return
     for parent in base_path.parents:
+        # Prefer vendored CuTe sources when present (needed for FA4 score_mod and
+        # to keep FA4 varlen + score_mod on the same CuTe implementation).
+        vendored = parent / "vendored" / "flash_attn_cute_score_mod" / "flash_attn"
+        if vendored.is_dir():
+            vendored_str = str(vendored)
+            if vendored_str not in _flash_attn.__path__:
+                _flash_attn.__path__.insert(0, vendored_str)
+            # If we're explicitly using FA4 score_mod, avoid mixing a wheel-loaded
+            # `flash_attn.cute` with the vendored CuTe sources.
+            if os.getenv("SCOPE_KV_BIAS_BACKEND", "").lower() == "fa4":
+                import sys
+
+                cute_mod = sys.modules.get("flash_attn.cute")
+                if cute_mod is not None and hasattr(cute_mod, "__path__"):
+                    vendored_cute = str(vendored / "cute")
+                    if vendored_cute not in cute_mod.__path__:
+                        cute_mod.__path__.insert(0, vendored_cute)
+                for mod_name in list(sys.modules.keys()):
+                    if mod_name == "flash_attn.cute" or mod_name.startswith("flash_attn.cute."):
+                        sys.modules.pop(mod_name, None)
+            break
         candidate = parent / "flash-attention" / "flash_attn"
         if candidate.is_dir():
             candidate_str = str(candidate)
@@ -78,9 +99,11 @@ flash_attn_4_varlen_func = None
 FLASH_ATTN_4_AVAILABLE = False
 # NOTE: When `SCOPE_KV_BIAS_BACKEND=fa4` we hot-swap `flash_attn.cute` to a vendored
 # score_mod-capable CuTe implementation. Mixing that with the wheel's FA4 varlen path
-# can lead to runtime DSL codegen errors (e.g. TileSchedulerArguments mismatch).
-# Prefer the stable FA2 path for non-bias attention in that configuration.
-_force_disable_fa4 = os.getenv("SCOPE_KV_BIAS_BACKEND", "").lower() == "fa4"
+# can lead to runtime DSL codegen errors (e.g. TileSchedulerArguments mismatch), and
+# in practice has regressed perf on B300. Keep FA4 varlen opt-in in this configuration.
+_kv_bias_backend = os.getenv("SCOPE_KV_BIAS_BACKEND", "").lower()
+_force_disable_fa4 = _kv_bias_backend == "fa4" and os.getenv("SCOPE_ENABLE_FA4_VARLEN", "0") != "1"
+
 if os.getenv("DISABLE_FLASH_ATTENTION_4", "0") == "0" and not _force_disable_fa4:
     if _flash_attn is not None:
         try:
