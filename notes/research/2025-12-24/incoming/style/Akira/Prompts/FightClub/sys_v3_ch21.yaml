@@ -1,0 +1,120 @@
+batch:
+  name: Akira-FightClub-Sysprompt-v3-Ch21
+  session: FightClub-ColorTransformation
+
+defaults:
+  workflow_template: Templates/Workflows/WAN22/t2v/wan2_2_t2v_speedup_v1
+  width: 720
+  height: 1280
+  frames: 65
+  runs: 1
+  t2v_lora_low: akira/v1.1/akira_v1.1_wan_low_6500steps.safetensors
+  t2v_lora_high: akira/akira_v1_wan_high_14250steps.safetensors
+  t2v_steps: 10
+  t2v_high_steps: 6
+  negative_prompt: |
+    色调艳丽, 过曝, 静态, 细节模糊不清, 字幕, 风格, 作品, 画作, 画面, 静止, 整体发灰, 最差质量, 低质量, JPEG压缩残留, 丑陋的, 残缺的, 多余的手指, 画得不好的手部, 画得不好的脸部, 畸形的, 毁容的, 形态畸形的肢体, 手指融合, 杂乱的背景, 背景人很多, 倒着走, slow-motion, split screen, text, signature, watermark, logo, timestamp, cartoon, modern anime style, moe, chibi, illustration, 3d render, CGI, rendered, painting, sketch, comic book style, plastic skin, overly smooth features, doll-like, mannequin, untextured surfaces, artifacting, compression artifacts, glitch, digital noise, banding, pixelation, frame, border, collage, oversaturated, pastel colors, soft colors, flat lighting, low contrast, low detail background, empty background, out of focus detail, extreme color cast, monochrome unless specified, generic AI look, uncanny valley, poorly fused elements, inconsistent lighting unless specified
+
+jobs:
+  - title: CH21-Clip0001 — Narrator Who Kneels Immediate Foreground
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A low-angle medium shot is framed from behind The Narrator, who kneels in the immediate foreground, his back occupying the lower third of the frame, designed with the physical archetype of a hollowed-out manikin constructed with a brachycephalic head shape and perpetually bruised features drawn with BOLD BLACK INK OUTLINES. The focus is on Tyler Durden, who stands at the center of a circle of onlookers, designed with the predatory charisma of a lean wolf and constructed on a sharply triangular model with prominent cheekbones and spiky, bleached-white hair. The DENSELY DETAILED PAINTED BACKGROUND depicts a grimy concrete basement with cracked walls and exposed pipes, all rendered in a desaturated, sickly color palette. A harsh, singular light source from above casts DEEP BLACKS for hard-edged, oppressive shadows, carving out the gaunt faces of the surrounding SPACE MONKEYS and creating BRILLIANT HIGHLIGHTS on sweaty skin. Tyler holds a cigarette, its cherry glowing a hot orange as OPAQUE PAINTED SMOKE PLUMES, rendered with soft GRADIENT AIRBRUSHING, curl slowly upwards from his lips. The Narrator, his head initially bowed, begins a slow, deliberate upward tilt, animated on twos to convey immense weight and exhaustion, his gaze rising to meet Tyler's.
+    overrides:
+      frames: 61
+
+  - title: CH21-Clip0002 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club: A locked-down wide shot is framed through the oppressive vertical bars of a metal fence, observing a sterile car dealership lot. Positioned left of center, THE NARRATOR stands passively, designed with the physical archetype of a hollowed-out manikin and constructed on a dolichocephalic head shape with gaunt, sunken cheeks; his form is rendered in BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS of a sickly, desaturated palette. In the DENSELY DETAILED PAINTED BACKGROUND, the dealership building is a study in urban decay, its large cursive sign catching a harsh light that creates BRILLIANT HIGHLIGHTS and casts DEEP BLACKS as hard-edged shadows across the ink-lined brickwork. From the right, TYLER DURDEN strolls into the frame with a fluid walk cycle, designed with the predatory charisma of a lean wolf and constructed on a sharply triangular model with prominent cheekbones. He raises a wooden baseball bat high, the arc of motion animated on ones and leaving behind sharp MOTION BLUR LINES. As he swings downwards, the bat becomes a series of distorted SMEAR FRAMES before connecting with the car's headlight in a stark white IMPACT FRAME that bleaches the screen for a single cel, triggering a violent simulated CAMERA SHAKE as an opaque, hand-drawn cel of shattering glass explodes from the point of collision.
+    overrides:
+      frames: 45
+
+  - title: CH21-Clip0003 — Locked Down Frames Interior Grimy
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down medium shot frames the interior of a grimy auto garage, where The Narrator, drawn with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS, walks with a steady gait from right to left across the foreground. The Narrator is designed with the physical archetype of a **hollowed-out manikin**, constructed with a symmetrical but gaunt brachycephalic (short and wide) head shape that emphasizes his vacant expression. In the midground, a lanky mechanic, designed as a **gangly, slack-jawed heron** built on a long, vertical ovoid head shape, stands motionless, holding a pressure hose aimed at the wet concrete floor. The scene is rendered against a DENSELY DETAILED PAINTED BACKGROUND overflowing with stacks of tires and steel rims, the fine-lined ink work capturing every speck of oil and grime under the sickly desaturated color palette of a single, harsh overhead light source. This light casts DEEP BLACKS and hard-edged, oppressive shadows throughout the garage, catching BRILLIANT HIGHLIGHTS on the wet floor and the edges of the characters. As The Narrator passes, the mechanic abruptly jerks the hose nozzle towards him, an action animated on ones with aggressive SMEAR FRAMES. A violent jet of water erupts, rendered as a high-pressure blast of overlapping, hand-drawn translucent cels with stark white ink detailing, cutting a sharp, arcing path across the frame and obscuring The Narrator's form in a chaotic spray of individually animated droplets.
+    overrides:
+      frames: 49
+
+  - title: CH21-Clip0004 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club. A locked-down, symmetrical wide shot establishes a grimy industrial tire shop, with The Narrator positioned dead center in the composition. Designed with the physical archetype of a hollowed-out manikin, The Narrator is constructed from a soft, ovoid model with deep-set, shadowed eye sockets, rendered with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS in a desaturated, sickly color palette. He stands rigidly on wet, cracked asphalt, holding a high-pressure hose. The DENSELY DETAILED PAINTED BACKGROUND depicts a world of urban decay: stacks of tires rendered with fine-lined ink work, peeling paint on the building, and rusted chain-link fences, all under a flat, overcast sky that casts oppressive, hard-edged shadows rendered in DEEP BLACKS. With a sudden, stiff motion animated on twos, he swings the hose from left to right, unleashing an opaque jet of water rendered as a series of overlapping, hand-drawn white and grey cels that arc across the frame, leaving behind subtle MOTION BLUR LINES and catching the flat light with BRILLIANT HIGHLIGHTS.
+    overrides:
+      frames: 37
+
+  - title: CH21-Clip0005 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down high-angle wide shot observes a sterile corporate atrium from above, the composition dominated by rigid geometric lines and oppressive negative space rendered as a DENSELY DETAILED PAINTED BACKGROUND with fine-lined ink work capturing the precise grid of the tiled floor and the cold, polished texture of marble pillars and brutalist metal sculptures. From the upper left, The Narrator and Marla Singer enter the frame as small figures defined by BOLD BLACK INK OUTLINES. The Narrator is designed with the physical archetype of a **hollowed-out manikin**, his form constructed on a dolichocephalic head shape with sunken cheeks. Beside him, Marla Singer is designed with the chaotic energy of a **feral stray cat**, her face a sharply triangular model with a pointed chin and wide, weary eyes. They walk in a smooth cycle animated on twos across the floor, their movement casting long, hard-edged shadows rendered in DEEP BLACKS from the harsh overhead lighting which creates BRILLIANT HIGHLIGHTS on the brushed metal cone sculpture they approach before coming to a complete stop, their FLAT-COLORED CELS standing out against the complex background. As they stand motionless, a janitor figure enters from the lower left, pushing a cart with a slight, rhythmic wobble, his presence adding a layer of mundane reality to the cold, artistic void.
+    overrides:
+      frames: 61
+
+  - title: CH21-Clip0006 — Locked Down Through Thick Vertical
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down wide shot is framed through the thick, vertical BOLD BLACK INK OUTLINES of a steel security gate, observing a sterile Cadillac dealership rendered as a DENSELY DETAILED PAINTED BACKGROUND. Two perfect rows of ink-lined, FLAT-COLORED CELS of luxury sedans create powerful leading lines on the wet, reflective asphalt, where BRILLIANT HIGHLIGHTS gleam under a harsh sun that casts oppressive, DEEP BLACKS from the building's overhang. In the center, The Narrator, designed with the physical archetype of a hollowed-out manikin built on a dolichocephalic head shape with gaunt, sunken cheeks, confronts a salesman. Without warning, The Narrator’s arm blurs in a motion animated on ones, connecting with the salesman’s gut in a stark white IMPACT FRAME that triggers a violent, simulated CAMERA SHAKE. The salesman doubles over, his pain animated with realistic weight, as The Narrator turns and walks away. Just as he departs, Tyler Durden enters the frame, designed with the predatory charisma of a lean wolf constructed on a sharply triangular model with prominent cheekbones; his shirtless torso is a mass of tightly rendered muscle and sharp ink shadows. He winds up and hurls a rock, which streaks across the shot leaving gritty MOTION BLUR LINES before shattering a car window in a complex, hand-drawn explosion of glass shards. The Narrator then stops, turns, and delivers a savage kick to a car door, the impact rendered with another sharp IMPACT FRAME and a dull, metallic crunch.
+    overrides:
+      frames: 57
+
+  - title: CH21-Clip0007 — Locked Down Observes Cavernous Sterile
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down high-angle wide shot observes a cavernous, sterile corporate lobby rendered as a DENSELY DETAILED PAINTED BACKGROUND, where towering geometric sculptures and ink-lined marble pillars cast oppressive, hard-edged DEEP BLACKS across a polished tile floor. Two figures drawn with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS walk through the rigid composition. The Narrator, designed with the physical archetype of a hollowed-out manikin built on a dolichocephalic head shape with gaunt cheeks, walks stiffly. Beside him is Marla Singer, designed with the feral energy of a stray cat and constructed on a sharply triangular model with prominent cheekbones, moving with a wiry gait. As they walk, The Narrator’s briefcase slips from his grasp, animated on ones as it tumbles through the air. It smacks the floor with a stark white IMPACT FRAME that triggers a subtle, simulated CAMERA SHAKE, kicking up a small puff of OPAQUE PAINTED SMOKE PLUMES. Marla stops, bends down in a fluid motion, and retrieves the case, her black-clad form a stark silhouette against the floor's BRILLIANT HIGHLIGHTS, before rising to face him in the cold, silent space.
+    overrides:
+      frames: 45
+
+  - title: CH21-Clip0008 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down wide shot captures the entrance of a grimy auto garage, framing two figures against a backdrop of urban decay. On the right, a hulking mechanic, one of the SPACE MONKEYS, stands impassively; he is designed with the physical archetype of a **placid, broad-shouldered bulldog**, constructed on a square jawline with a thick, powerful neck, rendered in BOLD BLACK INK OUTLINES and FLAT-COLORED CELS. In the DENSELY DETAILED PAINTED BACKGROUND, stacks of tires and racks of oil cans recede into oppressive DEEP BLACKS, the entire scene illuminated by a single, harsh overhead fluorescent light that casts hard-edged shadows and creates BRILLIANT HIGHLIGHTS on the wet concrete floor. The mechanic holds a pressure hose, initially spraying the ground with a powerful jet of water animated as a flurry of sharp, white ink streaks. On the left, The Narrator, dressed as a priest, walks into the frame; he is designed with the nervous energy of a **startled insect**, his structure based on a dolichocephalic head shape with gaunt, sunken cheeks. As he stops, the mechanic deliberately turns the hose and unleashes the high-pressure spray directly onto him, the impact animated on ones and causing a subtle CAMERA SHAKE as the water droplets, each individually rendered, explode against his black cassock. The Narrator flinches, now soaked, the FLAT-COLORED CELS of his clothing turning a darker shade with wet highlights. He takes a few hesitant steps forward, gesticulating in protest, before the mechanic, with a cold, unchanging expression, hits him with the water jet again, the powerful arc of water catching the harsh light source as it slams into its target.
+    overrides:
+      frames: 81
+
+  - title: CH21-Clip0009 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down medium shot is framed through the DEEP BLACKS of vertical iron bars, which act as a stark foreground cel layer, observing a symmetrically composed car dealership. The scene is a DENSELY DETAILED PAINTED BACKGROUND where rows of identical, polished sedans create strong leading lines into the distance, their surfaces reflecting the harsh, singular light sources from overhead fluorescents with BRILLIANT HIGHLIGHTS. In the center of the frame, a burly manager, designed with the physical archetype of a well-fed bulldog on a brachycephalic head construction, violently shoves The Narrator forward. The Narrator, appearing for the first time, is designed with the physical archetype of a hollowed-out manikin, constructed on a dolichocephalic head shape with gaunt, sunken cheeks and rendered with BOLD BLACK INK OUTLINES and FLAT-COLORED CELS in a sickly, desaturated palette. The shove is animated on ones for maximum velocity, sending The Narrator stumbling with his limbs captured in gritty, distorted SMEAR FRAMES for a single, jarring moment. He catches his balance on the wet asphalt, which is painted with impossibly crisp reflections, and begins a slow, defeated walk cycle directly toward the camera, his form shrinking the other figures into the detailed background as the entire scene is rendered with high-contrast lighting that casts hard-edged, oppressive shadows beneath the cars while the glow from the fluorescent tubes is achieved with subtle GRADIENT AIRBRUSHING.
+    overrides:
+      frames: 29
+
+  - title: CH21-Clip0010 — Locked Down Frames Sterile Corporate
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down, high-angle wide shot frames a sterile corporate atrium, rendered as a DENSELY DETAILED PAINTED BACKGROUND of polished tile floors and imposing, brutalist metal sculptures that create a cold, geometric maze. The entire scene is drenched in a desaturated, sickly color palette, where harsh overhead fluorescent lighting casts oppressive, hard-edged DEEP BLACKS and creates sharp BRILLIANT HIGHLIGHTS on the metallic surfaces. At the bottom center, The Narrator, a small figure designed with the physical archetype of a **hollowed-out manikin** constructed on a nondescript, ovoid head shape with soft, undefined features, walks slowly away from the camera, his form a simple silhouette with BOLD BLACK INK OUTLINES. Suddenly, a bike messenger bursts into the frame from the left, their entire movement animated on ones with aggressive, distorted SMEAR FRAMES and leaving behind faint MOTION BLUR LINES that trail the spinning wheels. The messenger, a flash of dynamic energy in a FLAT-COLORED CEL jacket, expertly navigates the sculptures, nearly colliding with The Narrator, who then breaks into a desperate, frantic run, his own movements animated with more awkwardness as he chases the messenger through the cold, architectural void.
+    overrides:
+      frames: 41
+
+  - title: CH21-Clip0011 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club: A locked-down wide shot establishes a grimy auto shop bay, wet concrete glistening in the foreground under a harsh, singular light source that casts DEEP BLACKS into the corners. On the left, The Narrator stands, designed with the physical archetype of a hollowed-out manikin, constructed on a dolichocephalic head shape with gaunt, sunken cheeks and rendered in FLAT-COLORED CELS. To his right stands a hulking mechanic, a PROJECT MAYHEM SPACE MONKEY, who sprays a jet of water from a hose; the water is a dynamic, hand-drawn FX cel layer with BRILLIANT HIGHLIGHTS that splashes onto the floor in individually animated droplets. The Narrator points with jerky, awkward movements, animated on twos, but the mechanic suddenly turns the hose on him, the water stream hitting his leg and causing him to flinch violently. He lunges for the hose, but the mechanic yanks it back and shoves him with brutal force, animated on ones with slight CAMERA SHAKE. The Narrator retaliates with a wild, telegraphed punch that misses, his arm a distorted SMEAR FRAME leaving behind faint MOTION BLUR LINES. The mechanic ducks under it and drives a fist into The Narrator’s stomach, the blow punctuated by a stark white IMPACT FRAME that freezes the action before The Narrator’s body snaps into a contorted C-shape, doubling over in pain. Both figures then break into a run, exiting frame left as the camera executes a short, sharp TRACKING SHOT that creates a MULTI-LAYER PARALLAX effect against the DENSELY DETAILED PAINTED BACKGROUND of stacked tires and greasy tool racks.
+    overrides:
+      frames: 81
+
+  - title: CH21-Clip0012 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down medium shot is framed from behind the BOLD BLACK INK OUTLINES of a thick metal fence, its vertical bars slicing the composition and creating a voyeuristic perspective. Centered between two perfect rows of gleaming new cars is The Narrator, designed with the physical archetype of a **hollowed-out manikin** and constructed on a gaunt, rectangular facial model with deep-set, shadowed eyes. He is rendered in FLAT-COLORED CELS, wearing a nondescript, sickly beige suit that hangs off his frame. He walks towards the camera on a wet, reflective pavement that mirrors the oppressive grey sky, each car a cel-painted monolith with BRILLIANT HIGHLIGHTS arcing across its polished hood. In the DENSELY DETAILED PAINTED BACKGROUND, the cursive "Cadillac" logo is rendered with precise, fine-lined ink work on a sterile, off-white building facade, its architecture casting DEEP BLACKS and hard-edged shadows. The Narrator's walk is animated on twos, a smooth but lifeless motion until he stops beside a dark sedan. He pulls a small metal key from his pocket, its cel catching a single, sharp glint of light. In a fluid motion animated on ones for speed and violence, he drags the key across the car's side panel, the act punctuated by a stark white IMPACT FRAME as metal first contacts paint. The scratch itself is animated as a clean, viciously sharp white line gouged through the color cel, kicking up a tiny, hand-drawn spray of paint particle cels. Without breaking stride, he pockets the key and continues his walk away from the camera, his figure shrinking as he moves deeper into the perfectly symmetrical, corporate mausoleum of the car lot.
+    overrides:
+      frames: 29
+
+  - title: CH21-Clip0013 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club: A high-angle, locked-down wide shot is framed from an elevated balcony, its dark railing a silhouette in the immediate foreground, looking down into a cavernous and sterile corporate atrium. The scene is rendered as a DENSELY DETAILED PAINTED BACKGROUND, where polished gray floor tiles are defined by precise, fine-lined ink work and massive black support pillars cast oppressive, geometric DEEP BLACKS across the floor from an unseen overhead fluorescent source. In the center, a large metallic cone sculpture catches the light with a single, sharp BRILLIANT HIGHLIGHT. A bike messenger, a lean figure with BOLD BLACK INK OUTLINES, cuts across the space from right to left, his high-speed pedaling animated on ones and leaving faint MOTION BLUR LINES trailing his wheels. He is pursued by a frantic security guard, whose desperate sprint is emphasized with gritty SMEAR FRAMES on his flailing limbs. Their FLAT-COLORED CELS, rendered in a desaturated, sickly color palette, move with frantic energy across the static, hyper-detailed environment, weaving between the pillars before exiting frame left, leaving the cold architectural symmetry undisturbed.
+    overrides:
+      frames: 33
+
+  - title: CH21-Clip0014 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down wide shot frames an industrial street scene, dominated by a DENSELY DETAILED PAINTED BACKGROUND of a weathered tire shop under a flat, washed-out sky rendered with subtle GRADIENT AIRBRUSHING. From the left, two figures with BOLD BLACK INK OUTLINES and FLAT-COLORED CELS walk into the frame. The first is The Narrator, designed with the physical archetype of a **hollowed-out manikin**, his form defined by a dolichocephalic head shape and a perpetually slumped posture. He is followed by Tyler Durden, designed with the predatory charisma of a **lean wolf** and constructed on a sharply triangular model with prominent cheekbones. They stop before a chain-link fence cage filled with tires, their forms rendered in DEEP BLACKS against the grimy sidewalk. With explosive speed animated on ones, Tyler grabs The Narrator and slams him violently back against the fence, the motion captured with gritty SMEAR FRAMES. The collision is punctuated by a stark white IMPACT FRAME and a jarring simulated CAMERA SHAKE, causing the entire fence cel to rattle and vibrate with distorted MOTION BLUR LINES for several frames after the initial impact.
+    overrides:
+      frames: 81
+
+  - title: CH21-Clip0015 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      
+      A static medium close-up is framed on the Narrator's boss, designed with the weary posture of a bloodhound constructed on a fleshy, brachycephalic (short and wide) model with sagging jowls and deep-set eyes. His form is defined by BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS of a sickly, institutional palette, with a harsh overhead light source casting BRILLIANT HIGHLIGHTS on his balding scalp and the frames of his glasses while DEEP BLACKS pool in the oppressive folds of his drab button-down shirt. He sits before a DENSELY DETAILED PAINTED BACKGROUND depicting a sterile office space, where meticulously inked vertical blinds create oppressive parallel lines behind him, and a bulky, beige computer monitor sits on a credenza, its form rendered with precise, hard-edged cel shading. The glow from the dome-shaped desk lamps is achieved with soft GRADIENT AIRBRUSHING, casting a sickly yellow-green pallor over the entire composition as his hand, also drawn with heavy ink lines, moves with deliberate, smoothly animated motion, writing on a document with a pen rendered as a sharp, singular point of black ink on the paper cel.
+    overrides:
+      frames: 1
+

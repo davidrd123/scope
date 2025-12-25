@@ -1,0 +1,96 @@
+batch:
+  name: Alice-Wonderland-AllKaiju-Concise
+  session: Alice-Kaiju-Optimized
+
+defaults:
+  workflow_template: Templates/Workflows/WAN22/t2v/wan2_2_t2v_base_v1
+  width: 432
+  height: 768
+  frames: 65
+  runs: 1
+  t2v_lora_low: kaiju/kaiju_wan_low_5250steps.safetensors
+  t2v_lora_high: kaiju/kaiju_wan_high_5250steps.safetensors
+  t2v_steps: 40
+  t2v_high_steps: 20
+  negative_prompt: |
+    色调艳丽, 过曝, 欠曝, 静态, 细节模糊不清, 字幕, 风格, 作品, 画作, 画面, 静止, 整体发灰, 最差质量, 低质量, JPEG压缩残留, 丑陋的, 残缺的, 多余的手指, 画得不好的手部, 画得不好的脸部, 畸形的, 毁容的, 形态畸形的肢体, 手指融合, 杂乱的背景, 背景人很多, 倒着走,
+    slow-motion, split screen, text, signature, watermark, logo, timestamp, frame, border, collage,
+    cartoon, modern anime style, moe, chibi, illustration, comic book style, anime outlines, speed lines,
+    3d render, CGI, rendered, photoreal CGI creature, Pixar style, Disney style, Unreal Engine, Unity, video game graphics, game UI, PBR materials, ray tracing look,
+    plastic skin, overly smooth features, doll-like, mannequin, glossy plastic, rubbery shine,
+    untextured surfaces, artifacting, compression artifacts, glitch, digital noise, banding, pixelation, ringing, color bleeding, chroma fringing,
+    macroblocking, h.264 artifacts, quantization, extreme denoise smearing, over-sharpening halos, vignette,
+    flicker, strobing, temporal inconsistency, duplicate frames, frame skipping, frame interpolation artifacts, interlacing, combing, rolling shutter, frame tearing, ghosting, afterimage trails, jitter, micro-jitter, camera shake, wobble, jelly effect, warping,
+    letterbox, pillarbox, black bars, burned-in captions, timecode burn-in, HUD, UI, lower-third, progress bar,
+    tiny kaiju, toy-like proportions, out-of-proportion limbs, extra heads, extra limbs, dislocated joints,
+    visible suit zipper, exposed eyeholes, suit actor visible, human faces, live-action humans, crowd shots,
+    green screen spill, poor keying, chroma key fringe,
+    oversaturated, pastel colors, soft colors, flat lighting, low contrast, low detail background, empty background, out of focus detail, extreme color cast, monochrome unless specified,
+    generic AI look, uncanny valley, poorly fused elements, inconsistent lighting unless specified
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════
+  # ALICE IN WONDERLAND - ALL KAIJU OPTIMIZED
+  # Condensed prompts prioritizing character suit details and single moments
+  # Based on video analysis showing what model respects vs ignores
+  # ═══════════════════════════════════════════════════════════════════
+
+  # 1. DOWN THE RABBIT HOLE
+  - title: Alice-Kaiju-001-RabbitHoleFall
+    prompt: |
+      Japanese Kaiju Film — Alice kaiju in blue dress LATEX RUBBER SUIT. 7-foot girl-monster performer with blonde synthetic wig and white apron. Humanoid face with wide curious eyes. She tumbles downward via WIREWORK in slow rotating descent through vertical tunnel shaft. White Rabbit kaiju visible above her - 7-foot white FUR SUIT with pink waistcoat, long wire-articulated ears, checking oversized pocket watch prop. MINIATURE tunnel shaft constructed from plaster, 18-inch deep with forced perspective creating infinite depth. Floating furniture props suspended on wires - tiny grandfather clock, bookshelves, teacups. Checkered patterns and cupboards painted on tunnel walls at impossible angles. Warm amber tungsten lighting from above transitions to magenta and cyan gels below. Theatrical fog swirls at bottom creating dreamlike atmosphere. Composition emphasizes two suited kaiju falling through surreal vertical space.
+
+  # 2. GIANT ALICE BREAKS HALLWAY
+  - title: Alice-Kaiju-002-GiantAlice
+    prompt: |
+      Japanese Kaiju Film — GIANT Alice kaiju - massive 20-foot girl-monster in blue dress LATEX RUBBER SUIT. Same costume design as normal Alice but enormous scale with thick padded limbs. Blonde synthetic wig. She crushes through MINIATURE hallway ceiling via SUITMATION, head pressed against plaster destroying it, enormous latex hands braced on walls, knees bent awkwardly filling entire corridor. Her giant face shows distress. MINIATURE forced-perspective hallway is 12-inch plaster construction with black-white checkered floor and Escher-pattern wallpaper. Small PYROTECHNICS create debris puffs as ceiling cracks. Tiny door visible at corridor end. Magenta and cyan tungsten gels create reality-warping lighting. GRADIENT AIRBRUSHING on walls. Composition emphasizes impossible scale - enormous suited performer destroying miniature environment.
+
+  # 3. TINY ALICE IN POOL
+  - title: Alice-Kaiju-003-TinyAliceSwims
+    prompt: |
+      Japanese Kaiju Film — Tiny Alice kaiju - 3-foot girl-monster in blue dress LATEX SUIT soaked and dripping. Small-scale suited performer with blonde wig wet and clinging. She swims via SUITMATION creating splashing ripples in glycerin pool. Mouse kaiju towers beside her - 5-foot brown FUR SUIT with long pink tail prop and whiskers. Mouse is LARGER than Alice creating reversed scale dynamic. Duck kaiju visible background - 5-foot yellow-brown with bill prosthetic. MINIATURE pool is 14-inch diameter basin filled with clear glycerin liquid creating viscous water effect. Blue-tinted tungsten lighting creates underwater atmosphere. Theatrical fog rises from surface. Wide shot emphasizes tiny Alice kaiju surrounded by medium-sized creature kaiju showing her vulnerability through scale.
+
+  # 4. GIANT ALICE DESTROYS COTTAGE
+  - title: Alice-Kaiju-004-CottageDestruction
+    prompt: |
+      Japanese Kaiju Film — GIANT Alice kaiju - 20-foot massive girl-monster in blue dress LATEX RUBBER SUIT. Thick latex limbs with enormous gentle face. She bursts through MINIATURE Victorian cottage via practical destruction - massive arm crashes through plaster front wall sending debris flying, leg kicks through thatched roof scattering pieces, head emerges from chimney. This is true kaiju rampage spectacle. White Rabbit kaiju in foreground - 7-foot white FUR SUIT with pink waistcoat, panicked SUITMATION with ears flattening and paws waving. MINIATURE cottage is 10-inch plaster and balsa wood construction with tiled roof, tiny windows, thatched details. Garden shows oversized vegetable props. Practical dust clouds from destruction via air cannons. Warm tungsten creates afternoon lighting. Low-angle composition emphasizes enormous suited performer demolishing tiny environment.
+
+  # 5. CATERPILLAR ON MUSHROOM
+  - title: Alice-Kaiju-005-CaterpillarWisdom
+    prompt: |
+      Japanese Kaiju Film — Caterpillar kaiju - massive 10-foot segmented blue LATEX RUBBER SUIT. Smooth undulating body with six visible segments and subtle joints. Wise inscrutable face with half-lidded eyes and articulated mandibles. Hookah pipe prop held in uppermost limbs creating wispy theatrical fog smoke. He reclines on enormous red-capped MUSHROOM PROP - 18-inch diameter spotted toadstool on elevated platform. Alice kaiju stands at mushroom base - 7-foot girl-monster in blue dress LATEX SUIT with blonde wig, looking up. MINIATURE mushroom forest shows dozens of smaller balsa wood mushrooms in psychedelic colors - purple, orange, yellow, magenta. Twisted trees with spiral bark texture. Magenta and cyan tungsten gels create dream-state lighting with BRILLIANT HIGHLIGHTS on metallic hookah versus DEEP BLACKS in shadows. Theatrical fog creates opium-haze. Low-angle composition shows kaiju-to-kaiju mentorship.
+
+  # 6. CHESHIRE CAT APPEARS
+  - title: Alice-Kaiju-006-CheshireGrin
+    prompt: |
+      Japanese Kaiju Film — Cheshire Cat kaiju - 8-foot feline creature in purple-pink striped LATEX RUBBER SUIT. Smooth hand-painted stripes. Impossibly wide grinning mouth showing many white teeth via prosthetic jaw. Large luminous eyes with practical LED glow. Long tail with wire articulation. Cat lounges on twisted tree branch via SUITMATION. His disembodied GRIN and LED-lit eyes float separately via WIREWORK - mouth prop and eye props suspended on invisible wires creating uncanny effect. Alice kaiju visible below - 7-foot girl-monster in blue dress LATEX SUIT. MINIATURE twisted forest has purple-bark balsa trees at impossible angles with dreamlike forced-perspective foliage. Magenta practical lighting creates purple glow on Cat's stripes. Cyan backlighting creates rim-light separation. Painted backdrop shows more impossible trees. Theatrical fog enhances mysterious atmosphere. Composition emphasizes floating grin and suited cat-monster.
+
+  # 7. MAD TEA PARTY CHAOS
+  - title: Alice-Kaiju-007-HatterTeaParty
+    prompt: |
+      Japanese Kaiju Film — Mad Hatter kaiju - 9-foot eccentric humanoid in patchwork LATEX RUBBER SUIT. Purple and green mismatched coat panels. Wild orange synthetic hair wig exploding outward. Oversized top hat prop tilted at angle. Bulging expressive eyes via prosthetics. He gestures frantically holding tiny teacup prop in oversized latex hands. March Hare kaiju beside him - 8-foot tattered brown FUR SUIT with tall wire-articulated ears twitching constantly. Broken pocket watch dangling from vest. Both perform manic SUITMATION around long MINIATURE tea table - 14-inch wooden table covered with mismatched teacup props and saucer props. Dormouse kaiju sleeps in oversized teapot prop - 4-foot grey-brown FUR with head poking out. MINIATURE garden background shows hedge maze balsa construction. Warm amber tungsten creates afternoon glow with magenta and cyan gel accents. Practical steam from teapots via hidden foggers. Composition emphasizes two primary kaiju creating controlled chaos.
+
+  # 8. QUEEN'S CROQUET GAME
+  - title: Alice-Kaiju-008-QueenFlamingo
+    prompt: |
+      Japanese Kaiju Film — Queen of Hearts kaiju - massive 12-foot tyrannical creature in red-black LATEX RUBBER SUIT. Heart motifs airbrushed on flowing gown. Golden crown prop. Fierce scowling face with heavy theatrical makeup prosthetics creating permanent frown. She swings living FLAMINGO KAIJU as croquet mallet - 6-foot pink FUR SUIT bird with long flexible neck creating shaft. Flamingo shows discomfort via SUITMATION struggling. Queen strikes croquet ball with powerful downward swing. MINIATURE croquet lawn is textured green plaster representing grass with white wicket markers scattered in impossible arrangements. Rose garden background shows balsa stems with red roses. MINIATURE palace visible distance - plaster castle with heart-shaped towers in red-black colors. Warm tungsten creates harsh sunlight. Red gels enhance Queen's menacing aura creating blood-red highlights. Small PYROTECHNICS puffs when Queen stomps. Composition shows tyrannical kaiju wielding living creature-weapon.
+
+  # 9. PAINTING ROSES RED
+  - title: Alice-Kaiju-009-CardsPainting
+    prompt: |
+      Japanese Kaiju Film — Card Soldier kaiju - 6-foot humanoid in playing card costume design. Rectangular torso section painted as spade suit in traditional card style. Articulated arms and legs in LATEX RUBBER SUIT. Anxious expressive face. Three card soldiers work frantically using paintbrush props dipped in practical red paint buckets. Actual liquid pigment. They dab white rose petals on MINIATURE rose bush props creating messy red splotches. Balsa wood stems with painted white blooms. One card notices approaching footsteps and all three panic via SUITMATION - heads whipping around, dropping brushes. Paint buckets scatter spilling practical red liquid across ground. MINIATURE garden shows ornate garden path. Warm golden tungsten creates afternoon garden light. Red gels make painted roses glow ominously. Composition shows three medium-sized kaiju in desperate futile labor.
+
+  # 10. ALICE GROWS IN COURT
+  - title: Alice-Kaiju-010-AliceGrowsCourt
+    prompt: |
+      Japanese Kaiju Film — Alice kaiju GROWING from 7-foot to 12-foot scale via editing suit-swap. Starting size: 7-foot girl-monster in blue dress LATEX SUIT standing at witness stand. Through editing cut she's replaced by LARGER 12-FOOT Alice kaiju - same blue dress design but enormous scale with thick latex limbs. Her growth tears through witness stand MINIATURE via practical breakaway props. She now matches Queen of Hearts kaiju in height - Queen visible on throne wearing 12-foot red-black LATEX SUIT with crown and scowling face. Both massive kaiju face off at equal scale. MINIATURE courtroom is plaster construction with throne platform raised at center and heart emblem backdrop. Card soldier kaiju advance - 6-foot card-costume kaiju that Alice swipes away. Red theatrical lighting creates oppressive atmosphere. Composition shows power shift through scale - Alice growing from subordinate to equal challenger.
+
+  # 11. CAUCUS RACE CIRCLE
+  - title: Alice-Kaiju-011-CircleRace
+    prompt: |
+      Japanese Kaiju Film — Alice kaiju in blue dress LATEX SUIT. 7-foot girl-monster performer with blonde wig running in circle. Dodo bird kaiju runs beside her - 7-foot with exaggerated beak prosthetic and shabby feather texture. Mouse kaiju follows - 5-foot brown FUR SUIT with tail. All three creature kaiju run in perfect circle via choreographed SUITMATION creating mandala pattern. Each shows distinct running style through suit performance - bird-gait, scuttling, human running. MINIATURE beach setting is textured sand plaster with pool edge visible. Pale blue tungsten creates beach atmosphere. Theatrical fog suggests sea mist. Practical water spray at pool edge. Overhead wide shot emphasizes circular formation - three different-sized suited performers in perpetual meaningless race. Camera slowly rotates matching their circular motion.
+
+  # 12. WAKING FROM DREAM
+  - title: Alice-Kaiju-012-AliceWakes
+    prompt: |
+      Japanese Kaiju Film — Alice kaiju in blue dress LATEX RUBBER SUIT. 7-foot girl-monster performer lying on grass under tree. Blonde synthetic wig spread around her head. Her eyes open looking confused via subtle suit performance. Transparent ANIMATED OPTICAL OVERLAY ghost appears - Cheshire Cat grin floating as spectral form then fading away. Another girl-kaiju kneels beside Alice - 7-foot in different dress LATEX SUIT representing sister, shaking Alice awake. MINIATURE Victorian garden shows realistic balsa wood trees and normal flowers. Picnic blanket prop visible. Psychedelic colors have drained to realistic warm palette. Fog has cleared. Warm golden sunset tungsten creates nostalgic glow replacing dream-state magenta and cyan gels. Composition suggests ambiguous awakening - two suited girl-kaiju in mundane monster-world, with hint that Wonderland's strangeness still lingers in shadows.

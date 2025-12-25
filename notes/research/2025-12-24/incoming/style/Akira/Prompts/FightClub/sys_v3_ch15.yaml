@@ -1,0 +1,185 @@
+batch:
+  name: Akira-FightClub-Sysprompt-v3-Ch15
+  session: FightClub-ColorTransformation
+
+defaults:
+  workflow_template: Templates/Workflows/WAN22/t2v/wan2_2_t2v_speedup_v1
+  width: 720
+  height: 1280
+  frames: 65
+  runs: 1
+  t2v_lora_low: akira/v1.1/akira_v1.1_wan_low_6500steps.safetensors
+  t2v_lora_high: akira/akira_v1_wan_high_14250steps.safetensors
+  t2v_steps: 10
+  t2v_high_steps: 6
+  negative_prompt: |
+    色调艳丽, 过曝, 静态, 细节模糊不清, 字幕, 风格, 作品, 画作, 画面, 静止, 整体发灰, 最差质量, 低质量, JPEG压缩残留, 丑陋的, 残缺的, 多余的手指, 画得不好的手部, 画得不好的脸部, 畸形的, 毁容的, 形态畸形的肢体, 手指融合, 杂乱的背景, 背景人很多, 倒着走, slow-motion, split screen, text, signature, watermark, logo, timestamp, cartoon, modern anime style, moe, chibi, illustration, 3d render, CGI, rendered, painting, sketch, comic book style, plastic skin, overly smooth features, doll-like, mannequin, untextured surfaces, artifacting, compression artifacts, glitch, digital noise, banding, pixelation, frame, border, collage, oversaturated, pastel colors, soft colors, flat lighting, low contrast, low detail background, empty background, out of focus detail, extreme color cast, monochrome unless specified, generic AI look, uncanny valley, poorly fused elements, inconsistent lighting unless specified
+
+jobs:
+  - title: CH15-Clip0001 — Tight Up Locked Face Narrator
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A tight close-up is locked on the face of The Narrator, designed with the physical archetype of a hollowed-out manikin and constructed on a dolichocephalic head shape with gaunt, sunken cheeks. His face is rendered in FLAT-COLORED CELS with BOLD BLACK INK OUTLINES, catching BRILLIANT HIGHLIGHTS on his sweaty skin and thin-rimmed glasses from an unseen monitor's glow, which is rendered with soft GRADIENT AIRBRUSHING against a background of oppressive DEEP BLACKS. A hard cut shifts the composition to a static medium shot of three men seated in a row, their bodies angled towards the same off-screen light source. The DENSELY DETAILED PAINTED BACKGROUND is a sterile, dark corporate room defined by fine-lined ink work on ventilation grilles swallowed by shadow. The men are rendered with the same sickly, desaturated color palette, their faces carved by hard-edged shadows as the central figure, a severe-looking executive, leans forward with a pinched expression, his gaze fixed with an intensity animated on twos.
+
+    overrides:
+      frames: 33
+
+  - title: CH15-Clip0002 — Tight Up Face Narrator Who
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A tight close-up shot is framed on the face of The Narrator, who is designed with the physical archetype of a hollowed-out manikin, constructed on a dolichocephalic (long and narrow) head shape with gaunt, sunken cheeks. His features are rendered in BOLD BLACK INK OUTLINES and filled with sickly, desaturated FLAT-COLORED CELS, a deep purple bruise blooming under one eye. A harsh, singular overhead light source casts BRILLIANT HIGHLIGHTS on his sweaty forehead and creates DEEP BLACKS in his eye sockets, plunging the background into an oppressive void. He holds a subtle, knowing smirk as his eyes shift slowly to the side, his head dipping slightly in a weary motion animated on twos. A HARD CUT transitions to a high-angle wide shot overlooking a rain-slicked back alley at night, a DENSELY DETAILED PAINTED BACKGROUND of cracked asphalt, rusted corrugated metal walls, and urban decay. The scene is illuminated by the cold, cyan glow of flickering fluorescent lights, their buzz rendered as a subtle GRADIENT AIRBRUSHING haze, while distant city lights are reduced to SOFT BOKEH circles. From the bottom of the frame, two small figures emerge: The Narrator, and Tyler Durden, who is designed with the predatory charisma of a lean wolf, his head constructed on a sharply triangular model with prominent cheekbones, his iconic TYLERS RED LEATHER JACKET a slash of defiant color in the gloom. As they walk towards a dilapidated bar entrance, the camera begins a slow, continuous MULTI-LAYER PARALLAX TILT upwards, revealing more of the oppressive cityscape and its towering, skeletal structures against the polluted night sky.
+
+    overrides:
+      frames: 81
+
+  - title: CH15-Clip0003 — Continuous Follows Tyler Durden Right
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A continuous TRACKING SHOT follows from behind Tyler Durden on the right and The Narrator on the left as they walk from a rain-slicked parking lot into a dingy bar. Tyler is designed with the predatory charisma of a lean wolf, his form constructed on a sharply triangular model with prominent cheekbones and a precise jawline; his iconic TYLERS RED LEATHER JACKET is a field of flat crimson cel paint that catches BRILLIANT HIGHLIGHTS from overhead fluorescent lights. The Narrator is designed with the physical archetype of a hollowed-out manikin, built on a dolichocephalic head shape with gaunt, sunken cheeks and tired eyes, his form rendered in muted, FLAT-COLORED CELS. They move through a DENSELY DETAILED PAINTED BACKGROUND of a grimy, sickly green bar, the air thick with GRADIENT AIRBRUSHING to simulate haze and cigarette smoke, passing other patrons drawn with BOLD BLACK INK OUTLINES who linger in pools of DEEP BLACK shadow. The shot follows them past a barman and through a doorway marked by a flickering red neon sign, descending into an oppressive, subterranean darkness where the camera continues its TRACKING SHOT, finally revealing a cavernous, concrete basement. A low-angle shot frames Tyler from behind as he steps into the center of a circle of men, his silhouette stark against the out-of-focus crowd rendered as SOFT BOKEH shapes and faces caught in harsh top-lighting. A hard cut to an extreme close-up on Tyler's face, a bead of sweat catching a BRILLIANT HIGHLIGHT as it traces a path through dirt on his cheek, his lips moving with precise animation. The camera then cuts through a rapid sequence of the assembled members of PROJECT MAYHEM, their faces a gallery of bruised but attentive FLAT-COLORED CELS, before a hard cut to a high-angle shot shows a man falling down a flight of stairs into the darkness. A final hard cut reveals the basement transformed into a raw fighting pit; a montage of brutal combat erupts, animated on ones with gritty, distorted SMEAR FRAMES and MOTION BLUR LINES trailing fists and feet. Every blow is punctuated by stark white IMPACT FRAMES and simulated CAMERA SHAKE, sending opaque, hand-drawn blood splatter cels across the screen. The sequence climaxes with a low-angle wide shot of two shirtless fighters grappling, their muscles defined by hard-edged shadows, surrounded by the cheering, silhouetted crowd before a final, brutal takedown is shown in a flurry of high-speed animation.
+
+    overrides:
+      frames: 81
+
+  - title: CH15-Clip0004 — Locked Down Up Right Side
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down close-up is framed on the right side of the screen, focusing on The Narrator, who is designed with the physical archetype of a hollowed-out manikin, constructed on a dolichocephalic head shape with gaunt, sunken cheeks. His face, rendered in BOLD BLACK INK OUTLINES and sickly FLAT-COLORED CELS, is cast in the oppressive glow of overhead fluorescent lights, creating BRILLIANT HIGHLIGHTS on his clammy skin and DEEP BLACKS under his eyes. The shot executes a slow ANIMATED RACK FOCUS; The Narrator's sharp features dissolve into SOFT BOKEH circles as the focus pulls deep into the DENSELY DETAILED PAINTED BACKGROUND, a sterile office labyrinth of beige cubicles, humming CRT monitors, and stacks of paper, all rendered with fine-lined ink work and a wash of desaturated green. A SPACE MONKEY, his face bruised with a dark purple shiner, comes into sharp focus, pushing a mail cart directly toward the camera. A slow TRACKING SHOT follows his movement, creating a MULTI-LAYER PARALLAX effect as rows of cubicles and other office drones slide past at varying speeds. As he passes the camera and moves out of frame to the left, leaving behind subtle MOTION BLUR LINES, the focus racks back with mechanical precision to the now sharp, isolated face of The Narrator.
+
+    overrides:
+      frames: 81
+
+  - title: CH15-Clip0005 — Shoulder Narrator His Head Shoulders
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      An over-the-shoulder medium shot is framed from behind The Narrator, his head and shoulders rendered with BOLD BLACK INK OUTLINES occupying the left foreground, as a continuous TRACKING SHOT slowly pushes in. The initial focus is deep in a DENSELY DETAILED PAINTED BACKGROUND depicting a corporate atrium patio at night, where distant neon lights are rendered as SOFT BOKEH circles and the architecture is a cold grid of ink-lined steel. A waiter, a member of PROJECT MAYHEM, walks with a steady, deliberate gait directly toward the camera, his form a blurry cel moving through layers of painted restaurant patrons in a MULTI-LAYER PARALLAX effect. As he approaches The Narrator's table, an ANIMATED RACK FOCUS snaps him into sharp clarity, revealing a SPACE MONKEY designed with the physical archetype of a **starved hunting dog**; his face is constructed on a long, rectangular model with hollowed-out cheeks, sunken eyes, and a sharp jawline. His uniform is composed of FLAT-COLORED CELS, while the injuries on his face—a stark white bandage on his forehead, another on his nose, and a sickly purple bruise under one eye—are rendered with graphic simplicity. He stops, looking down with a quiet intensity, his face caught in a harsh top-down light that casts DEEP BLACKS into his eye sockets and creates BRILLIANT HIGHLIGHTS on his brow, confirming his allegiance with a subtle, knowing smirk.
+
+    overrides:
+      frames: 81
+
+  - title: CH15-Clip0006 — Shoulder Tyler Durden Whose Head
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      An over-the-shoulder medium shot is framed from behind Tyler Durden, whose head and shoulder occupy the right foreground, looking down at The Narrator seated at a small cafe table. The focus is locked on The Narrator, designed with the physical archetype of a **hollowed-out manikin** built on a dolichocephalic head shape with gaunt, sunken cheeks. His face is drawn with BOLD BLACK INK OUTLINES and filled with sickly, FLAT-COLORED CELS, a dark, jagged gash inked above one eyebrow. His eyes are concealed by dark sunglasses that catch a single, sharp BRILLIANT HIGHLIGHT, reflecting the overcast sky. The shot is held static, emphasizing the tension in his jawline with hard-edged shadows rendered in DEEP BLACKS as he speaks. The DENSELY DETAILED PAINTED BACKGROUND depicts a patio of cracked, grimy paving stones and the stained marble surface of the table, capturing a mood of urban decay under the flat, oppressive light.
+
+    overrides:
+      frames: 21
+
+  - title: CH15-Clip0007 — Shoulder Narrator Whose Head Shoulders
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      An over-the-shoulder medium shot is framed from behind The Narrator, whose head and shoulders, drawn with BOLD BLACK INK OUTLINES, occupy the foreground left. The Narrator is designed with the physical archetype of a hollowed-out manikin, constructed on a soft, unremarkable ovoid model with a weak jawline. The focus is on a SPACE MONKEY waiter standing right of center, his face a mask of bruised resolve. This SPACE MONKEY is designed as a loyal but broken soldier, built on a gaunt, elongated facial structure with deep-set eyes and a bandaged nose rendered in FLAT-COLORED CELS. He is held in a locked-down frame against a DENSELY DETAILED PAINTED BACKGROUND of a corporate atrium, where sickly green steel geometry and glass are sliced by the diagonal slash of a glowing red neon tube. This harsh light source casts BRILLIANT HIGHLIGHTS on the waiter's sweaty brow and throws the lines of his face into DEEP BLACKS, creating oppressive, hard-edged shadows. For a long beat, his posture is rigid, animated on twos to convey an unsettling stillness, before he executes a smooth, deliberate turn and exits frame right, his form leaving subtle MOTION BLUR LINES against the complex background.
+
+    overrides:
+      frames: 37
+
+  - title: CH15-Clip0008 — Locked Down Composed Meticulous Sterile
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down medium shot is composed with meticulous, sterile symmetry, centering on The Narrator at a pristine white table. The Narrator is designed with the physical archetype of a hollowed-out manikin, constructed on a soft ovoid facial model with gaunt, sunken cheeks and a perpetually weary posture. His face, rendered in BOLD BLACK INK OUTLINES and filled with a FLAT-COLORED CEL of sickly, desaturated flesh tones, is partially obscured by small, opaque black sunglasses. The DENSELY DETAILED PAINTED BACKGROUND depicts a cold, corporate atrium with visible fine-lined ink work on brushed steel columns and oversized concrete planters holding unnaturally green foliage. A massive escalator cuts a sharp, dark diagonal line across the upper frame, its metallic teeth rendered with precise, repeating detail. In the immediate foreground, the torso of a waiter, a simple cel layer with a striped shirt, slides from left to right, creating a momentary MULTI-LAYER PARALLAX effect that emphasizes the shot's depth. The Narrator sits motionless except for his hand, which slowly lifts a fork, the motion animated on twos to convey a sense of robotic lethargy. A BRILLIANT HIGHLIGHT traces the edge of his jaw and the rim of a beer glass, cast from an unseen overhead fluorescent source, while DEEP BLACKS form hard-edged, oppressive shadows beneath the table and on his ill-fitting suit jacket. Simultaneously, in the deep background, another waiter cel moves with smooth, deliberate strides, his form slightly softened by a layer of GRADIENT AIRBRUSHING to simulate atmospheric distance within the vast, impersonal space.
+
+    overrides:
+      frames: 65
+
+  - title: CH15-Clip0009 — Continuous Follows Tyler Durden Narrator
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A continuous medium TRACKING SHOT follows Tyler Durden and The Narrator walking side-by-side down a rain-slicked city street at night. Tyler, positioned on the left, is designed with the wiry, unpredictable energy of a street coyote, constructed on a sharply triangular model with prominent cheekbones; he wears TYLER'S RED LEATHER JACKET which catches BRILLIANT HIGHLIGHTS from street lamps. To his right, The Narrator is designed with the physical archetype of a hollowed-out manikin, built on a dolichocephalic head shape with gaunt, sunken cheeks. Their movement is animated smoothly on twos against a DENSELY DETAILED PAINTED BACKGROUND of urban decay, where every brick and crack is rendered with fine-lined ink work. Harsh, singular light sources cast DEEP BLACKS, creating oppressive, hard-edged shadows that stretch behind them, while their OPAQUE PAINTED SMOKE PLUMES are rendered with GRADIENT AIRBRUSHING. As they walk, a city bus pulls into frame, its headlights creating sharp, geometric ANAMORPHIC-STYLE LENS FLARES that streak across the shot. A hard cut transitions the TRACKING SHOT to the interior of the now-crowded bus, reframing them in a tighter medium shot as they stand holding overhead bars. The background is another DENSELY DETAILED PAINTING of a grimy, claustrophobic transit car, where sickly green fluorescent light casts BRILLIANT HIGHLIGHTS on their sweaty, bruised faces, drawn with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS in a desaturated palette.
+
+    overrides:
+      frames: 81
+
+  - title: CH15-Clip0010 — Locked Down Interior Subway Car
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down medium shot is framed from the interior of a subway car, focusing on an advertisement panel positioned in the upper portion of the frame. The ad, for Gucci underwear, features a hyper-stylized male figure rendered with BOLD BLACK INK OUTLINES and sickly, desaturated FLAT-COLORED CELS, his emaciated torso defined by hard shadows. This panel is set within a DENSELY DETAILED PAINTED BACKGROUND of the subway car's interior, which is depicted with obsessive mechanical precision, showing grime-streaked metal, scratched plexiglass, and countless tiny rivets inked with fine lines. A harsh, singular fluorescent light source from above casts BRILLIANT HIGHLIGHTS across the chrome handrail in the extreme foreground and the glossy surface of the ad, creating oppressive, DEEP BLACKS in the recessed corners of the ceiling. The sterile light is rendered with soft GRADIENT AIRBRUSHING that bleeds a pale green into the atmosphere. The entire frame is subjected to a constant, rhythmic, and jarring simulated CAMERA SHAKE, animated on ones to convey the shuddering motion of the train moving over tracks, causing the highlights on the metal surfaces to vibrate intensely.
+
+    overrides:
+      frames: 49
+
+  - title: CH15-Clip0011 — Two Swaying Subway Car Focusing
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A medium two-shot is framed inside a swaying subway car, focusing on The Narrator standing left of center and Tyler Durden on the right. The Narrator is designed with the physical archetype of a hollowed-out manikin, constructed on a dolichocephalic head shape with gaunt, sunken cheeks and bruised eye sockets rendered in DEEP BLACKS; his face is a mask of FLAT-COLORED CELS in a sickly, desaturated palette. To his right stands Tyler Durden, designed with the predatory charisma of a lean wolf and constructed on a sharply triangular model with prominent cheekbones; his iconic TYLERS RED LEATHER JACKET catches BRILLIANT HIGHLIGHTS from the oppressive overhead fluorescent lights. The DENSELY DETAILED PAINTED BACKGROUND of the train car is a claustrophobic tube of metal covered in fine-lined ink grime and peeling advertisements, creating a sense of urban decay. The entire scene simulates a continuous take with subtle CAMERA SHAKE and a MULTI-LAYER PARALLAX effect, causing the background and foreground cels to shift independently with the train's rumble. An ANIMATED RACK FOCUS shifts from Tyler's profile to The Narrator's weary expression, then back to Tyler, who smirks with movements animated on twos. A large passenger with a mass of dark hair crosses between them, momentarily obscuring the view before the shot settles back on Tyler, who puffs his cheeks in a grotesque, exaggerated expression captured with distorted SMEAR FRAMES before locking his eyes forward.
+
+    overrides:
+      frames: 81
+
+  - title: CH15-Clip0012 — Locked Down Two Silhouetted Figures
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down wide shot is framed between two silhouetted figures in the foreground, their BOLD BLACK INK OUTLINES creating a claustrophobic window into a brutal fight. In the center of a grimy concrete basement, rendered as a DENSELY DETAILED PAINTED BACKGROUND with cracked floors and sweating pipes, Tyler Durden is mounted on a downed opponent. Tyler is designed with the predatory charisma of a lean wolf, constructed on a sharply triangular model with prominent cheekbones; his shirtless torso is a mass of FLAT-COLORED CELS defined by sinewy muscle and covered in BRILLIANT HIGHLIGHTS from a single, harsh overhead lightbulb. He unleashes a savage barrage of punches, each movement animated on ones with distorted SMEAR FRAMES and punctuated by stark white IMPACT FRAMES that trigger a simulated CAMERA SHAKE. Opaque, hand-drawn blood splatter cels erupt with each connection, staining the cel layers. A hard cut shifts to a medium close-up of The Narrator watching from the crowd, designed with the physical archetype of a hollowed-out manikin built on a dolichocephalic head shape with gaunt, sunken cheeks; his face is a mask of detached fascination, half-swallowed by the DEEP BLACKS of the oppressive shadows. Another hard cut returns to the fight as Tyler delivers the final, concussive blows, his opponent's body going limp. The scene transitions to a continuous low-angle TRACKING SHOT as Tyler rises to his feet, his body gleaming with sweat and blood, his chest heaving as OPAQUE PAINTED SMOKE PLUMES of breath escape his lips. He stands triumphant over his unconscious foe, a modern gladiator illuminated by the sickly yellow glow of the industrial light, which catches the blood on his mouth and casts long, hard-edged shadows across the awestruck faces of the PROJECT MAYHEM onlookers.
+
+    overrides:
+      frames: 81
+
+  - title: CH15-Clip0013 — Locked Down Tilts Down Single
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A high-angle locked-down shot tilts down from a single, caged industrial lightbulb casting a sickly yellow glow, revealing a wide shot of a subterranean fight. In the center of a circle of onlookers, The Narrator, designed with the physical archetype of a **hollowed-out manikin** built on a dolichocephalic head shape with gaunt, sunken cheeks, faces off against a hulking opponent. The DENSELY DETAILED PAINTED BACKGROUND depicts a crumbling concrete basement with exposed pipes and deep, oppressive shadows rendered in DEEP BLACKS. The opponent lunges, his movement a series of gritty SMEAR FRAMES animated on ones, and hoists The Narrator into the air. In a violent arc punctuated by MOTION BLUR LINES, he slams him to the ground, the impact registered with a stark white IMPACT FRAME and a jarring, simulated CAMERA SHAKE. A series of hard cuts show the frenzied reactions of the crowd, their faces contorted masks of BOLD BLACK INK OUTLINES and FLAT-COLORED CELS. Another hard cut reveals a close-up of TYLER DURDEN watching from the sidelines; he is designed with the predatory charisma of a **lean wolf**, constructed on a sharply triangular model with prominent cheekbones. His skin catches BRILLIANT HIGHLIGHTS from the overhead light as he raises a cigarette, its tip glowing red before he exhales an OPAQUE PAINTED SMOKE PLUME. The fight concludes with a low-angle shot from behind a defeated Narrator on his knees, his face a mess of hand-drawn blood splatter cels. An ANIMATED RACK FOCUS shifts from his blurred silhouette to the sharp figure of TYLER DURDEN in the background, who gestures with a beer bottle, the other onlookers reduced to SOFT BOKEH circles of light and shadow.
+
+    overrides:
+      frames: 81
+
+  - title: CH15-Clip0014 — Tight Up Frames Battered Face
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A tight close-up shot frames the battered face of The Narrator, who is designed with the physical archetype of a hollowed-out manikin built on a dolichocephalic head shape with gaunt, sunken cheeks. His features are drawn with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS in a sickly, desaturated palette, with an opaque, hand-drawn blood splatter cel covering his left eye. A harsh, singular overhead light source creates BRILLIANT HIGHLIGHTS on his sweaty skin and casts DEEP BLACKS that obscure the background. A HARD CUT to a static top-down view reveals a thick pool of dark red blood rendered as an opaque cel on the DENSELY DETAILED PAINTED BACKGROUND of a grimy, cracked concrete floor. Another HARD CUT snaps to a low-angle medium shot from the floor, showing The Narrator kneeling as his massive opponent looms over him, the figures silhouetted against the oppressive gloom of the basement. In the background, the observing members of PROJECT MAYHEM are a wall of shadowed faces, their forms defined by the oppressive, hard-edged shadows and the GRADIENT AIRBRUSHING of industrial haze. The camera executes a slow, deliberate ANIMATED RACK FOCUS, blurring the foreground action as Tyler Durden, positioned centrally in the background, snaps into sharp focus. Tyler Durden is designed with the predatory charisma of a lean wolf, constructed on a sharply triangular model with prominent cheekbones; his shirtless torso is a canvas of chiseled muscle defined by stark highlights and deep shadows. He turns his head with fluid motion animated on ones, points a commanding finger, and his mouth forms words with precise, minimal movement.
+
+    overrides:
+      frames: 81
+
+  - title: CH15-Clip0015 — Extreme Up Face Narrator His
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A low-angle extreme close-up is framed on the face of The Narrator, his head in profile, tilted back as he lies unconscious. He is designed with the physical archetype of a discarded crash-test dummy, constructed on a soft, ovoid model with a weak jawline, rendered here in a FLAT-COLORED CEL with a sickly, desaturated palette. A harsh, singular light source from above casts DEEP BLACKS into his eye sockets while catching BRILLIANT HIGHLIGHTS on the beads of sweat across his forehead and cheek, each droplet individually cel-animated. His skin is marked with small cuts, defined by BOLD BLACK INK OUTLINES. From the top of the frame, a hand in a sterile latex glove, also drawn with heavy ink lines and stark highlights, descends holding a surgical needle. The needle meticulously pierces the skin just above his eyebrow, its metallic glint animated with a single white cel, before the attached thread is pulled through the wound with deliberate, smooth motion animated on ones, the tension in the skin and the slight pull of the flesh captured in excruciating, hand-drawn detail.
+
+    overrides:
+      frames: 45
+
+  - title: CH15-Clip0016 — Locked Down Up Face Narrator
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down, low-angle close-up shot is framed on the face of The Narrator, who is designed with the physical archetype of a hollowed-out manikin, his dolichocephalic head shape and gaunt, sunken cheeks rendered in BOLD BLACK INK OUTLINES. He lies supine on a medical table, his sweaty skin catching a single BRILLIANT HIGHLIGHT from an overhead surgical lamp that casts his features in oppressive, hard-edged DEEP BLACKS. An out-of-focus doctor in the mid-ground, a figure of flat-colored cels in a white lab coat, meticulously probes his mouth with an ink-lined steel dental tool. In the DENSELY DETAILED PAINTED BACKGROUND, a reflection in a sterile glass panel reveals Tyler Durden, designed with the predatory charisma of a lean wolf and constructed on a sharply triangular model with prominent cheekbones. He sits observing, a coolly desaturated figure in his iconic TYLERS RED LEATHER JACKET, his form slightly blurred to simulate a shallow depth of field. The entire scene is bathed in a sickly cyan fluorescent glow achieved with GRADIENT AIRBRUSHING, which catches the glint of meticulously drawn surgical instruments on a tray and the grime in the cracks of the tiled wall, creating a cold, clinical atmosphere.
+
+    overrides:
+      frames: 81
+
+  - title: CH15-Clip0017 — Static Up Tightly Corroded Brass
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A static close-up shot is tightly framed on a corroded brass faucet jutting from the DENSELY DETAILED PAINTED BACKGROUND of a grimy, water-stained wall inside THE PAPER STREET HOUSE. The lighting is harsh and singular, coming from above to cast DEEP BLACKS and create sharp, BRILLIANT HIGHLIGHTS on the wet, tarnished metal. From the right of the frame, a hand drawn with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS of a pale, sickly flesh tone enters holding a toothbrush. A steady, unbroken stream of thick, opaque brown liquid pours from the tap, animated as a viscous fluid. The hand thrusts the toothbrush into the stream, moving it back and forth in a rapid, jittery motion that is animated on ones, leaving behind distorted SMEAR FRAMES and faint MOTION BLUR LINES that cut through the filthy water. After a moment, the hand quickly retracts, exiting the frame and leaving only the continuous, disgusting flow against the decaying backdrop.
+
+    overrides:
+      frames: 29
+
+  - title: CH15-Clip0018 — Up Profile Narrator He Aggressively
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A medium close-up is framed in profile on The Narrator as he aggressively brushes his teeth, his face a mess of bruises and a crude bandage rendered in FLAT-COLORED CELS. He is designed with the physical archetype of a **hollowed-out manikin**, constructed with a dolichocephalic (long and narrow) head shape and gaunt, sunken cheeks, all defined by BOLD BLACK INK OUTLINES. The DENSELY DETAILED PAINTED BACKGROUND of THE PAPER STREET HOUSE bathroom is lost in oppressive, DEEP BLACKS, with a single bare bulb off-screen casting BRILLIANT HIGHLIGHTS on his sweaty skin. HARD CUT to an over-the-shoulder shot of Tyler Durden, shirtless in a filthy, candle-lit bathroom corner. Tyler is designed with the predatory charisma of a **lean wolf**, his head constructed on a sharply triangular model with prominent cheekbones. The flickering candlelight creates moving, hard-edged shadows across his defined back muscles, each ripple animated on ones. A rapid sequence of HARD CUTS bounces between them as they speak, preserving the jarring rhythm. The Narrator stops brushing, his expression shifting from pained effort to dawning horror as he leans over and spits. A QUICK ZOOM follows a single, bloody tooth, an opaque hand-drawn cel, as it arcs through the air with MOTION BLUR LINES and lands in his palm with a wet smack, punctuated by a simulated CAMERA SHAKE. As The Narrator stares at the tooth, Tyler's reflection materializes in the grimy mirror behind him, stepping out of the shadows with a cigarette dangling from his lips, its ember glowing with GRADIENT AIRBRUSHING and leaving faint trails of OPAQUE PAINTED SMOKE PLUMES. Tyler turns and walks away from the mirror, his animated form receding into the darkness of THE PAPER STREET HOUSE.
+
+    overrides:
+      frames: 81
+
+  - title: CH15-Clip0019 — Static Top Down Locked Bathroom
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A static high-angle top-down shot is locked onto a bathroom sink within THE PAPER STREET HOUSE, a masterpiece of decay rendered as a DENSELY DETAILED PAINTED object. The porcelain basin, defined by BOLD BLACK INK OUTLINES, is a web of hairline cracks and faded floral patterns nearly obscured by layers of grime and soap scum, all rendered with fine-lined ink work and a sickly, desaturated color palette. Two tarnished brass faucets jut into the top of the frame, their metallic surfaces catching a single, harsh light source that creates BRILLIANT HIGHLIGHTS against the surrounding filth. From the right faucet, a continuous stream of dirty brown water, animated as a flat-colored cel of sickening ochre, pours into the basin, its impact creating tiny, hand-drawn splash cels that ripple outwards for a few frames. The oppressive lighting casts the drain into an abyss of DEEP BLACKS, emphasizing the utter squalor of the environment.
+
+    overrides:
+      frames: 13
+
+  - title: CH15-Clip0020 — Locked Down Extreme Up Direct
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down extreme close-up, shot from a direct top-down angle, fills the frame with the gaping maw of a sink drain, rendered as a DENSELY DETAILED PAINTED BACKGROUND of filth and decay. Fine-lined ink work defines hairline cracks spiderwebbing through the sickly, off-white porcelain, which is stained with patches of brownish grime and dried blood under a harsh, singular light source that creates DEEP BLACKS within the drain itself. Suddenly, a single molar, drawn with BOLD BLACK INK OUTLINES and filled with a flat bone-colored cel, drops into the frame from above, leaving faint MOTION BLUR LINES in its wake. It is animated on ones for a rapid, jarring descent, striking the inner lip of the drain with a sharp, kinetic bounce that triggers a slight, simulated CAMERA SHAKE. The tooth tumbles once before coming to a rest at the bottom of the drain's throat, its wet surface catching a single BRILLIANT HIGHLIGHT against the oppressive darkness of the plumbing's abyss.
+
+    overrides:
+      frames: 25
+
+  - title: CH15-Clip0021 — Locked Down Up Centers Vintage
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down close-up centers on a vintage black rotary wall phone, rendered with BOLD BLACK INK OUTLINES and a sharp, singular BRILLIANT HIGHLIGHT painted across its Bakelite surface. The phone is mounted on a decaying wooden wall with peeling paint, a detail within the DENSELY DETAILED PAINTED BACKGROUND of THE PAPER STREET HOUSE. To the right, an industrial lamp provides a harsh key light, its glow achieved with GRADIENT AIRBRUSHING, casting DEEP BLACKS and oppressive, hard-edged shadows onto the surrounding grime. The shot then initiates a slow, continuous TRACKING SHOT backward, creating a subtle MULTI-LAYER PARALLAX effect as the foreground wall cels move slightly faster than the deeper background layers of the dilapidated room, revealing grimy windows and the sickly, desaturated color palette of the urban decay beyond.
+
+    overrides:
+      frames: 1

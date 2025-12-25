@@ -1,0 +1,74 @@
+{
+  "materials": [
+    "FLAT-COLORED CELS",
+    "BOLD BLACK INK OUTLINES",
+    "DENSELY DETAILED PAINTED BACKGROUND",
+    "OPAQUE PAINTED SMOKE PLUMES",
+    "GRADIENT AIRBRUSHING",
+    "TRANSLUCENT ENERGY AURA",
+    "hand-drawn sparks",
+    "painted dust/debris",
+    "MOTION BLUR LINES",
+    "LIGHT TRAILS"
+  ],
+  "lighting": [
+    "DEEP BLACKS",
+    "BRILLIANT HIGHLIGHTS",
+    "overexposed bloom",
+    "white IMPACT FRAME",
+    "colored neon spill",
+    "warm core/cool rim"
+  ],
+  "camera": [
+    "static wide shot",
+    "static medium shot",
+    "low-angle shot",
+    "high-angle shot",
+    "top-down shot",
+    "fisheye perspective",
+    "TRACKING SHOT",
+    "push-in",
+    "pull-out",
+    "simulated zoom",
+    "iris wipe",
+    "whip pan",
+    "POV shot",
+    "MULTI-LAYER PARALLAX"
+  ],
+  "motion": [
+    "animated on ones",
+    "animated on twos",
+    "slow push-in",
+    "rapid pull-out",
+    "subtle vibration",
+    "drifting smoke",
+    "debris float"
+  ],
+  "fx": [
+    "ANAMORPHIC-STYLE LENS FLARE",
+    "SOFT BOKEH",
+    "muzzle flashes",
+    "white impact frame",
+    "stylized explosion cores (yellow/orange)",
+    "painted shockwave",
+    "lightning arc",
+    "glitch/static overlay"
+  ],
+  "tokens": [
+    "KANEDAS RED MOTORCYCLE",
+    "RED RIDING SUIT",
+    "THE PILL CAPSULE SYMBOL",
+    "TETSUOS MUTATING ARM / BODY HORROR",
+    "RED CAPE",
+    "CYBERNETIC PROSTHETICS",
+    "LASER CANNON",
+    "LASER CANNON SATELLITE (SOL)"
+  ],
+  "palettes": [
+    "neon night: pink/magenta/cyan over teal shadow",
+    "fire: yellow→orange cores, dark red/black plumes",
+    "industrial: greens/ochres, dusty violets",
+    "overcast: grey-blue with ochre cloud shadows"
+  ]
+}
+

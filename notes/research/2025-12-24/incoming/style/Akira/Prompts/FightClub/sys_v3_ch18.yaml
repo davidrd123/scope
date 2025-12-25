@@ -1,0 +1,121 @@
+batch:
+  name: Akira-FightClub-Sysprompt-v3-Ch18
+  session: FightClub-ColorTransformation
+
+defaults:
+  workflow_template: Templates/Workflows/WAN22/t2v/wan2_2_t2v_speedup_v1
+  width: 720
+  height: 1280
+  frames: 65
+  runs: 1
+  t2v_lora_low: akira/v1.1/akira_v1.1_wan_low_6500steps.safetensors
+  t2v_lora_high: akira/akira_v1_wan_high_14250steps.safetensors
+  t2v_steps: 10
+  t2v_high_steps: 6
+  negative_prompt: |
+    色调艳丽, 过曝, 静态, 细节模糊不清, 字幕, 风格, 作品, 画作, 画面, 静止, 整体发灰, 最差质量, 低质量, JPEG压缩残留, 丑陋的, 残缺的, 多余的手指, 画得不好的手部, 画得不好的脸部, 畸形的, 毁容的, 形态畸形的肢体, 手指融合, 杂乱的背景, 背景人很多, 倒着走, slow-motion, split screen, text, signature, watermark, logo, timestamp, cartoon, modern anime style, moe, chibi, illustration, 3d render, CGI, rendered, painting, sketch, comic book style, plastic skin, overly smooth features, doll-like, mannequin, untextured surfaces, artifacting, compression artifacts, glitch, digital noise, banding, pixelation, frame, border, collage, oversaturated, pastel colors, soft colors, flat lighting, low contrast, low detail background, empty background, out of focus detail, extreme color cast, monochrome unless specified, generic AI look, uncanny valley, poorly fused elements, inconsistent lighting unless specified
+
+jobs:
+  - title: CH18-Clip0001 — A Medium Close-up Is Framed On Tyler Durden
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A medium close-up is framed on Tyler Durden, positioned just right of center against a large, grimy window. He is designed with the predatory charisma of a lean jackal, his head constructed on a sharply triangular model with prominent cheekbones and a defined jawline. His features are rendered with BOLD BLACK INK OUTLINES, and his spiky hair is a mess of sharp, individual strands catching BRILLIANT HIGHLIGHTS from the overpowering window light. His distinctive patterned shirt is a field of FLAT-COLORED CELS in sickly oranges, reds, and yellows, a chaotic visual against the DENSELY DETAILED PAINTED BACKGROUND of THE PAPER STREET HOUSE's decaying window frame, complete with fine-lined ink work detailing rust stains and peeling paint. The harsh, flat light from outside blows out the exterior view into an oppressive white void, casting DEEP BLACKS as hard-edged, oppressive shadows that carve out the hollows of his cheeks and the line of his neck. A subtle GRADIENT AIRBRUSHING effect gives the ambient light a hazy quality, while the out-of-focus bottles in the extreme foreground are rendered as simple, blurred cel shapes to simulate a shallow depth of field as he holds a knowing smirk, his eyes looking slightly up and off-screen with a faint, condescending glimmer animated as a single highlight cel.
+
+    overrides:
+      frames: 1
+
+  - title: CH18-Clip0002 — A Low-angle TRACKING SHOT Follows The Narrator And
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A low-angle TRACKING SHOT follows The Narrator and Tyler Durden as they run from left to right across a rain-slicked parking lot at night. The Narrator is designed with the physical archetype of a hollowed-out manikin, constructed on a brachycephalic (wide) head shape with soft, undefined features. Tyler Durden is designed with the predatory charisma of a lean wolf, built on a sharply triangular model with prominent cheekbones and a strong jawline. Both are rendered with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS in a sickly, desaturated palette. In the DENSELY DETAILED PAINTED BACKGROUND, a sterile medical center looms, its windows reflecting the inky black sky. Harsh, singular light sources cast DEEP BLACKS and create BRILLIANT HIGHLIGHTS on the wet asphalt. Tyler, carrying large sacks, vaults a chain-link fence in a fluid motion animated on ones with distorted SMEAR FRAMES, while The Narrator clumsily follows, struggling over the top. They take cover behind a large dumpster as a hard cut reveals a security guard emerging, his flashlight cutting through the darkness with a sharp, geometric ANAMORPHIC-STYLE LENS FLARE. A series of quick, hard cuts alternates between the guard methodically scanning the area and a tight shot of The Narrator and Tyler huddled in shadow. After the guard departs, Tyler reveals the grotesque contents of the bags to The Narrator, who looks on in disbelief. A hard cut to a high-angle master shot shows the entire grimy loading dock, filled with biohazard containers. Tyler, now on the ground, begins tossing the heavy, translucent bags filled with glistening, hand-drawn human fat up to The Narrator, who is perched precariously atop the fence. Each toss is animated with a sense of weight and momentum, with one bag tearing and spilling its viscous, painted contents down the fence as The Narrator fumbles the catch, his face a mask of disgust under the oppressive, singular light source.
+
+    overrides:
+      frames: 81
+
+  - title: CH18-Clip0003 — An Extreme Close-up Fills The Frame With A
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      An extreme close-up fills the frame with a churning vat of viscous, sickly yellow liquid, its surface rendered in FLAT-COLORED CELS with BOLD BLACK INK OUTLINES defining each nauseating bubble that bursts with a wet pop. A BRILLIANT HIGHLIGHT from a single overhead bulb glints off the greasy surface, casting the surrounding metal pot into DEEP BLACKS. A hard cut pulls back to a medium two-shot, revealing the artisans of this vile concoction standing over the stove in the DENSELY DETAILED PAINTED BACKGROUND of THE PAPER STREET HOUSE kitchen, a space defined by peeling paint and grime rendered in meticulous fine-lined ink work. On the right, The Narrator, designed with the physical archetype of a **hollowed-out manikin** built on a dolichocephalic head shape with gaunt, sunken cheeks, stirs the mix with a wooden spoon, his movements stiff and uncertain. To his left stands Tyler Durden, designed with the predatory charisma of a **lean wolf** and constructed on a sharply triangular model with prominent cheekbones. He wears his iconic TYLERS RED LEATHER JACKET and observes the process with an intense, proprietary focus, the harsh light catching the edge of his jaw. OPAQUE PAINTED SMOKE PLUMES of chemical steam rise from the pot, rendered with soft GRADIENT AIRBRUSHING as they curl into the oppressive shadows of the room, signifying the birth of PAPER STREET SOAP CO.
+
+    overrides:
+      frames: 13
+
+  - title: CH18-Clip0004 — An Extreme Close-up Is Framed With A Tight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      An extreme close-up is framed with a tight, locked-down composition, focusing on an old, grimy industrial thermometer occupying the right third of the screen. The gauge is rendered with BOLD BLACK INK OUTLINES, its face a flat-colored cel of sickly, yellowed-white marked by hairline cracks and smudges of dirt. A single, harsh light source from off-screen creates a BRILLIANT HIGHLIGHT across the curved glass, casting the rest of the instrument's metal body into DEEP BLACKS with hard-edged shadows. Behind it, the DENSELY DETAILED PAINTED BACKGROUND of THE PAPER STREET HOUSE basement is a mess of corroded pipes and peeling paint, softened into a shallow depth of field with GRADIENT AIRBRUSHING to simulate an atmospheric haze of chemical steam. The indicator needle is a sharp, black line, frozen and unmoving, pointing to a temperature critical for rendering fat into soap for PAPER STREET SOAP CO., its stillness creating a moment of tense, industrial quiet.
+
+    overrides:
+      frames: 13
+
+  - title: CH18-Clip0005 — A Tight Close-up Is Framed On A Finely
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A tight close-up is framed on a finely detailed, hand-inked metal sieve, its mesh catching a harsh overhead light that creates BRILLIANT HIGHLIGHTS. A thick, viscous stream of rendered human fat, animated as a lumpy, off-white cel layer with BOLD BLACK INK OUTLINES, is poured from a pot into the sieve, the camera executing a slow vertical TRACKING SHOT to follow the strained, sickly yellow liquid as it drips into a translucent container below. A hard cut transitions to a static medium shot inside the kitchen of THE PAPER STREET HOUSE, where Tyler Durden stands left of center, stirring a pot. Tyler is designed with the predatory energy of a feral coyote, constructed on a sharply triangular model with prominent cheekbones; his spiky hair is a mass of sharp, inked lines, and an OPAQUE PAINTED SMOKE PLUME curls from the cigarette clamped in his mouth. To his right stands The Narrator, watching intently, designed with the physical archetype of a hollowed-out manikin, his face built on a dolichocephalic head shape with gaunt, sunken cheeks and wide, anxious eyes. The DENSELY DETAILED PAINTED BACKGROUND depicts the kitchen's decay: peeling paint, exposed pipes leaking hand-drawn drips of water, and layers of grime rendered with fine-lined ink work, all shrouded in GRADIENT AIRBRUSHING to simulate a thick, hazy atmosphere. An ANIMATED RACK FOCUS shifts the plane of sharpness from Tyler's focused work to The Narrator's sweat-sheened face, which catches a BRILLIANT HIGHLIGHT from the singular light source. Tyler then turns and walks away from the camera in a continuous TRACKING SHOT that uses MULTI-LAYER PARALLAX to create a sense of depth as he moves past cluttered shelves and hanging pots, becoming a stark silhouette defined by DEEP BLACKS and backlit by a single bare bulb that creates a sharp, geometric ANAMORPHIC-STYLE LENS FLARE before he opens a refrigerator, the sudden interior light casting a new, flat-colored cel of harsh white light across his back.
+
+    overrides:
+      frames: 81
+
+  - title: CH18-Clip0006 — A Low-angle Medium Shot Is Locked Down, Framed
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A low-angle medium shot is locked down, framed from the perspective of looking up into the sickly interior of the refrigerator in THE PAPER STREET HOUSE, where the stark fluorescent light source from above creates BRILLIANT HIGHLIGHTS and DEEP BLACKS. The Narrator's arm enters the frame from the top, designed with the gaunt, sinewy quality of a **scavenging animal** and constructed with a focus on its lean, bony structure defined by BOLD BLACK INK OUTLINES. The arm hovers momentarily over two large plastic pitchers filled with rendered human fat, the substance itself a FLAT-COLORED CEL of opaque, greasy yellow destined for PAPER STREET SOAP CO. The background is a DENSELY DETAILED PAINTED BACKGROUND of stained, yellowed plastic and rust spots catching the harsh light. With a sudden movement animated on ones, the hand grasps one of the pitchers, its removal from the shelf rendered with aggressive, distorted SMEAR FRAMES and MOTION BLUR LINES that emphasize the abruptness of the action as it is pulled up and out of the frame.
+
+    overrides:
+      frames: 21
+
+  - title: CH18-Clip0007 — A Medium Shot Is Framed On Tyler Durden
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A medium shot is framed on Tyler Durden, initially seen from behind as he stands before an open refrigerator in the dilapidated kitchen of THE PAPER STREET HOUSE. Tyler is designed with the predatory charisma of a **lean wolf**, his physical form constructed on a sharply triangular model with prominent cheekbones and a defined jawline, all rendered in BOLD BLACK INK OUTLINES and FLAT-COLORED CELS. The DENSELY DETAILED PAINTED BACKGROUND reveals peeling paint, cracked tile, and exposed wiring, all illuminated by the sickly, pale light spilling from the grimy fridge. He turns in a smooth motion animated on twos, stepping away from the fridge as the camera begins a slow TRACKING SHOT that pushes in towards him. A single, harsh bare bulb hanging from a wire becomes the key light source, casting DEEP BLACKS across one side of his face and creating sharp, BRILLIANT HIGHLIGHTS on his sweat-slicked skin. He holds up a translucent plastic container of viscous, rendered fat, its murky contents sloshing on a separate cel layer. With a cigarette clamped between his lips, he speaks, his words punctuated by a drag that causes the tip to glow intensely before he exhales a thick cloud of OPAQUE PAINTED SMOKE PLUMES, which curl upward with delicate GRADIENT AIRBRUSHING against the oppressive shadows of the room.
+
+    overrides:
+      frames: 57
+
+  - title: CH18-Clip0008 — A Locked-down Medium Close-up Is Framed On The
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down medium close-up is framed on The Narrator, who is designed with the physical archetype of a hollowed-out manikin, constructed on a dolichocephalic (long and narrow) head shape with gaunt, sunken cheeks. His face, rendered with BOLD BLACK INK OUTLINES and filled with a FLAT-COLORED CEL of pale, sallow skin, is marked by faint bruises and sheened with sweat rendered as sharp BRILLIANT HIGHLIGHTS from an unseen overhead source. He stands within the decaying interior of THE PAPER STREET HOUSE, captured as a DENSELY DETAILED PAINTED BACKGROUND of peeling, sickly green wallpaper and deep, oppressive shadows rendered in DEEP BLACKS. In the far background, a single exposed bulb creates a hazy glow with GRADIENT AIRBRUSHING and out-of-focus SOFT BOKEH circles. Initially looking down and to the left, his head slowly lifts and turns in a movement animated on twos to emphasize his exhaustion, shifting his gaze slightly off-camera as his shadowed, weary eyes settle into a thousand-yard stare.
+
+    overrides:
+      frames: 25
+
+  - title: CH18-Clip0009 — A Locked-down, Low-angle Medium Shot Centers On Tyler
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down, low-angle medium shot centers on Tyler Durden, who is designed with the predatory charisma of a lean wolf and constructed on a sharply triangular model with prominent cheekbones. His form is rendered with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS, his sweat-soaked skin catching the harsh, singular light from a bare bulb hanging above, creating BRILLIANT HIGHLIGHTS and casting his face in oppressive, hard-edged DEEP BLACKS. A cigarette dangles from his lips, its trail of OPAQUE PAINTED SMOKE PLUMES rendered with soft GRADIENT AIRBRUSHING as it curls into the gloom of THE PAPER STREET HOUSE, a DENSELY DETAILED PAINTED BACKGROUND of peeling paint, water stains, and visible ink-work grime. He holds a clear plastic container as he speaks, then fluidly lowers his head, his spiky hair animated on ones to catch the light before he is consumed by shadow. A HARD CUT to a medium shot frames The Narrator, who is designed with the physical archetype of a hollowed-out manikin and a dolichocephalic head shape with gaunt, sunken cheeks. A dark patch of sweat stains his grey shirt, rendered with a darker, flat cel color, and his weary, bruised face is a mask of passive confusion as he listens, his eyes shifting slightly within the high-contrast shadows of the dilapidated room.
+
+    overrides:
+      frames: 81
+
+  - title: CH18-Clip0010 — A Locked-down Medium Shot Is Framed From Behind
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down medium shot is framed from behind Tyler Durden, his back dominating the center-right of the composition as he works at a filthy sink inside THE PAPER STREET HOUSE. Tyler is designed with the predatory charisma of a lean wolf, his physique rendered in BOLD BLACK INK OUTLINES and constructed on a sharply triangular model with prominent cheekbones visible even in profile. He is animated on twos, his movements economical and deliberate. The DENSELY DETAILED PAINTED BACKGROUND reveals a kitchen consumed by urban decay, with peeling paint, water-stained walls, and shelves cluttered with unlabeled chemical bottles, all rendered in a sickly, desaturated color palette. A single, harsh utility lamp hangs overhead, casting DEEP BLACKS into the room's corners and creating a BRILLIANT HIGHLIGHT that traces the muscles of his back through his brightly patterned, FLAT-COLORED CEL shirt. He pauses his work, bringing a lit cigarette to his lips in a smooth motion, its cherry glowing a piercing, hot red before he exhales a thick, OPAQUE PAINTED SMOKE PLUME that curls slowly upward, rendered with soft GRADIENT AIRBRUSHING against the oppressive gloom.
+
+    overrides:
+      frames: 49
+
+  - title: CH18-Clip0011 — A Locked-down Medium Close-up Frames The Narrator From
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down medium close-up frames The Narrator from the chest up, positioned centrally in the composition. He is designed with the physical archetype of a hollowed-out manikin built on a dolichocephalic (long and narrow) head shape with gaunt, sunken cheeks. His features are rendered in BOLD BLACK INK OUTLINES on a FLAT-COLORED CEL with a sickly, desaturated skin tone, his gray shirt stained with a dark patch of sweat. A harsh, singular light source from above casts DEEP BLACKS into his eye sockets and creates BRILLIANT HIGHLIGHTS on the glistening sweat across his forehead and cheek. Behind him, the interior of THE PAPER STREET HOUSE is a DENSELY DETAILED PAINTED BACKGROUND of crumbling plaster, exposed pipes, and deep shadows, with distant bare bulbs rendered as SOFT BOKEH circles. He holds a thousand-yard stare, his bruised eye slightly swollen, before his expression subtly shifts; his head turns slowly to the right in a deliberate movement animated on twos, his eyes narrowing with a newfound focus as he processes information from off-screen.
+
+    overrides:
+      frames: 33
+
+  - title: CH18-Clip0012 — A Medium TRACKING SHOT Follows Tyler Durden Leftward
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A medium TRACKING SHOT follows Tyler Durden leftward through the oppressive gloom of the kitchen in THE PAPER STREET HOUSE, his movement animated on ones for unsettling smoothness. Tyler is designed with the predatory charisma of a lean jackal, constructed on a sharply triangular model with a strong jawline and prominent cheekbones; his entire form is defined by BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS. A hard cut shifts the composition to a locked-down, over-the-shoulder medium shot, framed from behind Tyler's out-of-focus shoulder which dominates the foreground right. The focus is now on The Narrator, who stands motionless, his body turned slightly away. The Narrator is designed with the physical archetype of a hollowed-out manikin, built on a dolichocephalic head shape with gaunt, sunken cheeks and perpetually exhausted eyes. A single, harsh key light from frame-left carves his cel-shaded form from the environment, creating BRILLIANT HIGHLIGHTS on his skin and casting oppressive, hard-edged DEEP BLACKS across the right side of his face and body. Behind him, the DENSELY DETAILED PAINTED BACKGROUND reveals a landscape of urban decay: chemical bottles, grimy containers, and a rust-stained ventilation hood, all rendered with meticulous fine-lined ink work and a sickly, desaturated color palette that sinks into pools of impenetrable shadow.
+
+    overrides:
+      frames: 81
+
+  - title: CH18-Clip0013 — A Medium Shot Is Framed Over The Left
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A medium shot is framed over the left shoulder of The Narrator, his form rendered with the physical archetype of a **hollowed-out manikin**, constructed with a nondescript ovoid head shape and deep, shadowed eye sockets that occupy the foreground. The focus is on Tyler Durden, who stands right of center, designed with the predatory charisma of a **lean jackal** and constructed on a sharply triangular model with a strong, angular jaw. His form, encased in a loud, patterned shirt, is drawn with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS. He is illuminated from above by a harsh, singular light source of bare bulbs, which casts BRILLIANT HIGHLIGHTS across his sweaty skin and creates oppressive, hard-edged shadows in the form of DEEP BLACKS that slice across the room. The DENSELY DETAILED PAINTED BACKGROUND reveals the urban decay of THE PAPER STREET HOUSE kitchen, a mess of exposed pipes, peeling paint, and grimy countertops all captured with visible, fine-lined ink work. A sickly, dusty atmosphere is rendered with subtle GRADIENT AIRBRUSHING as Tyler gestures emphatically, his confident movements animated on twos to give them weight and purpose in the locked-down, claustrophobic frame.
+
+    overrides:
+      frames: 1

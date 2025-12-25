@@ -1,0 +1,480 @@
+batch:
+  name: Akira-T2V-2001-Monolith
+  session: T2V-2001-Monolith
+
+defaults:
+  workflow_template: Templates/Workflows/WAN22/t2v/wan2_2_t2v_speedup_v1
+  width: 720
+  height: 1280
+  frames: 81
+  runs: 4
+  t2v_lora_low: akira/akira_v1_wan_low_13000steps.safetensors
+  t2v_lora_high: akira/akira_v1_wan_high_14250steps.safetensors
+  t2v_steps: 8
+  t2v_high_steps: 4
+  negative_prompt: |
+    色调艳丽, 过曝, 静态, 细节模糊不清, 字幕, 风格, 作品, 画作, 画面, 静止, 整体发灰, 最差质量, 低质量, JPEG压缩残留, 丑陋的, 残缺的, 多余的手指, 画得不好的手部, 画得不好的脸部, 畸形的, 毁容的, 形态畸形的肢体, 手指融合, 杂乱的背景, 背景人很多, 倒着走, slow-motion, split screen, text, signature, watermark, logo, timestamp, cartoon, modern anime style, moe, chibi, illustration, 3d render, CGI, rendered, painting, sketch, comic book style, plastic skin, overly smooth features, doll-like, mannequin, untextured surfaces, artifacting, compression artifacts, glitch, digital noise, banding, pixelation, frame, border, collage, oversaturated, pastel colors, soft colors, flat lighting, low contrast, low detail background, empty background, out of focus detail, extreme color cast, monochrome unless specified, generic AI look, uncanny valley, poorly fused elements, inconsistent lighting unless specified
+
+jobs:
+  # # Dawn of Man - Low Angle Reach (Chapter 3, seg35)
+  # - title: Ch03-Seg35-Monolith-Reach-LowAngle
+  #   prompt: |
+  #     1988 Cel Animation — A low-angle wide shot emphasizes the imposing verticality of a towering black monolith against a dramatic sky. The DENSELY DETAILED PAINTED BACKGROUND depicts a desolate industrial wasteland with jagged rock formations rendered in ochre and grey tones, arranged in diagonal lines converging toward the central monolith. The monolith itself is a precisely rendered slab with BOLD BLACK INK OUTLINES, its surface a deep, featureless black with subtle gradient highlights catching harsh backlighting from behind. Three figures occupy the foreground and midground, rendered as FLAT-COLORED CELS with simplified features. The central figure, positioned near the monolith's base, extends their right arm in a deliberate, fluid motion animated on twos, fingers reaching toward the monolith's surface. Strong warm backlighting emanates from behind the structure, casting long, soft-edged shadows forward while creating BRILLIANT HIGHLIGHTS on the monolith's edge and faint rim lighting on the figures' silhouettes. The sky features GRADIENT AIRBRUSHING in pale yellow-white, suggesting dawn. The scene emphasizes the stark contrast between the organic human forms and the perfect geometric precision of the monolith, creating a sense of otherworldly encounter in the high-contrast lighting with DEEP BLACKS.
+
+  # # Dawn of Man - Clustered Apes (Chapter 3, seg37)
+  # - title: Ch03-Seg37-Monolith-Cluster-LowAngle
+  #   prompt: |
+  #     1988 Cel Animation — A low-angle wide shot captures several figures clustered nervously at the base of a towering black monolith. The monolith, rendered with BOLD BLACK INK OUTLINES, stands center-right as a perfectly vertical slab with a semi-gloss finish showing subtle wood grain texture beneath deep black cel shading. The DENSELY DETAILED PAINTED BACKGROUND features an arid landscape of carved rock formations in ochre, sienna, and grey, with a hand-painted sky depicting a hazy pale blue bleeding into light tan at the horizon. Multiple figures, rendered as FLAT-COLORED CELS with simplified features, huddle at the monolith's base. One figure mid-ground center cautiously reaches a hand toward the monolith's surface in a hesitant three-frame sequence, the motion animated on twos with the arm pivoting at shoulder, then elbow, then wrist. Other figures remain partially silhouetted against the brighter backdrop. A harsh tungsten light positioned high off-screen right casts long, sharp shadows from the rocks and figures onto the ground, leaving the monolith largely in deep, imposing shadow with high-contrast lighting creating BRILLIANT HIGHLIGHTS and DEEP BLACKS.
+
+  # # Dawn of Man - Vibrant Sunrise Wide (Chapter 3, seg49)
+  # - title: Ch03-Seg49-Monolith-Sunrise-WideShot
+  #   prompt: |
+  #     1988 Cel Animation — A wide low-angle shot reveals a primordial landscape under a dramatic painted dawn sky. The DENSELY DETAILED PAINTED BACKGROUND features a sky with vibrant oranges, deep pinks, and purples near the horizon, fading into pale dusky blue overhead, all rendered with visible textured brushstrokes and GRADIENT AIRBRUSHING. Jagged rock formations rendered in matte browns and ochres dominate the mid-ground. Positioned slightly right of center stands an imposing, featureless black monolith, a perfectly proportioned slab with BOLD BLACK INK OUTLINES, finished with ultra-matte black cel shading that absorbs light while showing faint hints of surface texture. Its perfect geometric form contrasts dramatically with the naturalistic, uneven textures surrounding it. In the foreground and mid-ground left, three figures rendered as FLAT-COLORED CELS huddle together. Their forms feature simplified faces with wide-eyed expressions. One figure, positioned closest to the camera, takes a hesitant step forward in a jerky three-frame movement animated on twos, pivoting its head toward the monolith. Long, hard-edged shadows are cast across the sandy ground by a single powerful low-angle warm light source positioned off-camera left, simulating intense sunrise light. The minimal fill lighting creates deep shadow areas and emphasizes silhouettes, showcasing the high-contrast lighting with DEEP BLACKS and BRILLIANT HIGHLIGHTS on rock edges.
+
+  # # Dawn of Man - Sunrise Assembly (Chapter 4, seg02)
+  # - title: Ch04-Seg02-Monolith-Assembly-Dawn
+  #   prompt: |
+  #     1988 Cel Animation — A wide low-angle shot depicts a desolate landscape at dawn. The DENSELY DETAILED PAINTED BACKGROUND features a vibrant sunrise sky blending from pale yellow near the horizon through bands of saturated orange and pink, with distinct cloud shapes layered on top showing visible swirling painted textures. The foreground shows carved terrain with fine sand and pumice gel texture in teal-green and ochre tones, with larger jagged rock formations screen-left painted in darker umber, casting long soft shadows. Center frame stands the monolith, a perfectly proportioned vertical slab rendered with BOLD BLACK INK OUTLINES, its surface deep ebony black with a subtle semi-gloss finish revealing faint texture under the light. Scattered around the monolith's base are approximately ten figures rendered as FLAT-COLORED CELS with simplified features. Several figures tentatively approach the monolith in jerky frame-by-frame movements animated on twos, their limbs pivoting stiffly. One figure in foreground center pauses with a hand raised slightly in a four-frame hold. Warm low-angle lighting originates off-screen right, simulating sunrise and casting elongated soft-edged shadows from the monolith and figures across the sandy ground. The monolith's front face catches a slight highlight creating BRILLIANT HIGHLIGHTS against DEEP BLACKS in the high-contrast composition.
+
+  # # Dawn of Man - Eye-Level Framed (Chapter 4, seg03)
+  # - title: Ch04-Seg03-Monolith-EyeLevel-Framed
+  #   prompt: |
+  #     1988 Cel Animation — A medium eye-level shot presents a strong vertical composition dominated by the monolith positioned slightly left of center, framed by jagged rock formations on both sides creating a natural frame. The DENSELY DETAILED PAINTED BACKGROUND features a vibrant sunrise sky with streaks of orange, pink, and pale yellow clouds showing distinct layered brushstrokes and GRADIENT AIRBRUSHING. The monolith is a precise vertical slab rendered with BOLD BLACK INK OUTLINES, finished with high-gloss black cel shading that catches a sharp edge highlight from the backlight while showing subtle hints of surface beneath. In the midground, several figures rendered as FLAT-COLORED CELS surround the monolith's base and perch on rocks to the right. One figure mid-ground right is captured in a jerky four-frame sequence animated on twos, jumping back from the monolith with visible motion. Others crouch or stand stiffly, pivoting their heads frame-by-frame toward the imposing slab. Strong backlight positioned behind creates hard-edged shadows and stark silhouettes that obscure facial detail, emphasizing primal forms against the vibrant sky. The primary light source creates high-contrast lighting with BRILLIANT HIGHLIGHTS on rock edges and DEEP BLACKS in shadow areas, mimicking dawn light with hard-edged shadows.
+
+  # # Dawn of Man - Interaction Moment (Chapter 4, seg04)
+  # - title: Ch04-Seg04-Monolith-Touch-Medium
+  #   prompt: |
+  #     1988 Cel Animation — A medium eye-level shot shows a strong vertical composition with the monolith positioned slightly left-of-center against a painted dawn sky. The DENSELY DETAILED PAINTED BACKGROUND features a sky gradient of deep orange near the horizon fading to pale yellow and washed-out blue, with visible slightly streaky brushstrokes. The environment shows rough carved terrain painted in dusty ochre and brown tones with visible texturing. The monolith dominates the frame as a precisely rendered slab with BOLD BLACK INK OUTLINES, its surface ebony black with semi-gloss cel shading reflecting warm light subtly while showing faint hints of texture. Its perfect geometric form contrasts sharply with organic surroundings. Clustered around the monolith's base are five figures rendered as FLAT-COLORED CELS with simplified features showing somewhat exaggerated expressions. One figure positioned center-right foreground hesitantly reaches out a hand in three distinct jerky frames animated on twos, fingers spreading slightly before making contact with the monolith's smooth surface. Another figure crouches low screen-left, peering up with head tilted in a stiff two-frame pivot. Other figures remain positioned around the base in poses of cautious observation. Warm low-angle lighting emanates from screen-right, casting long soft-edged shadows across the landscape and illuminating faces and surfaces, creating distinct highlights on surfaces against high-contrast lighting with DEEP BLACKS and BRILLIANT HIGHLIGHTS.
+
+  # # Lunar Excavation - High Angle Descent (Chapter 13, seg01)
+  # - title: Ch13-Seg01-Excavation-HighAngle-Descent
+  #   prompt: |
+  #     1988 Cel Animation — A wide high-angle shot reveals a meticulously crafted excavation site. The DENSELY DETAILED PAINTED BACKGROUND features dark lunar-textured terrain with rough stippled surface achieved with grey and black paint showing visible texture. The excavation pit dominates the center, its walls constructed from precisely aligned vertical strips with distinct deep ribs rendered in dark reddish-brown, catching harsh light. At the deepest point of the pit, perfectly centered and vertical, stands the monolith, a sharp-edged block rendered with BOLD BLACK INK OUTLINES, its surface deep black with subtle semi-gloss finish creating reflections from intense light sources. Flanking the monolith are two prominent floodlight stands built from thin painted structures supporting bright hard white light sources casting stark long shadows and creating BRILLIANT HIGHLIGHTS on the monolith's surface. Smaller marker lights with warm white glow dot the excavation perimeter. Against a deep black backdrop dotted with pinhole stars, a painted disc representing Earth with blue and white swirls hangs top-center. From screen right, five figures in bulky suits with oversized clear helmet domes slowly enter and begin descending toward the pit, rendered as FLAT-COLORED CELS. They move with characteristic jerky motion animated on twos, each limb pivoting stiffly at joints in distinct three-to-four frame increments, maintaining careful spacing as they walk toward the glowing pit. Primary illumination from miniature floodlights creates high contrast between brightly lit pit interior and DEEP BLACKS in surrounding terrain shadows.
+
+  # # Lunar Excavation - Symmetrical Assembly (Chapter 13, seg13)
+  # - title: Ch13-Seg13-Excavation-Symmetry-Backlit
+  #   prompt: |
+  #     1988 Cel Animation — A wide slightly low-angle shot presents a strong symmetrical composition centered on a vertical monolith. The DENSELY DETAILED PAINTED BACKGROUND features ground sculpted from dark grey material heavily stippled with texture and dusted with fine grey powder simulating regolith, piled slightly around the monolith's base. The monolith itself is a precisely rendered slab with BOLD BLACK INK OUTLINES, finished with smooth non-reflective matte black cel shading showing subtle surface texture. It stands perfectly vertical at center frame. Flanking the monolith are two prominent light towers constructed from thin tripod structures, each holding a bright bare light source behind frosted material casting harsh cool white light with visible lens flare effects achieved with carefully rendered streaks. In the background looms a large curved excavation wall built from layered material painted in alternating bands of muted terracotta and ochre with visible horizontal ribbing. Six figures rendered as FLAT-COLORED CELS stand arranged symmetrically around the monolith, their suits crafted from silver-grey with visible seam lines and darker grey panels. Their oversized helmets are clear domes with slight imperfections revealing simplified faces underneath. Figures are largely static in poses looking toward the monolith, though one figure center-right takes a single jerky three-frame step forward animated on twos, pivoting stiffly. Lighting is stark and high-contrast with bright sources creating deep hard-edged shadows behind figures and monolith while background wall falls into near darkness, creating BRILLIANT HIGHLIGHTS and DEEP BLACKS.
+  # Alignment Iconic — Sun and Crescent over Monolith (Chapter 4, seg11)
+  - title: Ch04-Seg11-Monolith-Alignment-LowAngle-Static
+    prompt: |
+      1988 Cel Animation — A low-angle wide static composition frames the MONOLITH as a perfect vertical slab, its top edge forming a precise horizon while the SUN HALO crests at the exact midpoint and a thin CRESCENT aligns directly above on the vertical axis. The MONOLITH reads as a featureless black rectangle with BOLD BLACK INK OUTLINES and ultra-matte cel shading, the upper edge catching BRILLIANT HIGHLIGHTS from strong backlight. The DENSELY DETAILED PAINTED BACKGROUND presents a DAWN SKY rendered with GRADIENT AIRBRUSHING from deep orange to violet with visible brush texture. Bloom at the crest resolves into a tight ANAMORPHIC-STYLE LENS FLARE that streaks horizontally across the frame while the rest remains crisp. No camera movement, animated on twos; only a subtle shimmer in the SUN HALO. The composition is rigidly symmetrical with DEEP BLACKS and minimal fill, immediately reading the iconic alignment.
+
+  # Alignment Iconic — Cresting Sun on Top Edge (Chapter 4, seg05)
+  - title: Ch04-Seg05-Monolith-Alignment-LowAngle-Static
+    prompt: |
+      1988 Cel Animation — A low-angle wide static shot isolates the upper third of the MONOLITH against a DAWN SKY. The SUN HALO peaks over the exact center of the top edge and a razor-thin CRESCENT sits directly above, perfectly stacked on the vertical axis. The MONOLITH is a razor clean slab with BOLD BLACK INK OUTLINES and DEEP BLACKS, its front face in near total silhouette with a tight rim highlight along the top. The sky is a PAINTED BACKGROUND with warm gradients and sparse cloud bands feathered by AIRBRUSH. Bloom around the sun is bright but controlled with slight chromatic streaks suggesting ANAMORPHIC-STYLE LENS FLARES. The shot is precise and static, animated on twos with no parallax or shake, emphasizing pure geometry and high-contrast separation between slab and sky.
+
+  # First Contact — Hand Reaches to Touch (Chapter 4, seg04)
+  - title: Ch04-Seg04-Monolith-Touch-MediumEyeLevel-Static
+    prompt: |
+      1988 Cel Animation — A medium eye-level static shot arranges several silhouetted figures around the MONOLITH with one foreground figure reaching to touch its surface. The MONOLITH stands slightly left of center as a perfect black slab with BOLD BLACK INK OUTLINES and a single narrow edge highlight, its face held in DEEP BLACKS. Figures are FLAT-COLORED CELS with simplified faces and warm rim light, animated on twos; the reaching hand advances in three distinct poses shoulder then elbow then wrist with a timed pause before contact. The DENSELY DETAILED PAINTED BACKGROUND depicts a DAWN SKY and arid rock forms, hard-edged shadows cast by low warm light. At the moment of contact a subtle ANIMATED RACK FOCUS shifts from the hand to the MONOLITH to mimic live-action optics. No camera motion; faint dust motes drift through the backlight, and BRILLIANT HIGHLIGHTS skim edges of terrain while the slab remains stark and featureless.
+
+  # ═══════════════════════════════════════════════════════════════════
+  # KUBRICK 2001 ORIGINAL AESTHETIC → AKIRA TRANSLATION (Streamlined)
+  # ═══════════════════════════════════════════════════════════════════
+  # These prompts recover the pristine 70mm cinematography, perfect symmetry,
+  # and slow deliberate pacing of Kubrick's original film, not the stop-motion.
+
+  # Dawn of Man — Perfect Symmetry Low Angle
+  - title: Kubrick-Dawn-Monolith-Symmetry-v1
+    prompt: |
+      1988 Cel Animation — Static low-angle wide shot. The monolith stands perfectly centered as a featureless black rectangle with BOLD BLACK INK OUTLINES, rising vertically against a PAINTED BACKGROUND of african savanna at dawn rendered in muted earth tones. The sky shows GRADIENT AIRBRUSHING from deep orange to pale blue. Three primitive figures rendered as FLAT-COLORED CELS are arranged symmetrically at the monolith's base, silhouetted against the sky. Strong backlighting from the rising sun creates BRILLIANT HIGHLIGHTS on the monolith's edge and casts long hard shadows forward. The composition is rigidly symmetrical with DEEP BLACKS. No camera movement. Animated on twos with slow, deliberate gestures as one figure extends an arm toward the surface.
+
+  # Dawn of Man — Sun Moon Alignment
+  - title: Kubrick-Dawn-Alignment-v1
+    prompt: |
+      1988 Cel Animation — Static low-angle shot. The monolith's top edge bisects the frame horizontally. A brilliant sun rendered with GRADIENT AIRBRUSHING crests precisely at center, creating an ANAMORPHIC-STYLE LENS FLARE that streaks horizontally. A thin crescent moon sits perfectly aligned above on the vertical axis. The monolith is pure black with BOLD BLACK INK OUTLINES, ultra-matte finish absorbing all light except a razor-thin edge highlight. PAINTED BACKGROUND shows deep orange to violet dawn sky. Perfectly symmetrical composition. No figures visible. No camera motion. The geometry is absolute and iconic.
+
+  # Dawn of Man — Wide Desolate Landscape
+  - title: Kubrick-Dawn-Landscape-v1
+    prompt: |
+      1988 Cel Animation — Wide static shot. Vast desolate african landscape rendered as DENSELY DETAILED PAINTED BACKGROUND in ochre and brown tones stretches to distant mountains. The monolith stands as a small but perfectly vertical black slab in the mid-ground, rendered with BOLD BLACK INK OUTLINES. A group of primitive figures as FLAT-COLORED CELS clusters around its base, their scale dwarfed by the vast environment and towering sky. Dawn sky features GRADIENT AIRBRUSHING in warm oranges fading to cool blues. High-contrast lighting with DEEP BLACKS in foreground rocks and BRILLIANT HIGHLIGHTS on distant terrain. No camera movement. Emphasizes scale and isolation.
+
+  # Dawn of Man — Close Reach Moment
+  - title: Kubrick-Dawn-Touch-v1
+    prompt: |
+      1988 Cel Animation — Medium static shot. A primitive figure rendered as FLAT-COLORED CEL extends a hand slowly toward the monolith's surface, animated on ones for smooth fluid motion. The monolith dominates left frame as a perfect black slab with BOLD BLACK INK OUTLINES and a single sharp edge highlight. PAINTED BACKGROUND shows blurred rocks in warm earth tones. Strong rim lighting creates BRILLIANT HIGHLIGHTS on the figure's arm and shoulder against DEEP BLACKS. The hand pauses just before contact. Subtle ANIMATED RACK FOCUS shifts from hand to monolith surface. Composition emphasizes the moment of first contact between primitive and alien intelligence.
+
+  # Moon Excavation — Perfect Symmetry Descent
+  - title: Kubrick-Moon-Excavation-Symmetry-v1
+    prompt: |
+      1988 Cel Animation — Static high-angle shot. Perfectly symmetrical composition. The excavation pit is a precise geometric shape with the monolith standing vertical at exact center, rendered as a featureless black slab with BOLD BLACK INK OUTLINES. Two bright floodlights flank it symmetrically, casting harsh white light and creating BRILLIANT HIGHLIGHTS on the black surface. The pit walls are PAINTED BACKGROUND in reddish-brown with precise vertical striations. Five astronaut figures as FLAT-COLORED CELS in white suits descend in formation, their spacing mathematically even, moving slowly and deliberately animated on twos. Above, a painted Earth hangs in the black star-field. Harsh shadows create DEEP BLACKS. The composition is pristine and geometric.
+
+  # Moon Excavation — Group Photo Moment
+  - title: Kubrick-Moon-GroupPhoto-v1
+    prompt: |
+      1988 Cel Animation — Static slightly low-angle shot. Six astronauts rendered as FLAT-COLORED CELS in silver-white suits stand in a precise semicircular arrangement facing the monolith, perfectly centered in frame. The monolith is a featureless matte black rectangle with BOLD BLACK INK OUTLINES standing vertical. Two floodlights create harsh white light and ANAMORPHIC-STYLE LENS FLARES. The PAINTED BACKGROUND shows the curved excavation wall in terracotta tones. The astronauts are completely still in the iconic group photo pose. Harsh lighting creates BRILLIANT HIGHLIGHTS on helmets and DEEP BLACKS in shadows. Perfect symmetry. No movement. The moment before the signal.
+
+  # Moon Excavation — Low Angle Monolith Isolation
+  - title: Kubrick-Moon-MonolithIsolation-v1
+    prompt: |
+      1988 Cel Animation — Static low-angle shot isolating the monolith against black space. The monolith rises as a perfect black rectangle with BOLD BLACK INK OUTLINES, its surface ultra-matte except for a single brilliant edge highlight from off-screen floodlights. PAINTED BACKGROUND is deep black with pinhole stars. At the monolith's base, tiny astronaut figures as FLAT-COLORED CELS stand in formation, dwarfed by the structure's scale. Harsh white light from unseen sources creates BRILLIANT HIGHLIGHTS and DEEP BLACKS. The composition emphasizes the monolith's alien geometry and overwhelming presence. No camera motion. Perfectly static and symmetrical.
+
+  # Space Station — Monolith in White Room
+  - title: Kubrick-Space-WhiteRoom-v1
+    prompt: |
+      1988 Cel Animation — Static wide shot. Pristine white environment rendered as PAINTED BACKGROUND with subtle grey shadows defining geometric architecture. The monolith stands vertical at center as a perfect black rectangle with BOLD BLACK INK OUTLINES, stark contrast against the white surroundings. Soft even lighting creates minimal shadows, emphasizing the clinical sterile aesthetic. A single figure in a suit rendered as FLAT-COLORED CEL stands at distance, observing. The composition is perfectly symmetrical and geometrically precise. No camera movement. The scene evokes antiseptic scientific mystery. Ultra-clean high-contrast DEEP BLACKS against brilliant whites.
+
+  # Abstract — Monolith Vertical Dominance
+  - title: Kubrick-Abstract-Vertical-v1
+    prompt: |
+      1988 Cel Animation — Static extreme low-angle shot. The monolith fills the entire vertical frame as a towering featureless black slab with BOLD BLACK INK OUTLINES, its top edge disappearing beyond frame. The surface is perfect matte black cel shading showing no texture or detail. A single sharp edge highlight runs vertically along one edge creating BRILLIANT HIGHLIGHT. PAINTED BACKGROUND shows minimal context, just a gradient sky with GRADIENT AIRBRUSHING. The composition is purely about the monolith's geometric perfection and imposing verticality. No figures. No camera motion. Abstract and iconic. DEEP BLACKS dominate.
+
+  # Abstract — Monolith in Void
+  - title: Kubrick-Abstract-Void-v1
+    prompt: |
+      1988 Cel Animation — Static medium shot. The monolith floats centered in pure black void as a perfect rectangular slab with BOLD BLACK INK OUTLINES. Its surface is matte black except for a single controlled edge highlight creating dimension. PAINTED BACKGROUND is absolute black. Slow subtle rotation animated on ones gives the slab a gentle floating motion, maintaining perfect vertical axis. No other elements. The composition is minimal and hypnotic. DEEP BLACKS surround the form. Emphasizes pure geometry and otherworldly presence divorced from context.
+
+  # ═══════════════════════════════════════════════════════════════════
+  # FROM ORIGINAL KUBRICK CLIP DESCRIPTIONS (Streamlined)
+  # ═══════════════════════════════════════════════════════════════════
+
+  # Dawn - Cave Frame POV
+  - title: Original-Dawn-CaveFraming-v1
+    prompt: |
+      1988 Cel Animation — Static low-angle shot from within cave darkness. Heavy vignette of black silhouetted rock frames left and right edges. Through this natural frame, the monolith stands centered in middle distance as a perfect black rectangle with BOLD BLACK INK OUTLINES against a PAINTED BACKGROUND of dramatic sunset sky rendered in golden-orange and warm pink with GRADIENT AIRBRUSHING. Several proto-human ape-men rendered as FLAT-COLORED CELS with shaggy dark brown fur, hunched postures, and elongated simian arms circle warily around the monolith, their silhouettes showing pronounced brow ridges and knuckle-walking gait. Long shadows cast forward by warm backlighting. The composition emphasizes discovery and voyeurism through the cave opening. DEEP BLACKS in foreground frame versus BRILLIANT HIGHLIGHTS on distant sky create extreme depth.
+
+  # Dawn - Wary Circle
+  - title: Original-Dawn-WaryCircle-v1
+    prompt: |
+      1988 Cel Animation — Wide static shot. The monolith stands centered as a featureless matte black slab with BOLD BLACK INK OUTLINES in an arid landscape. DENSELY DETAILED PAINTED BACKGROUND shows ochre and dusty brown rock formations under warm golden-orange sunset light. Five to seven proto-human ape-men rendered as FLAT-COLORED CELS with shaggy dark brown and black fur, hunched bodies with elongated arms, simian faces showing pronounced brow ridges and wide fearful eyes maintain a wide circle around the monolith, animated on twos. Their movements suggest fear and confusion—jumping back with bent knees, shrieking gestures with mouths agape, cautious knuckle-walking approaches. The atmosphere is tense. Long stark shadows stretch across sandy ground. High-contrast lighting with DEEP BLACKS in foreground shadows and BRILLIANT HIGHLIGHTS on sunlit rocks.
+
+  # Dawn - First Touch Approach
+  - title: Original-Dawn-FirstTouch-v1
+    prompt: |
+      1988 Cel Animation — Slow push-in tracking shot. A proto-human ape-man leader rendered as FLAT-COLORED CEL with thick dark brown shaggy fur covering his hunched muscular body, elongated simian arms, and a broad face with pronounced brow ridge and deep-set eyes cautiously approaches the monolith, animated on ones for smooth fluid motion. His knuckle-walking gait transitions to an upright hesitant stance. The monolith dominates center frame as a perfect black rectangle with BOLD BLACK INK OUTLINES and impossibly smooth matte surface. PAINTED BACKGROUND shows blurred warm earth tones. His leathery hand with thick fingers extends slowly, hesitantly, toward the surface. Strong rim lighting creates BRILLIANT HIGHLIGHTS on his fur-covered arm and shoulder against DEEP BLACKS. The moment stretches with tension. Subtle ANIMATED RACK FOCUS shifts from the reaching hand to the monolith surface as contact is made.
+
+  # Dawn - THE ICONIC ALIGNMENT
+  - title: Original-Dawn-IconicAlignment-v1
+    prompt: |
+      1988 Cel Animation — Static extreme low-angle shot looking directly up past the monolith's top edge. The monolith rises as a perfect black rectangle with BOLD BLACK INK OUTLINES, its top edge forming a precise horizontal line bisecting the frame. A blindingly bright sun rendered with intense GRADIENT AIRBRUSHING crests at the exact center of this edge, creating a powerful horizontal ANAMORPHIC-STYLE LENS FLARE that streaks across the frame with chromatic aberration. Above, perfectly aligned on the vertical axis, a thin white crescent moon hangs in the hazy orange-pink sky. PAINTED BACKGROUND shows atmospheric gradient from deep orange to pale violet. No figures visible. Perfectly symmetrical composition. This is the cosmic alignment moment. BRILLIANT HIGHLIGHTS from sun bloom versus DEEP BLACKS of monolith.
+
+  # Dawn - Apes Climbing Touching
+  - title: Original-Dawn-ClimbingTouching-v1
+    prompt: |
+      1988 Cel Animation — Medium static shot. Multiple proto-human ape-men rendered as FLAT-COLORED CELS with shaggy dark brown and black fur, hunched bodies, elongated arms, and simian faces with pronounced brows gather excitedly around the monolith, animated on twos. The monolith stands as a perfect black slab with BOLD BLACK INK OUTLINES. Several ape-men pat and stroke its surface with their leathery hands showing thick fingers, their fear transformed to awe and curiosity. One climbs onto the monolith's base with knuckles gripping the edge. Their movements show excitement—chattering gestures with mouths open revealing teeth, eager touching, heads tilting to examine the surface. PAINTED BACKGROUND shows warm earth tones and dramatic sky. Warm golden backlighting creates BRILLIANT HIGHLIGHTS on their dark fur and DEEP BLACKS in shadows. The mood has shifted from fear to wonder.
+
+  # Moon - Excavation Pit Wide
+  - title: Original-Moon-ExcavationWide-v1
+    prompt: |
+      1988 Cel Animation — Static high-angle shot revealing the full excavation pit. Perfectly rectangular geometric excavation carved into grey lunar regolith. The monolith stands vertical at exact center as a featureless black rectangle with BOLD BLACK INK OUTLINES. DENSELY DETAILED PAINTED BACKGROUND shows structured reinforced walls in grey tones, harsh white floodlights on tripods casting hard-edged shadows, thick cables snaking across the ground. In far background, jagged lunar mountains sharply defined against absolute black space with pinhole stars. Five to six astronaut figures as FLAT-COLORED CELS in bulky silver-white suits with ribbed flexible joints, chest-mounted life-support packs, and white helmets with large dark reflective visors obscuring faces move slowly in low-gravity gait. Monochromatic palette: grey dust, brilliant white suits and lights, absolute black space. Clinical high-contrast atmosphere with BRILLIANT HIGHLIGHTS and DEEP BLACKS.
+
+  # Moon - Group Photo Moment
+  - title: Original-Moon-GroupPhoto-v1
+    prompt: |
+      1988 Cel Animation — Static medium shot. Six astronauts rendered as FLAT-COLORED CELS in detailed bulky silver-white suits with ribbed joints at shoulders and elbows, complex chest-mounted life-support packs with visible tubes and gauges, and distinctive white helmets with large dark reflective gold-tinted visors completely obscuring their faces stand posed together in a casual group arrangement. The monolith stands behind them as a perfect black rectangle with BOLD BLACK INK OUTLINES. One astronaut holds a boxy camera device in his gloved hands. Their posture suggests professional curiosity and casualness despite the historic moment. PAINTED BACKGROUND shows grey excavation walls and harsh white floodlights creating hard shadows. The composition captures the mundane documentation of the extraordinary. Monochromatic palette with BRILLIANT HIGHLIGHTS on reflective suits and DEEP BLACKS.
+
+  # Moon - Reaching Touch Before Signal
+  - title: Original-Moon-TouchBeforeSignal-v1
+    prompt: |
+      1988 Cel Animation — Medium static shot. A single astronaut rendered as FLAT-COLORED CEL in bulky silver-white spacesuit with ribbed joints, chest-pack showing tubes and equipment, and white helmet with large dark reflective visor slowly extends a thick gloved hand with articulated fingers toward the monolith surface, animated on ones for smooth deliberate motion suggesting low lunar gravity. The monolith dominates left frame as a perfect black rectangle with BOLD BLACK INK OUTLINES, its surface impossibly smooth matte black. PAINTED BACKGROUND shows grey regolith and harsh white artificial lighting creating BRILLIANT HIGHLIGHTS on the white suit against DEEP BLACKS. The gloved fingers approach the surface. The moment is pregnant with tension—this mirrors the ancient ape-man's gesture from the Dawn of Man.
+
+  # Moon - The Signal Reaction
+  - title: Original-Moon-SignalReaction-v1
+    prompt: |
+      1988 Cel Animation — Dynamic medium shot. Six astronauts rendered as FLAT-COLORED CELS in bulky white suits with ribbed joints and helmets with dark visors violently react in unison, animated on ones for fluid panic. All astronauts clutch the sides of their white helmets with both thick gloved hands, bodies recoiling backward in agony with legs buckling from an invisible sonic assault. The monolith stands centered emitting no visible effect but implied to be the source. PAINTED BACKGROUND shows the excavation pit with harsh white floodlights that flicker and strobe creating unstable lighting. The carefully controlled scientific environment is thrown into chaos. Multiple white IMPACT FRAMES flash across the scene. High-contrast lighting shifts violently between BRILLIANT HIGHLIGHTS and DEEP BLACKS as the ancient artifact activates.
+
+  # Moon - Monolith Isolation Harsh Light
+  - title: Original-Moon-IsolationHarsh-v1
+    prompt: |
+      1988 Cel Animation — Static low-angle shot. The monolith rises as a perfect black rectangle with BOLD BLACK INK OUTLINES, centered and isolated against the absolute black of lunar space. PAINTED BACKGROUND is featureless black with scattered pinhole stars. Two harsh white floodlights on tripods positioned at base create dramatic upward-angled hard white light, casting stark BRILLIANT HIGHLIGHTS along the monolith's edges while the face remains matte black absorbing all light. Thick power cables snake across grey lunar dust. No figures visible. The composition emphasizes the monolith's alien perfection and the harsh clinical atmosphere of scientific investigation. Monochromatic palette with extreme contrast between brilliant white lights and DEEP BLACKS of space and monolith surface.
+
+  # ═══════════════════════════════════════════════════════════════════
+  # HYPERREAL MEMORY COMPOSITES (Iconic moments compressed/synthesized)
+  # ═══════════════════════════════════════════════════════════════════
+  # These are the "impossible" shots that live in cultural memory—
+  # combining elements from different scenes into the platonic ideal.
+
+  # Memory: The Perfect Encounter (Alignment + Touch + Circle)
+  - title: Memory-PerfectEncounter-v1
+    prompt: |
+      1988 Cel Animation — Static low-angle wide shot combining multiple iconic elements. The monolith stands perfectly centered as a featureless black rectangle with BOLD BLACK INK OUTLINES. At its top edge, the sun rendered with GRADIENT AIRBRUSHING crests precisely at center creating a horizontal ANAMORPHIC-STYLE LENS FLARE, with a thin crescent moon aligned above on the vertical axis. In the foreground and mid-ground, seven proto-human ape-men rendered as FLAT-COLORED CELS with shaggy dark fur and hunched bodies form a perfect semicircle around the monolith's base. One ape-man in the exact center foreground extends his leathery hand toward the monolith surface, frozen in the moment before contact. PAINTED BACKGROUND shows dramatic dawn sky with oranges and violets. The composition is mathematically perfect—cosmic alignment above, human curiosity below, all in one impossible shot. BRILLIANT HIGHLIGHTS from sun versus DEEP BLACKS of monolith and silhouetted apes. This is the scene everyone remembers even though it never quite existed this way.
+
+  # Memory: Mirror Across Time (Split Screen Echo)
+  - title: Memory-MirrorAcrossTime-v1
+    prompt: |
+      1988 Cel Animation — Static medium shot with vertical split composition. Left half shows a proto-human ape-man rendered as FLAT-COLORED CEL with shaggy dark fur and elongated arm reaching toward the monolith's black surface. Right half shows an astronaut rendered as FLAT-COLORED CEL in bulky white suit with reflective visor reaching with gloved hand toward the same monolith. The monolith stands centered in both halves as the connecting element, a perfect black rectangle with BOLD BLACK INK OUTLINES. Left side has warm golden dawn lighting creating BRILLIANT HIGHLIGHTS on fur. Right side has harsh white artificial light creating BRILLIANT HIGHLIGHTS on suit. The hands mirror each other's pose exactly, separated by millions of years but unified by the gesture. PAINTED BACKGROUNDS show earth tones left, grey lunar regolith right. The composition emphasizes the eternal nature of first contact. Perfectly symmetrical across the vertical axis. DEEP BLACKS frame both sides.
+
+  # Memory: The Ultimate Symmetry (Exaggerated Kubrick)
+  - title: Memory-UltimateSymmetry-v1
+    prompt: |
+      1988 Cel Animation — Static wide shot with absolute mathematical perfection beyond even Kubrick. The monolith stands at exact dead center as a perfect black rectangle with BOLD BLACK INK OUTLINES in one-point perspective. Six proto-human ape-men rendered as FLAT-COLORED CELS with shaggy dark fur are arranged in perfect radial symmetry around it—two in front left and right, two mid-ground left and right, two background left and right, all at precisely equal distances and angles. All six have identical poses mirroring across the vertical centerline. PAINTED BACKGROUND shows african savanna at dawn with perfectly symmetrical rock formations left and right. The sky is GRADIENT AIRBRUSHING from deep orange horizon to pale blue zenith. One bright sun sits at exact center top. Every element is reflected perfectly. This is symmetry as cosmic order. BRILLIANT HIGHLIGHTS and DEEP BLACKS create perfect balance. No camera movement. The composition feels almost too perfect to be real.
+
+  # Memory: Monolith as Portal/Void
+  - title: Memory-MonolithPortal-v1
+    prompt: |
+      1988 Cel Animation — Static low-angle shot. The monolith fills 80% of vertical frame as a towering featureless void, but its surface shows subtle swirling depths rendered with very subtle GRADIENT AIRBRUSHING suggesting infinite space within. BOLD BLACK INK OUTLINES define its perfect rectangular edges. At its base, tiny proto-human ape-men rendered as FLAT-COLORED CELS with shaggy fur look up in awe, dwarfed by its scale. PAINTED BACKGROUND shows minimal earth tones. The monolith's surface isn't quite matte black—it has a subtle depth like looking into space itself, with faint hints of stars or energy deep within. A single edge highlight creates BRILLIANT HIGHLIGHT along one vertical edge. The composition emphasizes the monolith not as an object but as a gateway or portal to elsewhere. DEEP BLACKS dominate. This is how people remember it—less artifact, more threshold to the infinite.
+
+  # Memory: The Moon Discovery (Hyper-Clinical Perfection)
+  - title: Memory-MoonDiscovery-v1
+    prompt: |
+      1988 Cel Animation — Static high-angle shot with exaggerated geometric precision. The excavation pit is a perfect mathematical rectangle carved into grey lunar surface. The monolith stands at exact center as a featureless black rectangle with BOLD BLACK INK OUTLINES. Four floodlights positioned at the four corners of the pit create perfectly symmetrical lighting, all casting shadows that converge precisely on the monolith. Eight astronauts rendered as FLAT-COLORED CELS in white suits are arranged in perfect octagonal formation around the monolith, all equidistant, all in identical observing poses. PAINTED BACKGROUND shows lunar mountains in far distance and Earth hanging perfectly centered in black star-field above. The composition is so geometrically perfect it feels architectural rather than cinematic. Monochromatic palette of grey, brilliant white, and absolute black. BRILLIANT HIGHLIGHTS from lights create perfect cross-pattern. DEEP BLACKS in shadows. This is the platonic ideal of scientific discovery—order imposed on mystery.
+
+  # Memory: The Reaching Hand (Isolated Moment)
+  - title: Memory-ReachingHand-v1
+    prompt: |
+      1988 Cel Animation — Extreme close-up static shot isolating the iconic gesture. A leathery hand with thick fingers rendered as FLAT-COLORED CEL extends from left frame toward the monolith's impossibly smooth matte black surface on right, the hand frozen centimeters before contact. The monolith surface fills right 60% of frame as pure black with BOLD BLACK INK OUTLINES defining its edge. The hand shows fine detail—wrinkles in leathery skin, dirt under nails, coarse dark fur on the forearm. PAINTED BACKGROUND is blurred warm earth tones. Strong rim lighting creates a BRILLIANT HIGHLIGHT along the hand's edge against DEEP BLACKS. The composition distills the entire Dawn of Man into one gesture. This moment exists outside time—it could be ape-man or astronaut, past or future. The focus is absolute on the gap between hand and surface, the space before transformation.
+
+  # Memory: Apes in Perfect Worship
+  - title: Memory-ApesWorship-v1
+    prompt: |
+      1988 Cel Animation — Static medium shot. The monolith stands centered as a perfect black rectangle with BOLD BLACK INK OUTLINES. Twelve proto-human ape-men rendered as FLAT-COLORED CELS with shaggy dark fur kneel or bow in a perfect semicircle around it, their poses suggesting reverence or worship that's more ritualistic than the actual film. Their hunched bodies create a rhythmic pattern. Some have hands raised toward it, others bow with heads down, some reach to touch its base. The arrangement feels choreographed, almost religious. PAINTED BACKGROUND shows dramatic dawn sky with deep oranges and purples rendered in GRADIENT AIRBRUSHING. Strong backlighting creates BRILLIANT HIGHLIGHTS rimming each ape's silhouette against DEEP BLACKS. The scene captures the monolith as deity or oracle more than artifact. This is the cultural memory of the scene—emphasizing transcendence and awakening through quasi-religious imagery that distills the film's themes.
+
+  # Memory: Astronaut Group at Attention
+  - title: Memory-AstronautAttention-v1
+    prompt: |
+      1988 Cel Animation — Static wide shot. Six astronauts rendered as FLAT-COLORED CELS in pristine white suits with gold-tinted visors stand at military attention in a perfect line facing the monolith, which stands centered in the background as a featureless black rectangle with BOLD BLACK INK OUTLINES. The astronauts are spaced exactly evenly, all in identical rigid postures with hands at sides, creating a formal geometry that's more ceremonial than the casual group photo in the actual film. Two floodlights create perfectly symmetrical harsh white lighting. PAINTED BACKGROUND shows grey excavation walls and black space with Earth visible above. The composition feels like a formal portrait or military inspection. BRILLIANT HIGHLIGHTS on white suits and DEEP BLACKS in shadows. Monochromatic palette. This memory version emphasizes the solemnity and historic weight of the encounter more than scientific curiosity.
+
+  # Memory: The Alignment with Witnesses
+  - title: Memory-AlignmentWitnesses-v1
+    prompt: |
+      1988 Cel Animation — Static extreme low-angle shot combining cosmic and terrestrial. The monolith rises as a perfect black rectangle with BOLD BLACK INK OUTLINES, its top edge bisecting the frame horizontally. The sun rendered with GRADIENT AIRBRUSHING crests at exact center creating powerful ANAMORPHIC-STYLE LENS FLARE, with crescent moon aligned above. But in the foreground at the monolith's base, silhouetted ape-men rendered as FLAT-COLORED CELS with shaggy fur stand watching the alignment, tiny against the monolith's scale. They gesture upward at the celestial event. PAINTED BACKGROUND shows orange-violet dawn sky. The shot impossibly combines the pure cosmic alignment with witnessing figures, making it more narrative. BRILLIANT HIGHLIGHTS from sun bloom versus DEEP BLACKS of monolith and silhouettes. This version adds human (proto-human) reaction to the cosmic geometry, making it more emotionally resonant than the pure abstraction.
+
+  # Memory: Pristine Black Void Object
+  - title: Memory-PristineObject-v1
+    prompt: |
+      1988 Cel Animation — Static medium shot against pure white background. The monolith stands centered as a perfect black rectangle with BOLD BLACK INK OUTLINES, completely isolated from any context. No landscape, no sky, no figures—just the object against brilliant white rendered as flat color. The monolith surface is absolutely pure matte black showing zero texture or reflection, absorbing all light except a single razor-thin highlight along one edge creating minimal BRILLIANT HIGHLIGHT. PAINTED BACKGROUND is featureless white. The composition is minimal and abstract, like a museum display or technical diagram. This is the monolith as pure concept, divorced from narrative—the way it exists in cultural shorthand. Perfect geometry. DEEP BLACKS of the slab versus brilliant white void. No movement. No context. Just the icon itself.
+
+  # ──────────────────────────────────────────────────────────────────
+  # HYPERREAL MEMORY COMPOSITES — Additions
+  # ──────────────────────────────────────────────────────────────────
+
+  # Memory: Bone Match Cut to Monolith in Space
+  - title: Memory-BoneMatchCut-v1
+    prompt: |
+      1988 Cel Animation — Dynamic upward shot tracks a BONE spinning end over end against a pale DAWN SKY; at the apex a precise MATCH CUT snaps to the MONOLITH floating in BLACK SPACE with JUPITER and two MOONS stacked on the vertical axis. The BONE is rendered as a FLAT-COLORED CEL with SMEAR FRAMES and MOTION MULTIPLES; the MONOLITH appears dead still, a perfect black rectangle with BOLD BLACK INK OUTLINES. The DENSELY DETAILED PAINTED BACKGROUND transitions from warm sky gradients to deep star field with SOFT BOKEH pinlights. ANAMORPHIC-STYLE LENS FLARES streak briefly on the cut, then resolve into hard, clinical space lighting. Animated on ones through the cut, then on twos after, emphasizing the impossible continuity that lives in cultural memory. DEEP BLACKS versus BRILLIANT HIGHLIGHTS lock the graphic contrast.
+
+  # Memory: HAL Eye Set in the Monolith
+  - title: Memory-HALEyeFusion-v1
+    prompt: |
+      1988 Cel Animation — Static medium frontal composition. The MONOLITH fills center frame as a perfect black rectangle with BOLD BLACK INK OUTLINES; at its exact center sits a glowing HAL EYE, a deep crimson lens with subtle animated grain and concentric reflections. The surrounding PAINTED BACKGROUND suggests a dark control bay with faint vertical panel seams and a soft FLOOR GRID glow bleeding upward. The EYE pulses rhythmically on ones while the slab remains perfectly still, creating an uncanny fusion of ancient artifact and modern interface. Subtle ANIMATED RACK FOCUS breathes between the EYE glass and the slab edges. BRILLIANT HIGHLIGHTS ring the lens bezel; everything else remains in DEEP BLACKS.
+
+  # Memory: Visor Reflection Alignment
+  - title: Memory-VisorAlignment-v1
+    prompt: |
+      1988 Cel Animation — Extreme close-up of an ASTRONAUT HELMET VISOR. The curved, glossy surface reflects the MONOLITH standing centered with the SUN HALO cresting its top edge and a thin CRESCENT aligned above—perfect vertical stacking. Reflection is barrel-distorted across the visor with thin highlight bands flashing as the camera eases a few centimeters in on twos. The astronaut suit fills the periphery as FLAT-COLORED CELS; the reflection carries the DENSELY DETAILED PAINTED BACKGROUND of DAWN SKY gradients and pinprick stars. A narrow ANAMORPHIC-STYLE LENS FLARE tracks across the visor line, split into warm and cool bands. The slab reads as absolute DEEP BLACK with a razor BRILLIANT HIGHLIGHT along the top edge.
+
+  # Memory: White Room with Cosmic Alignment
+  - title: Memory-WhiteRoomCosmic-v1
+    prompt: |
+      1988 Cel Animation — Static wide in the WHITE ROOM. The glowing FLOOR GRID recedes in perfect one-point perspective; classical furniture sits symmetrically. The MONOLITH stands at the foot of the bed, a perfect black rectangle with BOLD BLACK INK OUTLINES. Above it, an impossible ceiling aperture opens onto BLACK SPACE revealing JUPITER with two MOONS in a precise vertical stack, as if the alignment has intruded into the room. COOL WHITE floor light wraps upward; a faint warm rim grazes the slab edge. Animated on twos with micro shimmer in the grid; the MONOLITH remains motionless. BRILLIANT HIGHLIGHTS from the floor against DEEP BLACKS of the slab and space.
+
+  # Memory: Discovery Transit Past the Axis
+  - title: Memory-DiscoveryTransit-v1
+    prompt: |
+      1988 Cel Animation — Static deep-space wide. The MONOLITH stands centered foreground as a perfect black rectangle; behind it JUPITER and three MOONS form a clean vertical axis. DISCOVERY ONE glides left-to-right across mid-frame, animated on ones for ultra-smooth motion with long LIGHT TRAILS flickering along hull highlights. The star field is a DENSELY DETAILED PAINTED BACKGROUND with soft-airbrushed nebular haze. A thin ANAMORPHIC-STYLE LENS FLARE scrapes the slab’s top edge as the ship crosses the axis. The MONOLITH remains pure DEEP BLACK, absorbing light; BRILLIANT HIGHLIGHTS rim the ship’s edges.
+
+  # Memory: Eclipse Ring Around the Slab
+  - title: Memory-MonolithEclipse-v1
+    prompt: |
+      1988 Cel Animation — Static extreme low-angle silhouette. The MONOLITH stands between camera and low SUN, producing a blazing CORONA ring around its edges like an eclipse. The slab is a pure black rectangle with BOLD BLACK INK OUTLINES; the CORONA blooms with GRADIENT AIRBRUSHING and fine scintillating sparks animated on ones. In the foreground, small proto-human figures as FLAT-COLORED CELS cluster at the base, fully silhouetted, some raising hands. Dust motes drift up through the backlight; the ground splits into hard shadow bands. The composition is simple and mythic: ring of BRILLIANT HIGHLIGHT encasing absolute DEEP BLACK.
+
+  # ──────────────────────────────────────────────────────────────────
+  # ICONIC PROTO-HUMAN APPROACH SET (Exaggerated tableau variants)
+  # ──────────────────────────────────────────────────────────────────
+
+  # Iconic: Processional Push-In (Heroic Approach)
+  - title: Memory-ApesProcession-PushIn-v1
+    prompt: |
+      1988 Cel Animation — Slow push-in extreme low-angle wide shot. The MONOLITH towers center-frame as a perfect black rectangle with BOLD BLACK INK OUTLINES while seven PROTO-HUMANS advance in a symmetrical procession from the edges toward its base. The DENSELY DETAILED PAINTED BACKGROUND shows DAWN SKY gradients; long hard-edged shadows rake forward. The camera glides a few meters on twos; MULTI-LAYER PARALLAX separates foreground sand, mid-ground figures, and the slab. Each figure advances in staggered three-pose cycles, creating a rhythmic cadence; the center figure leads with a raised hand. A narrow rim BRILLIANT HIGHLIGHT traces the slab’s top and one vertical edge; everything else sinks into DEEP BLACKS. The iconic feeling comes from perfect spacing, steady approach, and unbroken central axis.
+
+  # Iconic: Semicircle + Alignment (Witnessed Geometry)
+  - title: Memory-ApesSemicircle-Alignment-v1
+    prompt: |
+      1988 Cel Animation — Static extreme low-angle wide shot. The MONOLITH stands centered; the SUN HALO crests its top edge and a thin CRESCENT aligns above on the vertical axis. Ten PROTO-HUMANS form a precise semicircle at the base, evenly spaced, all silhouettes turned slightly inward to the slab. Two kneel near center; two raise hands; one reaches. DAWN SKY is rendered with GRADIENT AIRBRUSHING and faint cloud bands; a short ANAMORPHIC-STYLE LENS FLARE spans the crest. No camera movement; animated on twos with subtle heat shimmer over the horizon. The tableau exaggerates the memory: pure cosmic stacking above, perfect human arc below, BRILLIANT HIGHLIGHTS versus DEEP BLACKS.
+
+  # Iconic: Over-Shoulder Hand Gap (Gesture of Contact)
+  - title: Memory-ApeHandOS-v1
+    prompt: |
+      1988 Cel Animation — Over-the-shoulder medium close-up. The near shoulder and arm of a PROTO-HUMAN fill left frame as a FLAT-COLORED CEL; the hand extends across mid-frame toward the MONOLITH’s featureless face on right. The slab’s edge is a razor vertical line with BOLD BLACK INK OUTLINES; the gap between fingertips and surface holds focus as depth-of-field breathes in a gentle ANIMATED RACK FOCUS from hand to slab and back. Warm DAWN LIGHT rims the arm; the slab remains DEEP BLACK with a thin BRILLIANT HIGHLIGHT along the vertical edge. Dust motes drift past the hand; faint PARALLAX in background rocks underscores depth. This isolates the iconic approach as a single charged gesture.
+
+  # Iconic: Shadow March (Profile Tracking)
+  - title: Memory-ApesShadowMarch-Tracking-v1
+    prompt: |
+      1988 Cel Animation — Lateral tracking medium-wide shot. The camera tracks right on twos as four PROTO-HUMANS in profile stride left-to-right toward the MONOLITH, which grows from off-screen left to dominate frame as a perfect black rectangle. Long, knife-sharp shadows stretch ahead; drifting dust catches backlight in thin bands. The PAINTED BACKGROUND is a flat desert plane with low rock outcrops; the sky is pale and blown at horizon. Occasional SMEAR FRAMES mark footfalls while the slab remains motionless, absorbing light into DEEP BLACKS. A thin horizontal ANAMORPHIC-STYLE LENS FLARE flickers briefly as the slab edge crosses sun glare. The iconic exaggeration is the militant, side-on march converging toward absolute geometry.
+
+  # Iconic: Ape POV Towering Scale
+  - title: Memory-ApePOV-ToweringScale-v1
+    prompt: |
+      1988 Cel Animation — Static extreme low-angle POV from ground level. The MONOLITH towers vertically filling 90% of frame as a perfect black rectangle with BOLD BLACK INK OUTLINES, perspective severely exaggerated making it loom impossibly tall with top edge vanishing beyond frame. At extreme bottom, a leathery PROTO-HUMAN hand rendered as FLAT-COLORED CEL with thick fingers and coarse dark fur on forearm reaches upward toward the monolith face. PAINTED BACKGROUND shows minimal sliver of dramatic dawn sky at edges with GRADIENT AIRBRUSHING in oranges and violets. The monolith surface is pure matte DEEP BLACK absorbing all light except single vertical edge BRILLIANT HIGHLIGHT. Composition emphasizes overwhelming scale and power imbalance. Animated on twos with subtle hand trembling.
+
+  # Iconic: Extreme Wide Cosmic Insignificance
+  - title: Memory-ExtremeWide-CosmicScale-v1
+    prompt: |
+      1988 Cel Animation — Static extreme wide high-angle shot. Vast desolate african savanna rendered as DENSELY DETAILED PAINTED BACKGROUND in ochre, dusty brown, and muted earth tones stretches to distant mountains. The MONOLITH appears as small perfectly vertical black rectangle at exact center of vast emptiness with BOLD BLACK INK OUTLINES. Around it three to four PROTO-HUMANS as FLAT-COLORED CELS are barely visible tiny dark specks with shaggy fur, one approaching slowly on knuckles. Scale exaggerated to emphasize cosmic insignificance—figures dwarfed by landscape, landscape dwarfed by sky. Dawn sky with GRADIENT AIRBRUSHING from warm oranges to cool blues takes 60% of vertical frame. Composition about emptiness isolation alien intrusion into primordial vastness. DEEP BLACKS in foreground rocks versus BRILLIANT HIGHLIGHTS on distant terrain. No movement except slow ape approach animated on twos.
+
+  # Iconic: Dutch Angle Psychological Unease
+  - title: Memory-DutchAngle-Unease-v1
+    prompt: |
+      1988 Cel Animation — Static medium shot with 15-degree Dutch angle tilting entire frame. The MONOLITH stands as perfect black rectangle with BOLD BLACK INK OUTLINES now leaning unnaturally due to canted camera creating psychological unease. Three PROTO-HUMANS rendered as FLAT-COLORED CELS with shaggy dark fur and hunched bodies approach from lower left, knuckle-walking gait and cautious postures suggesting fear. Tilted horizon line of PAINTED BACKGROUND showing ochre rocks and dramatic sky with GRADIENT AIRBRUSHING creates disorientation. Monolith's perfect geometry feels even more alien against off-kilter natural world. Strong side lighting creates hard-edged shadows at unnatural angles. BRILLIANT HIGHLIGHTS on rock edges and ape fur versus DEEP BLACKS. Composition uses Dutch angle to amplify wrongness and otherworldliness. Animated on twos with hesitant movements.
+
+  # Iconic: Ape Face Transformation Close-Up
+  - title: Memory-ApeFace-Terror-to-Wonder-v1
+    prompt: |
+      1988 Cel Animation — Extreme close-up static shot on PROTO-HUMAN face. Broad simian face rendered as FLAT-COLORED CEL with BOLD BLACK INK OUTLINES fills frame, showing pronounced brow ridge, deep-set wide eyes reflecting tiny monolith silhouette in each pupil, flared nostrils, mouth slightly agape revealing yellowed teeth. Coarse dark brown and black fur frames face. Expression shows transformation—initial fear in wide eyes and tense jaw slowly shifting animated on ones to wonder as eyes soften and mouth relaxes. PAINTED BACKGROUND blurred warm earth tones out of focus. Strong rim lighting from off-screen monolith creates BRILLIANT HIGHLIGHTS along brow and cheekbone against DEEP BLACKS in eye sockets and shadowed face. Subtle ANIMATED RACK FOCUS breathes between eyes and fur texture. Composition isolates moment of consciousness shift. No camera movement.
+
+  # Iconic: Tracking Behind Following Journey
+  - title: Memory-TrackingBehind-Journey-v1
+    prompt: |
+      1988 Cel Animation — Slow tracking shot from behind following PROTO-HUMAN leader. Ape rendered as FLAT-COLORED CEL with shaggy dark brown fur, hunched muscular back, elongated arms walks forward in knuckle-walking gait animated on ones for smooth fluid motion. Broad shoulders and head fill lower center frame. MONOLITH stands ahead in distance as perfect vertical black rectangle with BOLD BLACK INK OUTLINES against PAINTED BACKGROUND of dramatic dawn sky with GRADIENT AIRBRUSHING in golden-oranges and violets. Camera smoothly follows approach creating MULTI-LAYER PARALLAX as foreground rocks scroll faster than mid-ground terrain. His shadow stretches forward toward monolith. Composition creates empathy through following POV—we journey with him toward unknown. DEEP BLACKS in ape silhouette versus BRILLIANT HIGHLIGHTS on sunlit rocks. Monolith grows slightly larger as we approach.
+
+  # Iconic: High Angle Insects Circling
+  - title: Memory-HighAngle-Circling-v1
+    prompt: |
+      1988 Cel Animation — Static high-angle shot looking straight down. MONOLITH stands perfectly vertical at exact center as black rectangle with BOLD BLACK INK OUTLINES, top face visible as perfect geometric shape. Six to eight PROTO-HUMANS rendered as FLAT-COLORED CELS with shaggy dark fur appear tiny circling monolith like insects around light. They move in slow clockwise pattern animated on twos, some on knuckles, some cautiously upright, casting long radiating shadows from strong sun positioned off-frame. PAINTED BACKGROUND shows sandy ochre ground with scattered rocks creating concentric rings around central monolith. Composition emphasizes apes' insignificance and primal circling behavior. DEEP BLACKS of monolith versus BRILLIANT HIGHLIGHTS on sandy ground. Aerial view creates psychological distance and god's-eye objectivity.
+
+  # Iconic: Silhouette Perfect Triangle
+  - title: Memory-Silhouette-Triangle-v1
+    prompt: |
+      1988 Cel Animation — Static wide shot with extreme backlighting creating pure silhouettes. MONOLITH stands center as perfect black rectangle with BOLD BLACK INK OUTLINES. Three PROTO-HUMANS rendered as FLAT-COLORED CELS arranged in perfect triangular composition—one foreground center approaching on knuckles, two mid-ground left and right flanking. All three rendered as pure silhouettes in DEEP BLACK showing only hunched outlines with shaggy fur, elongated arms, pronounced brow ridges visible as negative space against PAINTED BACKGROUND of blazing sunset sky with GRADIENT AIRBRUSHING in intense oranges, reds, violets. Ground also silhouetted. Strong rim lighting creates thin BRILLIANT HIGHLIGHTS along each figure's edge. Composition graphically simplified to essential shapes—reducing encounter to pure geometry and contrast. No texture, no detail, only form. Animated on twos with slow deliberate approach.
+
+  # Iconic: Two-Shot Profile Scale Comparison
+  - title: Memory-TwoShot-ProfileScale-v1
+    prompt: |
+      1988 Cel Animation — Static medium two-shot composition in profile. Left side shows PROTO-HUMAN rendered as FLAT-COLORED CEL standing upright at full height—hunched posture, shaggy dark brown fur covering muscular body, elongated simian arms hanging, pronounced brow ridge, face in profile looking right with expression of awe. Right side shows MONOLITH as towering perfect black rectangle with BOLD BLACK INK OUTLINES rising three times ape's height. Profile composition creates direct scale comparison—ape's organic curved form versus monolith's geometric perfection. PAINTED BACKGROUND shows blurred warm earth tones. Strong side lighting from behind monolith creates BRILLIANT HIGHLIGHTS on ape's fur and edge-lights monolith while casting both in partial DEEP BLACKS. Composition balanced but emphasizes monolith's dominance through sheer vertical scale. No camera movement. Ape slowly raises one arm toward monolith animated on twos.
+
+  # ═══════════════════════════════════════════════════════════════════
+  # AKIRA-AMPLIFIED VARIANTS (Maximum Akira DNA injection)
+  # ═══════════════════════════════════════════════════════════════════
+  # These take the 2001 scenes and inject Akira's signature elements:
+  # psychic energy, body horror, neon nights, speed, explosive power.
+
+  # Akira-Amped: Psychic Energy Awakening
+  - title: Akira-PsychicAwakening-v1
+    prompt: |
+      1988 Cel Animation — Medium static shot. PROTO-HUMAN ape-man rendered as FLAT-COLORED CEL with shaggy dark fur extends hand toward MONOLITH. At moment of contact, brilliant TRANSLUCENT ENERGY AURA in electric blue and white erupts from the monolith's surface, washing over the ape in rippling waves. HAND-DRAWN LIGHTNING ARCS crackle between his fingers and the black slab with BOLD BLACK INK OUTLINES. His fur stands on end with individual strands animated on ones. His eyes glow white with BRILLIANT HIGHLIGHTS. Behind him, other apes recoil with white IMPACT FRAMES flashing. PAINTED BACKGROUND shows dawn sky but with OPAQUE PAINTED SMOKE PLUMES rising as ground debris levitates in the PSYCHIC ENERGY field. The monolith pulses with concentric rings of translucent blue light animated on ones. DEEP BLACKS of slab versus blazing energy auras. This is the monolith as psychic catalyst, pure Akira power awakening.
+
+  # Akira-Amped: Body Horror Transformation
+  - title: Akira-BodyHorror-Mutation-v1
+    prompt: |
+      1988 Cel Animation — Medium close-up. PROTO-HUMAN ape-man touching monolith begins grotesque transformation animated on ones. His arm swells and distorts with pulsating flesh rendered as FLAT-COLORED CELS, muscles bulging asymmetrically. Veins glow electric blue beneath skin. His hand fuses with monolith surface, fingers elongating into twisted tendrils. His face contorts—jaw unhinging, eyes rolling back showing whites, skull shape shifting beneath fur. Similar to TETSUOS MUTATING ARM, organic matter bubbles and warps. PAINTED BACKGROUND blurs as camera shakes. Other apes in background flee in terror, mouths agape. OPAQUE PAINTED SMOKE PLUMES in sickly green rise from transformation. BRILLIANT HIGHLIGHTS on wet, glistening mutated flesh versus DEEP BLACKS. White IMPACT FRAMES punctuate transformation beats. The monolith as body horror catalyst.
+
+  # Akira-Amped: Neo-Tokyo Night Monolith
+  - title: Akira-NeoTokyo-Neon-v1
+    prompt: |
+      1988 Cel Animation — Static low-angle wide shot. The MONOLITH stands in nocturnal NEO-TOKYO rendered as DENSELY DETAILED PAINTED BACKGROUND. Instead of african savanna, massive skyscrapers with grids of yellow windows tower behind it. Vibrant neon signs in pink, cyan, and magenta illuminate the scene—vertical Japanese characters, holographic advertisements. The monolith is pure black rectangle with BOLD BLACK INK OUTLINES but now reflects colored neon spill along its edges creating BRILLIANT HIGHLIGHTS in magenta and cyan. PROTO-HUMANS are replaced by modern figures—gang members in jackets with THE PILL CAPSULE SYMBOL approach cautiously. The ground is wet asphalt reflecting neon with SOFT BOKEH circles. Steam rises from grates as OPAQUE PAINTED SMOKE PLUMES. ANAMORPHIC-STYLE LENS FLARES from neon signs. The palette is Akira's signature neon night: pink, magenta, cyan over teal shadows versus DEEP BLACKS.
+
+  # Akira-Amped: High-Speed Bike Approach
+  - title: Akira-BikeSlide-Approach-v1
+    prompt: |
+      1988 Cel Animation — Dynamic tracking shot. KANEDAS RED MOTORCYCLE with rider in RED RIDING SUIT speeds toward the monolith across desolate terrain, animated on ones for ultra-smooth high-velocity motion. Long red and white LIGHT TRAILS streak behind the bike. Ground texture blurs into horizontal MOTION BLUR LINES. As the bike approaches the monolith standing as perfect black rectangle with BOLD BLACK INK OUTLINES, the rider executes the AKIRA SLIDE—bike tilting 45 degrees sideways, rear wheel kicking up massive OPAQUE PAINTED SMOKE PLUMES in brown and grey, HAND-DRAWN SPARKS erupting from bike chassis scraping ground. The bike slides to stop mere feet from monolith. PAINTED BACKGROUND shows streaking landscape. BRILLIANT HIGHLIGHTS on bike's glossy red paint versus DEEP BLACKS of monolith. This translates the sacred approach into Akira's signature kinetic vocabulary.
+
+  # Akira-Amped: Explosion Shockwave Contact
+  - title: Akira-Explosion-Contact-v1
+    prompt: |
+      1988 Cel Animation — Dynamic medium shot. PROTO-HUMAN hand touches monolith surface. Instantly, massive RED AND ORANGE PAINTED EXPLOSION erupts from contact point, animated on ones with layered cel explosions. Brilliant yellow core with white IMPACT FRAME. OPAQUE PAINTED SMOKE PLUMES in black and red billow outward. Ground beneath cracks with BOLD BLACK INK OUTLINES showing fissures. HAND-DRAWN LIGHTNING ARCS in white and blue radiate from epicenter. The ape is thrown backward with SMEAR FRAMES and MOTION MULTIPLES showing his trajectory. Debris—rocks, dust, energy particles—scatter outward. PAINTED BACKGROUND of sky goes white with overexposed bloom. The monolith remains untouched, perfect black rectangle absorbing the chaos. BRILLIANT HIGHLIGHTS from explosion cores versus DEEP BLACKS. This is first contact as cataclysmic Akira-style detonation.
+
+  # Akira-Amped: Microscopic Cellular Vision
+  - title: Akira-Microscopic-Cells-v1
+    prompt: |
+      1988 Cel Animation — Extreme close-up shifting between scales. Opens on PROTO-HUMAN eye reflecting monolith, then rapid ANIMATED RACK FOCUS pushes into pupil. Cut to microscopic view—pinkish-red cellular structures rendered as FLAT-COLORED CELS with BOLD BLACK INK OUTLINES, organic and stippled like Akira's opening. Cells pulse and divide animated on ones, glowing with translucent blue PSYCHIC ENERGY. Web-like neural networks form showing intricate black lines. Cut back out to ape's face, veins glowing blue beneath skin, eyes wide with transformation. PAINTED BACKGROUND blurs between scales. This echoes Akira's cellular mutation sequences—the monolith triggering evolution at molecular level. BRILLIANT HIGHLIGHTS on wet cell membranes versus DEEP BLACKS.
+
+  # Akira-Amped: Colonel's Military Excavation
+  - title: Akira-Military-Excavation-v1
+    prompt: |
+      1988 Cel Animation — Static wide shot. Lunar excavation styled as Akira military operation. Instead of white astronauts, soldiers in dark GREEN MILITARY UNIFORMS with stern faces rendered as FLAT-COLORED CELS stand at attention around monolith. COLONEL-style figure in peaked cap and long coat stands foreground observing. Military vehicles—tanks, APCs with Akira's mechanical detail showing panels, rivets, treads. Harsh white searchlights create BRILLIANT HIGHLIGHTS and hard DEEP BLACK shadows. Red warning lights blink on equipment. PAINTED BACKGROUND shows grey lunar surface but with industrial military aesthetic—scaffolding, communications arrays, mounted weapons. The monolith as military threat under containment. Monochromatic with splashes of red emergency lights and green uniforms versus black monolith.
+
+  # Akira-Amped: Floating Debris Field
+  - title: Akira-FloatingDebris-v1
+    prompt: |
+      1988 Cel Animation — Static medium shot with simulated zero-gravity. MONOLITH stands centered as perfect black rectangle with BOLD BLACK INK OUTLINES but surrounded by floating debris—rocks, dust particles, fragments suspended in air defying gravity. PROTO-HUMAN ape floats mid-air reaching toward monolith, fur and limbs drifting weightlessly animated on ones. Small objects orbit the monolith slowly. TRANSLUCENT ENERGY AURA in pale blue emanates from slab creating anti-gravity field. PAINTED BACKGROUND shows distorted sky with rippling heat-wave effect. This uses Akira's levitation imagery (like Tetsuo's floating sequences) applied to the encounter. BRILLIANT HIGHLIGHTS on floating particles catching light versus DEEP BLACKS of monolith. Faint HAND-DRAWN LIGHTNING ARCS connect floating debris.
+
+  # Akira-Amped: Red Cape Ceremony
+  - title: Akira-RedCape-Ceremony-v1
+    prompt: |
+      1988 Cel Animation — Static wide shot. PROTO-HUMAN leader stands before monolith wearing flowing RED CAPE that billows dramatically animated on ones despite no visible wind. Cape rendered as FLAT-COLORED CEL with deep crimson and subtle highlights. Other apes kneel in worship formation. The monolith is perfect black rectangle with BOLD BLACK INK OUTLINES. PAINTED BACKGROUND shows dramatic dawn sky with GRADIENT AIRBRUSHING in oranges and violets. The cape imagery directly borrows from Tetsuo's iconic red cape, transforming the primitive encounter into Akira's visual language of power and transformation. Strong backlighting creates BRILLIANT HIGHLIGHTS on cape edges versus DEEP BLACKS. Cape flows with Akira's signature fabric physics.
+
+  # Akira-Amped: Shattered Reality Fragments
+  - title: Akira-ShatteredReality-v1
+    prompt: |
+      1988 Cel Animation — Dynamic medium shot. As PROTO-HUMAN touches monolith, reality itself fractures. The frame splits into angular shards like broken glass rendered with BOLD BLACK INK OUTLINES, each shard showing different time/space—dawn sky, starfield, cellular structures, neon city. Shards float and rotate animated on ones. HAND-DRAWN LIGHTNING ARCS connect fragments. The monolith remains stable center as black rectangle while everything else kaleidoscopes around it. White IMPACT FRAMES flash between shard transitions. This uses Akira's reality-breaking climax imagery—the monolith as dimensional rupture. BRILLIANT HIGHLIGHTS on shard edges versus DEEP BLACKS. TRANSLUCENT ENERGY AURAS bleed between fragmenting spaces.
+
+  # ──────────────────────────────────────────────────────────────────
+  # AKIRA BOOSTED VARIANTS (Neo-Tokyo, SOL, Slide, Psychic FX)
+  # ──────────────────────────────────────────────────────────────────
+
+  # Akira-Boosted: Neon Alignment Reflection
+  - title: Akira-NeonAlignment-Reflection-v1
+    prompt: |
+      1988 Cel Animation — Static low-angle street-level shot at night in NEO-TOKYO. The MONOLITH stands centered beneath an elevated expressway, a perfect black rectangle with BOLD BLACK INK OUTLINES. The SUN HALO and thin CRESCENT appear only as a reflection in a rain puddle at the slab’s base, perfectly stacked on the vertical axis in the water. The DENSELY DETAILED PAINTED BACKGROUND is a canyon of neon signs with SOFT BOKEH and animated flicker. Two bikes streak through frame on twos, leaving long RED AND WHITE LIGHT TRAILS that arc around the reflection without disturbing it. A thin ANAMORPHIC-STYLE LENS FLARE skims the slab’s top edge; the face remains absolute DEEP BLACK with a razor BRILLIANT HIGHLIGHT at the rim.
+
+  # Akira-Boosted: Kaneda Slide at the Slab
+  - title: Akira-KanedaSlide-Monolith-v1
+    prompt: |
+      1988 Cel Animation — Dynamic medium-wide shot. The MONOLITH stands center-left as a perfect black rectangle with BOLD BLACK INK OUTLINES. From right, a RED MOTORCYCLE executes the AKIRA SLIDE, pivoting into a controlled sideways brake that throws sparks and OPAQUE PAINTED SMOKE PLUMES. The tire path draws a glowing arc of LIGHT TRAILS that curves toward the slab, then stops just short. Animated on ones through the slide for ultra-smooth motion; brief SMEAR FRAMES on the wheel and rider. The slab remains motionless, face in DEEP BLACKS; a tight BRILLIANT HIGHLIGHT runs along its upper edge as the sparks flare.
+
+  # Akira-Boosted: SOL Strike Near the Slab
+  - title: Akira-SOLStrike-Monolith-v1
+    prompt: |
+      1988 Cel Animation — Static extreme wide. The MONOLITH stands centered on a barren lot; above, a straight-line beam from SOL spears down from the sky, slicing the ground several meters in front of the slab. The impact blooms into a vertical column of RED AND ORANGE PAINTED EXPLOSIONS and dust, animated on ones with white IMPACT FRAMES. The monolith remains untouched, a perfect black rectangle with BOLD BLACK INK OUTLINES absorbing light. Shockwaves ripple out in concentric ground lines; neon signage in the far background flickers. A narrow ANAMORPHIC-STYLE LENS FLARE travels along the beam; BRILLIANT HIGHLIGHTS at the blast core against DEEP BLACKS of the slab.
+
+  # Akira-Boosted: Psychic Resonance Field
+  - title: Akira-PsychicResonance-v1
+    prompt: |
+      1988 Cel Animation — Static medium-wide frontal composition. The MONOLITH stands exact center, a featureless black rectangle with BOLD BLACK INK OUTLINES. Subtle PSYCHIC ENERGY radiates outward as concentric translucent AURAS and HAND-DRAWN LIGHTNING ARCS crawling the ground plane, distorting painted texture lines as they pass. Foreground figures brace against the invisible force, animated on twos; dust lifts in bands and falls back. A delicate ANIMATED RACK FOCUS breathes between slab edges and foreground grit. The face remains DEEP BLACK; a thin BRILLIANT HIGHLIGHT kisses one vertical edge.
+
+  # Akira-Boosted: Stadium Installation
+  - title: Akira-StadiumMonolith-v1
+    prompt: |
+      1988 Cel Animation — Static wide at the OLYMPIC STADIUM. The MONOLITH stands on a central dais, a perfect black rectangle with BOLD BLACK INK OUTLINES. PAINTED BACKGROUND shows scaffolding, cranes, and tarps snapping in crosswind; floodlights carve hard beams through dust, creating SOFT BOKEH in the distance. The FLOOR-LIKE GRID of work lamps recedes in perspective; searchlights rake across the slab without effect. Animated on twos with MULTI-LAYER PARALLAX between foreground cables, mid scaffolds, and background stands. BRILLIANT HIGHLIGHTS flare on metal; the slab absorbs into DEEP BLACKS.
+
+  # Akira-Boosted: Visor Reflection Alignment
+  - title: Akira-VisorAlignment-Kaneda-v1
+    prompt: |
+      1988 Cel Animation — Extreme close-up of a biker helmet VISOR. The curved glass reflects the MONOLITH with the SUN HALO cresting its top edge and a thin CRESCENT aligned above, perfectly stacked but barrel-distorted. The biker's RED SUIT edge frames the bottom; city neon forms SOFT BOKEH beyond. Camera eases inward on twos; thin chromatic ANAMORPHIC-STYLE LENS FLARES crawl the visor seam. Reflection shows the slab as absolute DEEP BLACK with a razor BRILLIANT HIGHLIGHT at the top edge; the rest of frame remains subdued to preserve the icon.
+
+  # ═══════════════════════════════════════════════════════════════════
+  # PERFECT SYNTHESIS (Equally recognizable as both 2001 AND Akira)
+  # ═══════════════════════════════════════════════════════════════════
+  # These achieve true hybrid - immediately identifiable as BOTH films.
+
+  # Synthesis: Dawn Alignment with Cel Precision
+  - title: Synthesis-DawnAlignment-v1
+    prompt: |
+      1988 Cel Animation — Static extreme low-angle shot preserving Kubrick's exact composition. The MONOLITH rises as a perfect black rectangle with BOLD BLACK INK OUTLINES, top edge bisecting frame horizontally. Blindingly bright sun rendered with GRADIENT AIRBRUSHING crests at exact center creating horizontal ANAMORPHIC-STYLE LENS FLARE. Thin white crescent moon aligned above on vertical axis. At monolith base, three proto-human ape-men rendered as FLAT-COLORED CELS with shaggy dark brown fur, hunched postures, elongated arms stand in perfect symmetrical arrangement, silhouetted against sky. PAINTED BACKGROUND shows african savanna at dawn in muted ochre and brown tones with visible brushstroke texture. The composition is pure Kubrick geometry—rigidly symmetrical, slow, contemplative. But the rendering is pure Akira—cel shading, bold outlines, high-contrast lighting with BRILLIANT HIGHLIGHTS from sun versus DEEP BLACKS of monolith and ape silhouettes. Animated on twos with minimal movement. This looks like a frame from BOTH films simultaneously.
+
+  # Synthesis: Excavation Clinical Detail
+  - title: Synthesis-Excavation-Clinical-v1
+    prompt: |
+      1988 Cel Animation — Static high-angle shot maintaining Kubrick's pristine symmetry. Lunar excavation pit is perfect geometric rectangle carved into grey regolith. MONOLITH stands vertical at exact center as featureless black rectangle with BOLD BLACK INK OUTLINES. Six astronauts rendered as FLAT-COLORED CELS in bulky silver-white suits with ribbed joints, chest-packs, and helmets with dark reflective visors arranged symmetrically around it. Two floodlights positioned symmetrically create harsh white light. DENSELY DETAILED PAINTED BACKGROUND shows excavation walls in grey with precise vertical striations, equipment rendered with Akira's mechanical detail—cables, scaffolding panels, rivets all sharply outlined. Earth hangs centered in black star-field above. The composition is Kubrick—mathematical precision, clinical atmosphere, slow deliberate movement animated on twos. The execution is Akira—cel animation technique, bold outlines, architectural detail obsession. Monochromatic grey-white-black palette with BRILLIANT HIGHLIGHTS on suits and DEEP BLACKS in shadows. 2001's subject rendered in Akira's language without losing either identity.
+
+  # Synthesis: Reaching Hand Moment
+  - title: Synthesis-ReachingHand-v1
+    prompt: |
+      1988 Cel Animation — Medium static shot with Kubrick's contemplative pacing. Proto-human ape-man rendered as FLAT-COLORED CEL with thick dark brown shaggy fur, hunched muscular body, pronounced brow ridge extends leathery hand with thick fingers slowly toward monolith surface. Animated on ones for Akira's smooth fluid motion but maintaining 2001's deliberate tempo—each finger extension is methodical, hesitant. MONOLITH dominates left frame as perfect black rectangle with BOLD BLACK INK OUTLINES, surface impossibly smooth matte black. PAINTED BACKGROUND shows blurred warm earth tones with visible brushstroke texture. Strong rim lighting creates BRILLIANT HIGHLIGHTS on fur-covered arm against DEEP BLACKS. Subtle ANIMATED RACK FOCUS shifts from hand to monolith as in Kubrick's cinematography but rendered with Akira's cel animation breathing. The moment has 2001's weight and mystery plus Akira's visual precision. Hand pauses centimeters before contact. Both films equally present.
+
+  # Synthesis: Quiet Contemplation
+  - title: Synthesis-QuietContemplation-v1
+    prompt: |
+      1988 Cel Animation — Wide static shot emphasizing both films' capacity for stillness. MONOLITH stands centered as perfect black rectangle with BOLD BLACK INK OUTLINES in vast desolate landscape. Single proto-human ape-man rendered as FLAT-COLORED CEL sits in foreground on rock, hunched posture, back to camera, simply observing the monolith in silence. DENSELY DETAILED PAINTED BACKGROUND shows african savanna in muted earth tones stretching to distant mountains under dawn sky with GRADIENT AIRBRUSHING from warm orange to cool blue. The composition uses Kubrick's patient observation—no action, just presence and scale. The rendering uses Akira's hand-painted detail and cel technique. Minimal animation on twos—only subtle breathing movement in ape's shoulders, faint heat shimmer over horizon. High-contrast lighting with BRILLIANT HIGHLIGHTS on distant rocks and DEEP BLACKS in foreground shadows. This captures what BOTH films share: moments of pure visual contemplation divorced from narrative urgency.
+
+  # Synthesis: Architectural Precision
+  - title: Synthesis-ArchitecturalPrecision-v1
+    prompt: |
+      1988 Cel Animation — Static medium shot showcasing both directors' obsession with geometric detail. MONOLITH stands center as perfect black rectangle with BOLD BLACK INK OUTLINES. Surrounding it, pristine white architectural elements—panels, support beams, grid floor—rendered with Akira's mechanical precision showing every rivet, seam, panel line but maintaining Kubrick's minimalist white-room aesthetic. PAINTED BACKGROUND shows geometric architecture in clean whites and greys with subtle shadows defining form. Two figures in white suits rendered as FLAT-COLORED CELS stand at exact symmetrical positions observing. The scene has 2001's clinical sterility and formal geometry plus Akira's obsessive architectural linework. Soft even lighting creates minimal shadows but high contrast between brilliant whites and DEEP BLACKS of monolith. Animated on twos with no movement except subtle reflected light shimmer. Both films' shared love of built environments merged perfectly.
+
+  # Synthesis: Red Accent Symmetry
+  - title: Synthesis-RedAccent-v1
+    prompt: |
+      1988 Cel Animation — Static low-angle shot using red as bridge between films. MONOLITH stands centered as perfect black rectangle with BOLD BLACK INK OUTLINES. On left, proto-human ape-man; on right, figure in RED RIDING SUIT—both rendered as FLAT-COLORED CELS in perfect mirror poses reaching toward monolith. PAINTED BACKGROUND shows hybrid environment—half african savanna dawn, half neo-tokyo dusk, blending at center via GRADIENT AIRBRUSHING. The red suit connects to both HAL's red eye and Kaneda's iconic costume—signature color for both films. Composition is pure Kubrick symmetry. Execution is Akira cel technique. Both figures silhouetted with BRILLIANT HIGHLIGHTS on edges against DEEP BLACKS. The scene reads as timeline collapse—past and future unified by contact with monolith. Slow animation on twos. Equal parts both films.
+
+  # Synthesis: Minimalist Detail Paradox
+  - title: Synthesis-MinimalistDetail-v1
+    prompt: |
+      1988 Cel Animation — Static medium shot achieving minimalism through maximum detail. MONOLITH stands as sole focus—perfect black rectangle with BOLD BLACK INK OUTLINES but every edge rendered with microscopic precision, showing subtle texture variation in the matte black surface while remaining fundamentally featureless. PAINTED BACKGROUND is simple gradient sky with GRADIENT AIRBRUSHING but brush texture is visible, creating handmade quality. Single proto-human ape in foreground rendered as FLAT-COLORED CEL with obsessive fur detail—every strand outlined—yet composition remains uncluttered. This paradox defines both films: Kubrick's minimalist compositions with maximum craft, Akira's densely detailed art serving clear storytelling. High-contrast lighting with BRILLIANT HIGHLIGHTS and DEEP BLACKS. No movement. The image is simple and complex simultaneously—2001's zen restraint expressed through Akira's labor-intensive technique.
+
+  # Synthesis: Slow Kinetic Approach
+  - title: Synthesis-SlowKinetic-v1
+    prompt: |
+      1988 Cel Animation — Slow tracking shot balancing Kubrick's patience with Akira's kinetic grammar. Camera tracks forward on ones toward MONOLITH at deliberate 2001 pace—slow enough to be contemplative, smooth enough to be Akira fluid. MONOLITH grows from small vertical line to dominating black rectangle with BOLD BLACK INK OUTLINES. MULTI-LAYER PARALLAX separates foreground rocks, mid-ground apes, background monolith—Akira technique serving Kubrick composition. PAINTED BACKGROUND shows detailed savanna with visible brushstrokes. Proto-human apes rendered as FLAT-COLORED CELS move aside as camera passes, animated on twos. The shot has 2001's hypnotic steadiness and Akira's technical precision. BRILLIANT HIGHLIGHTS catch rock edges, DEEP BLACKS pool in shadows. Neither film dominates—the speed is 2001, the execution is Akira, the result is hybrid.
+
+  # Synthesis: Reflection Duality
+  - title: Synthesis-ReflectionDuality-v1
+    prompt: |
+      1988 Cel Animation — Static medium shot using reflection to merge identities. MONOLITH stands centered above still water—african watering hole or lunar ice depending on interpretation. MONOLITH and proto-human ape-men rendered as FLAT-COLORED CELS above reflect perfectly in water below, but reflection shows subtle differences—sky in reflection is neo-tokyo night with faint neon instead of dawn. BOLD BLACK INK OUTLINES define all elements. PAINTED BACKGROUND shows dual-nature environment. Composition is perfectly symmetrical vertically—Kubrick's obsession. The reflection device suggests both films' interest in duality, evolution, transformation. High-contrast with BRILLIANT HIGHLIGHTS on water surface and DEEP BLACKS in monolith. Animated on twos with gentle water ripple. The image questions which reality is true—perfect synthesis of both films' philosophical concerns rendered in shared visual language.
+
+  # Synthesis: Tactile Abstraction
+  - title: Synthesis-TactileAbstraction-v1
+    prompt: |
+      1988 Cel Animation — Extreme close-up balancing tangible and conceptual. Frame filled 80% by MONOLITH's black surface rendered with BOLD BLACK INK OUTLINES. The surface is pure DEEP BLACK but with subtle hand-painted texture showing cel layering technique—utterly flat yet tactile. At bottom 20%, proto-human hand rendered as FLAT-COLORED CEL reaches into frame, every finger wrinkle and fur strand detailed. PAINTED BACKGROUND minimal. Single BRILLIANT HIGHLIGHT runs vertically along monolith edge. The shot is abstract like 2001's star-gate but grounded in Akira's material specificity. Composition reduces encounter to essential elements—organic hand, geometric void, light edge—pure Kubrick. Rendering shows every brushstroke—pure Akira. Animated on ones with micro-movements in hand muscles. Both films' DNA equally expressed through shared love of craft and form.

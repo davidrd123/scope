@@ -1,0 +1,295 @@
+atch:
+  name: Occult-Etc
+  session: Occult-Etc
+
+defaults:
+  workflow_template: Templates/Workflows/WAN22/t2v/wan2_2_t2v_base_v1
+  width: 432
+  height: 768
+  frames: 65
+  runs: 2
+  t2v_lora_low: kaiju/kaiju_wan_low_5250steps.safetensors
+  t2v_lora_high: kaiju/kaiju_wan_high_5250steps.safetensors
+  t2v_steps: 24
+  t2v_high_steps: 12
+  negative_prompt: |
+    色调艳丽, 过曝, 欠曝, 静态, 细节模糊不清, 字幕, 风格, 作品, 画作, 画面, 静止, 整体发灰, 最差质量, 低质量, JPEG压缩残留, 丑陋的, 残缺的, 多余的手指, 画得不好的手部, 画得不好的脸部, 畸形的, 毁容的, 形态畸形的肢体, 手指融合, 杂乱的背景, 背景人很多, 倒着走,
+    slow-motion, split screen, text, signature, watermark, logo, timestamp, frame, border, collage,
+    cartoon, modern anime style, moe, chibi, illustration, comic book style, anime outlines, speed lines,
+    3d render, CGI, rendered, photoreal CGI creature, Pixar style, Disney style, Unreal Engine, Unity, video game graphics, game UI, PBR materials, ray tracing look,
+    plastic skin, overly smooth features, doll-like, mannequin, glossy plastic, rubbery shine,
+    untextured surfaces, artifacting, compression artifacts, glitch, digital noise, banding, pixelation, ringing, color bleeding, chroma fringing,
+    macroblocking, h.264 artifacts, quantization, extreme denoise smearing, over-sharpening halos, vignette,
+    flicker, strobing, temporal inconsistency, duplicate frames, frame skipping, frame interpolation artifacts, interlacing, combing, rolling shutter, frame tearing, ghosting, afterimage trails, jitter, micro-jitter, camera shake, wobble, jelly effect, warping,
+    letterbox, pillarbox, black bars, burned-in captions, timecode burn-in, HUD, UI, lower-third, progress bar,
+    tiny kaiju, toy-like proportions, out-of-proportion limbs, extra heads, extra limbs, dislocated joints,
+    visible suit zipper, exposed eyeholes, suit actor visible, human faces, live-action humans, crowd shots,
+    green screen spill, poor keying, chroma key fringe,
+    oversaturated, pastel colors, soft colors, flat lighting, low contrast, low detail background, empty background, out of focus detail, extreme color cast, monochrome unless specified,
+    generic AI look, uncanny valley, poorly fused elements, inconsistent lighting unless specified
+
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════
+  # KANT UFO 01.
+  # ═══════════════════════════════════════════════════════════════════
+
+  # 1. FRAME AS PORTAL - Original Magritte-inspired UFO
+  - title: Frame-Portal-001
+    prompt: |
+      Japanese Kaiju Film — A medium shot from behind a man in an ornate brocade coat holding a large gilded picture frame prop. Through the frame, a silver flying saucer on visible WIREWORK hovers against a MATTE PAINTING SKY of deep twilight blue. The saucer is constructed from RIVETED SILVER-PAINTED MOLDED PLASTIC with a glowing rim rendered as an ANIMATED OPTICAL OVERLAY. PRACTICAL SMOKE drifts across the bottom of frame. The man's powdered wig and costume suggest a theatrical aristocrat. THEATRICAL LIGHTING from below casts dramatic shadows. The composition creates an illusion where the frame appears to capture the impossible.
+
+  # 2. FRAME AS PORTAL - Baroque Theater Stage variant
+  - title: Frame-Portal-002
+    prompt: |
+      Japanese Kaiju Film — A wide shot of a baroque theater stage set. An actor in period costume with powdered wig holds an oversized ornate gilded frame prop toward the audience. First, the frame shows only darkness. Then, within the frame, a MINIATURE silver saucer descends on visible WIREWORK against a hand-painted MATTE PAINTING SKY of storm clouds. The saucer is constructed from RIVETED SILVER-PAINTED MOLDED PLASTIC with portholes. An ANIMATED OPTICAL OVERLAY glow emanates from beneath the craft. PRACTICAL SMOKE pours from the frame edges. THEATRICAL LIGHTING in deep blue washes the scene. The actor's face shows rehearsed astonishment in SUITMATION-style stiff performance.
+
+  # 3. TRIPTYCH OF MONSTERS - Three frames, three kaiju
+  - title: Frame-Triptych-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of three robed figures standing on a MINIATURE rocky outcrop set. Each holds an ornate gilded frame prop. In the left frame, the giant pterosaur kaiju with leathery brown wings, Rodan, descends via WIREWORK against a MATTE PAINTING SKY. In the center frame, the reptilian charcoal-gray kaiju Godzilla emerges from PRACTICAL SMOKE, his PEBBLED-TEXTURE LATEX RUBBER SUIT catching THEATRICAL LIGHTING. In the right frame, the gigantic segmented brown caterpillar Mothra crawls forward, ANIMATRONIC HEAD twitching. SPARKLER-LIKE PYROTECHNICS burst behind all three frames. The robed figures stand motionless in SUITMATION stillness. A deep crimson wash from below suggests ritual. PRACTICAL SMOKE pools at their feet.
+
+  # 4. THE BREACH - Monster refuses containment
+  - title: Frame-Breach-001
+    prompt: |
+      Japanese Kaiju Film — A medium shot of a single gilded frame prop mounted on a black velvet backdrop. First, within the frame, the reptilian charcoal-gray kaiju Godzilla stands motionless in his PEBBLED-TEXTURE LATEX RUBBER SUIT against a MATTE PAINTING SKY. Then, his ANIMATRONIC HEAD turns toward camera. Then, his clawed hand in LATEX RUBBER reaches THROUGH the frame border. BALSA WOOD and PLASTER fragments of the gilded frame explode outward. SPARKLER-LIKE PYROTECHNICS erupt at the breach point. PRACTICAL SMOKE pours through the broken opening. His amber eye catches THEATRICAL LIGHTING. The fourth wall shatters in MINIATURE debris.
+
+  # 5. FULL INVASION - Museum gallery breach
+  - title: Frame-Breach-002
+    prompt: |
+      Japanese Kaiju Film — A low-angle shot looking up at an ornate gilded museum frame mounted on a gallery wall. First, the frame contains a painted backdrop of Tokyo skyline done in MATTE PAINTING style. Then, the reptilian charcoal-gray kaiju Godzilla steps forward within the painting, his PEBBLED-TEXTURE LATEX RUBBER SUIT emerging from two dimensions into three. His massive foot in LATEX RUBBER crashes through the bottom of the frame. BALSA WOOD molding and PLASTER gilding fragments spray toward camera. SPARKLER-LIKE PYROTECHNICS ignite along the breach. His ANIMATRONIC HEAD pushes through, jaw working mechanically. PRACTICAL SMOKE billows from behind him carrying the scent of the fictional world. Tiny museum visitors in the foreground flee in SUITMATION panic. THEATRICAL LIGHTING from the painting itself casts impossible shadows into the gallery space.
+
+  # 6. THE CONTAINMENT - Melancholy museumification
+  - title: Frame-Containment-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of a darkened museum gallery. A single gilded baroque frame hangs on crimson velvet. Within the frame, the reptilian charcoal-gray kaiju Godzilla stands motionless in his PEBBLED-TEXTURE LATEX RUBBER SUIT against a painted MATTE PAINTING SKY of eternal sunset. His pose is frozen mid-roar but no ANIMATED OPTICAL OVERLAY beam emerges. His ANIMATRONIC HEAD does not move. The PEBBLED-TEXTURE LATEX shows cracks and wear. A tiny brass placard reads illegible text. THEATRICAL LIGHTING from a single spot illuminates only him. PRACTICAL SMOKE curls at the bottom of the frame but cannot escape. Velvet ropes in the foreground. A security guard sleeps in his chair. The king of monsters as artifact. As memory. As something that happened once on a soundstage that no longer exists.
+
+  # 7. THE SYNTHESIS - Schrödinger's kaiju, both states
+  - title: Frame-Dialectic-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of a museum gallery with two gilded baroque frames on opposing walls. In the LEFT frame, the reptilian charcoal-gray kaiju Godzilla stands frozen in his PEBBLED-TEXTURE LATEX RUBBER SUIT, ANIMATRONIC HEAD locked mid-roar, surrounded by painted MATTE PAINTING flames that do not move. A brass placard. Velvet ropes. Dust on the frame. In the RIGHT frame, the same kaiju but his claw in LATEX RUBBER is mid-breach, BALSA WOOD fragments suspended in freeze-frame explosion, SPARKLER-LIKE PYROTECHNICS caught as frozen starbursts. PRACTICAL SMOKE calcified into sculptural wisps. A security guard stands between both frames, flashlight beam on the floor, head turning from one to the other in SUITMATION confusion. THEATRICAL LIGHTING splits the room: blue melancholy left, red violence right. Both frames exist. Both are true. The guard must choose which monster is real.
+
+  # 8. THE HUMAN AS FRAME - Body as threshold
+  - title: Frame-Human-001
+    prompt: |
+      Japanese Kaiju Film — A medium close-up of a security guard from behind. He stands with arms outstretched, fingers spread, forming a frame with his body against the darkness. Through the frame of his silhouette, the reptilian charcoal-gray kaiju Godzilla approaches in his PEBBLED-TEXTURE LATEX RUBBER SUIT, each footstep shaking the MINIATURE CITYSCAPE beneath him. The guard does not move. He has become the exhibition. First, Godzilla's ANIMATRONIC HEAD tilts, examining the human frame. Then, his amber eye catches THEATRICAL LIGHTING. Then, he steps THROUGH the guard's outstretched arms. PRACTICAL SMOKE swallows the human shape. When it clears, only the monster remains. The guard was the last frame. The guard was the last containment. There are no more walls between the soundstage and the world.
+
+  # ═══════════════════════════════════════════════════════════════════
+  # KANT UFO - THE NOUMENON
+  # The thing-in-itself that exceeds categories
+  # ═══════════════════════════════════════════════════════════════════
+
+  # 9. THE PHILOSOPHER'S LOOK UP - Kant observing the uncategorizable
+  - title: Kant-Noumenon-001
+    prompt: |
+      Japanese Kaiju Film — A low-angle medium shot of a man in 18th century attire standing on a MINIATURE hilltop set. He wears a dark coat and white cravat, hair pulled back. His head tilts upward in SUITMATION stillness. Above him, a silver flying saucer hovers on visible WIREWORK against a MATTE PAINTING SKY of deep violet dusk. The saucer is constructed from RIVETED SILVER-PAINTED MOLDED PLASTIC with an ANIMATED OPTICAL OVERLAY glow pulsing beneath. The philosopher does not flee. He categorizes. His hands make a rectangular frame gesture toward the craft. PRACTICAL SMOKE drifts at ground level. THEATRICAL LIGHTING from above casts his shadow long behind him. The noumenon refuses to fit his frame.
+
+  # 10. UFO GALLERY - Multiple noumena in containment
+  - title: Kant-Gallery-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of a darkened gallery hall. Five ornate gilded frames hang in a row on crimson velvet wall. Each frame contains a different silver flying saucer on WIREWORK against individual MATTE PAINTING SKIES. The saucers vary in construction: RIVETED SILVER-PAINTED MOLDED PLASTIC, FIBERGLASS dome, spinning rim with ANIMATED OPTICAL OVERLAY. Below each frame, a brass placard with illegible philosophical text. A figure in 18th century coat walks slowly past in SUITMATION, examining each. THEATRICAL LIGHTING from hidden spots. PRACTICAL SMOKE pools along the floor. A gallery of things that should not exist. Catalogued. Contained. For now.
+
+  # 11. UFO STILLNESS - Pre-breach tension
+  - title: Kant-Stillness-001
+    prompt: |
+      Japanese Kaiju Film — A static medium shot of a single ornate gilded frame hanging on black velvet. Within the frame, a silver flying saucer hovers motionless on WIREWORK against a painted MATTE PAINTING SKY of twilight. The saucer is constructed from RIVETED SILVER-PAINTED MOLDED PLASTIC with dark portholes. No ANIMATED OPTICAL OVERLAY glow. No movement. Dust motes drift in a single beam of THEATRICAL LIGHTING. The painted sky shows no clouds moving. Absolute stillness. The frame holds. The phenomenon remains categorized. Then, almost imperceptibly, the saucer rotates.
+
+  # 12. UFO FIRST TELL - The category slips
+  - title: Kant-FirstTell-001
+    prompt: |
+      Japanese Kaiju Film — An extreme close-up of a painted porthole on a silver flying saucer within an ornate gilded frame. The saucer is constructed from RIVETED SILVER-PAINTED MOLDED PLASTIC rendered in aged oil paint texture. First, the porthole is dark, empty. Then, a faint ANIMATED OPTICAL OVERLAY light pulses from within. Then, something moves behind the dark glass. The paint texture of RIVETED METAL begins to catch real light, dimensional. THEATRICAL LIGHTING shifts as if the light source has changed. The flat becomes three. The phenomenon remembers it was once noumenon.
+
+  # 13. UFO BREACH - The noumenon refuses containment
+  - title: Kant-Breach-001
+    prompt: |
+      Japanese Kaiju Film — A medium shot of an ornate gilded frame mounted on a gallery wall. First, within the frame, a silver flying saucer hovers against MATTE PAINTING SKY on WIREWORK. Then, the saucer tilts toward camera. Then, its silver rim constructed from RIVETED SILVER-PAINTED MOLDED PLASTIC pushes THROUGH the frame border. BALSA WOOD and PLASTER gilding fragments explode outward. SPARKLER-LIKE PYROTECHNICS erupt along the breach line. An ANIMATED OPTICAL OVERLAY beam shoots from beneath the emerging craft. PRACTICAL SMOKE pours through the torn canvas. The saucer emerges into the gallery, WIREWORK now visible in our space. THEATRICAL LIGHTING strobes. The thing-in-itself refuses to remain a thing-in-painting.
+
+  # 14. UFO AS FRAME - The noumenon contains phenomena
+  - title: Kant-Inversion-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot looking up at a massive silver flying saucer hovering via WIREWORK against a MATTE PAINTING SKY of storm clouds. The saucer is constructed from RIVETED SILVER-PAINTED MOLDED PLASTIC with a circular opening in its underside. The opening glows with ANIMATED OPTICAL OVERLAY light. Within that circular frame of light, the reptilian charcoal-gray kaiju Godzilla descends in his PEBBLED-TEXTURE LATEX RUBBER SUIT, lowered on WIREWORK through the portal. PRACTICAL SMOKE billows around him. SPARKLER-LIKE PYROTECHNICS crackle at the threshold. The saucer IS the frame. The uncategorizable delivers the categorized. THEATRICAL LIGHTING from the portal casts the kaiju in silhouette.
+
+  # 15. MULTIPLE PHILOSOPHERS - The categories multiply
+  - title: Kant-Philosophers-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of a MINIATURE hilltop set at dusk. Five figures in 18th century attire stand in a row, each making different frame gestures with their hands toward the sky in SUITMATION poses. Above them, a single silver flying saucer hovers on WIREWORK against MATTE PAINTING SKY. The saucer is constructed from RIVETED SILVER-PAINTED MOLDED PLASTIC with ANIMATED OPTICAL OVERLAY glow. Each philosopher frames it differently: rectangle, circle, triangle, cupped hands, one covers his eyes entirely. PRACTICAL SMOKE drifts between them. THEATRICAL LIGHTING from above. Five categories. One noumenon. None sufficient.
+
+  # ═══════════════════════════════════════════════════════════════════
+  # MUSEUM HORROR - REACTIONS AND CONSEQUENCES
+  # The human perspective on categorical collapse
+  # ═══════════════════════════════════════════════════════════════════
+
+  # 16. REACTION: The Pilot sees the breach
+  - title: Horror-Pilot-001
+    prompt: |
+      Japanese Kaiju Film — A shot from the interior of a helicopter cockpit. Two pilots in orange flight suits grip controls, faces lit by instrument panel glow. Through the cracked windshield, a museum building with a massive hole in its wall. The reptilian charcoal-gray kaiju Godzilla emerges in his PEBBLED-TEXTURE LATEX RUBBER SUIT, stepping through PLASTER and BALSA WOOD debris. Behind him, a torn gilded frame hangs askew. SPARKLER-LIKE PYROTECHNICS flicker in the wreckage. PRACTICAL SMOKE billows from the breach. One pilot points. The other crosses himself. THEATRICAL LIGHTING from the fires below. The windshield shows a reflection of their terrified faces over the impossible scene.
+
+  # 17. REACTION: Military Command sees the void
+  - title: Horror-Military-001
+    prompt: |
+      Japanese Kaiju Film — A shot from inside a Military Command Center. Officers in uniform cluster around a grainy monitor screen showing black and white footage. On the screen: an empty gilded frame on a museum wall, torn open, darkness within where a painted kaiju once stood. A 3D relief map model of Tokyo on the table shows a red light blinking where the museum was. A general's hand trembles over the telephone. THEATRICAL LIGHTING is harsh fluorescent. PRACTICAL SMOKE curls from an ashtray. On the monitor, something moves in the darkness of the empty frame. The officers lean closer. They should not lean closer.
+
+  # 18. REACTION: Civilians flee the gallery
+  - title: Horror-Civilians-001
+    prompt: |
+      Japanese Kaiju Film — A shot from behind a crowd of fleeing civilians in a museum gallery. They run toward camera in SUITMATION panic, arms raised, mouths open in silent screams. Behind them, the reptilian charcoal-gray kaiju Godzilla looms in his PEBBLED-TEXTURE LATEX RUBBER SUIT, emerging from a shattered gilded frame on the far wall. BALSA WOOD and PLASTER debris rains down. Renaissance paintings hang crooked on either side. SPARKLER-LIKE PYROTECHNICS erupt from broken electrical fixtures. PRACTICAL SMOKE fills the upper gallery. THEATRICAL LIGHTING flickers between warm museum spots and the red of emergency lights. A child's balloon drifts upward toward the monster.
+
+  # 19. REACTION: The witness behind glass
+  - title: Horror-Witness-001
+    prompt: |
+      Japanese Kaiju Film — A shot from behind a shattered display case in a museum gallery. A security guard crouches among broken glass and PLASTER debris. Through the jagged glass opening, the reptilian charcoal-gray kaiju Godzilla stands massive in his PEBBLED-TEXTURE LATEX RUBBER SUIT. His ANIMATRONIC HEAD turns slowly, surveying. The guard's flashlight beam shakes against the monster's chest. On the walls around them, gilded frames hang empty, their painted contents gone. PRACTICAL SMOKE curls across the floor. THEATRICAL LIGHTING casts the kaiju's shadow across a Caravaggio. The guard's reflection in a glass shard shows his face. He understands now what the frames were holding.
+
+  # 20. AFTERMATH: The void in the frame
+  - title: Horror-Void-001
+    prompt: |
+      Japanese Kaiju Film — A medium shot of an ornate gilded frame hanging askew on a museum wall. The frame is shattered on one side, BALSA WOOD and PLASTER gilt fragments scattered on the floor below. Within the frame: nothing. Only swirling PRACTICAL SMOKE and absolute darkness where a painted silver saucer once hovered. A MATTE PAINTING SKY remains visible at the edges, but the center is void. THEATRICAL LIGHTING from a single surviving spot illuminates only the emptiness. Velvet ropes knocked aside. A single brass placard lies face-down. The category has escaped. The phenomenon has returned to noumenon.
+
+  # 21. AFTERMATH: UFO void with seeping light
+  - title: Horror-Void-002
+    prompt: |
+      Japanese Kaiju Film — A close-up of an empty gilded frame on a gallery wall. Through the torn painted canvas, an ANIMATED OPTICAL OVERLAY light seeps from the void within. Not the saucer's light—something else. Something from wherever the saucer came from before it was painted. PRACTICAL SMOKE pours through the opening, curling into the gallery. The PLASTER gilding around the breach point has blackened. THEATRICAL LIGHTING in the gallery flickers, as if the new light source interferes. Shadows fall in wrong directions. The frame was not just a container. It was a seal.
+
+  # 22. AFTERMATH: The gallery in ruins
+  - title: Horror-Aftermath-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of a destroyed museum gallery. Gilded frames hang empty or shattered on crimson walls. PLASTER and BALSA WOOD debris covers the marble floor. A massive footprint in cracked stone shows where the reptilian charcoal-gray kaiju Godzilla stepped. Velvet ropes torn. Display cases smashed. A fire suppression system drips water. PRACTICAL SMOKE hangs in layers. THEATRICAL LIGHTING comes only from emergency exits, casting everything in red. In the far corner, a single frame remains intact, its painting trembling. Something inside still contained. For now.
+
+  # 23. AFTERMATH: The consequence outside
+  - title: Horror-Consequence-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of a MINIATURE CITYSCAPE at night. The museum building has a massive hole torn through its neoclassical facade, PLASTER and BALSA WOOD columns scattered. The reptilian charcoal-gray kaiju Godzilla walks away in his PEBBLED-TEXTURE LATEX RUBBER SUIT, his back to the ruined institution. A torn gilded frame dangles from his claw like a trophy. In the sky above, three silver flying saucers hover on WIREWORK against MATTE PAINTING SKY of stars. Their ANIMATED OPTICAL OVERLAY lights pulse in sequence. PRACTICAL SMOKE rises from the city. The frames failed. The saucers have come to witness. Or to reclaim.
+
+  # ═══════════════════════════════════════════════════════════════════
+  # THE FRAME FACTORY
+  # Where categories are manufactured
+  # ═══════════════════════════════════════════════════════════════════
+
+  # 24. THE WORKSHOP - Building containment
+  - title: Factory-Workshop-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of a MINIATURE workshop set. Robed figures in SUITMATION work at long wooden tables constructing gilded frames from BALSA WOOD and PLASTER. Gold leaf and brushes scatter across surfaces. Against the walls, finished frames lean in rows, each containing a painted MATTE PAINTING of a different phenomenon: saucers, kaiju silhouettes, impossible geometries. A forge in the corner casts orange THEATRICAL LIGHTING. PRACTICAL SMOKE rises from glue pots and braziers. One worker holds an empty frame up to the light, checking for gaps. Behind them all, through a high window, the actual sky darkens with shapes that need containing.
+
+  # 25. THE FRAMES AWAIT - Empty containment
+  - title: Factory-Empty-001
+    prompt: |
+      Japanese Kaiju Film — A medium shot of a row of empty gilded frames leaning against a workshop wall. Each frame is freshly constructed from BALSA WOOD with PLASTER gilt, gleaming under THEATRICAL LIGHTING from oil lamps. The frames vary in size: small ones for saucers, massive ones requiring two workers to lift. Blank canvases stretch within, primed but unpainted. PRACTICAL SMOKE drifts across. Brushes and pigments wait on a table. Through each empty frame, the workshop wall is visible—but wrong somehow. The wall through the frames seems farther away. The emptiness has depth. The frames are already becoming portals before paint is applied.
+
+  # 26. THE INVENTORY - Catalogue of the contained
+  - title: Factory-Inventory-001
+    prompt: |
+      Japanese Kaiju Film — A tracking shot through a vast warehouse of gilded frames stacked floor to ceiling. Each frame contains a painted subject: silver saucers on WIREWORK, kaiju frozen mid-roar, impossible creatures in PEBBLED-TEXTURE LATEX RUBBER and SHAGGY SYNTHETIC FUR, geometries that hurt to perceive. Workers in robes walk between the stacks in SUITMATION, checking placards, making notes. THEATRICAL LIGHTING from hanging lanterns creates pools of illumination. PRACTICAL SMOKE hangs in the air like preservation fog. Some frames are chained shut. Some frames vibrate. One worker pauses before a frame showing the reptilian charcoal-gray kaiju Godzilla. The painting watches him back.
+
+  # 27. THE MASTER FRAMER - Authority over categories
+  - title: Factory-Master-001
+    prompt: |
+      Japanese Kaiju Film — A medium shot of an elderly figure in elaborate robes seated before an easel in a workshop. He paints with precise SUITMATION movements, adding details to a silver flying saucer against MATTE PAINTING SKY. The saucer takes form in RIVETED SILVER-PAINTED MOLDED PLASTIC texture under his brush. Around him, completed frames show his life's work: contained phenomena, categorized noumena. THEATRICAL LIGHTING from a single window illuminates his face, weathered with concentration. PRACTICAL SMOKE rises from incense. His brush trembles. The saucer in the painting has begun to glow with an ANIMATED OPTICAL OVERLAY light he did not paint.
+
+  # ═══════════════════════════════════════════════════════════════════
+  # SYNTHESIS - UFO AND KAIJU TOGETHER
+  # When categories collide
+  # ═══════════════════════════════════════════════════════════════════
+
+  # 28. TRIPTYCH WITH UFO - Three frames, mixed phenomena
+  - title: Synthesis-Triptych-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of three robed figures holding ornate gilded frames on a MINIATURE rocky outcrop. In the left frame, a silver flying saucer descends on WIREWORK against MATTE PAINTING SKY, ANIMATED OPTICAL OVERLAY light pulsing. In the center frame, the reptilian charcoal-gray kaiju Godzilla roars in his PEBBLED-TEXTURE LATEX RUBBER SUIT. In the right frame, both: the saucer hovers above the kaiju, its light illuminating his scales. SPARKLER-LIKE PYROTECHNICS burst where the phenomena meet. The robed figures strain to hold the frames level as if the weight increases. PRACTICAL SMOKE rises. THEATRICAL LIGHTING from below. The categories were never separate.
+
+  # 29. UFO DELIVERING KAIJU - The source revealed
+  - title: Synthesis-Delivery-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of a MINIATURE CITYSCAPE. A massive silver flying saucer hovers via WIREWORK against MATTE PAINTING SKY of storm clouds. The saucer is constructed from RIVETED SILVER-PAINTED MOLDED PLASTIC with an open hatch beneath. From the hatch, the reptilian charcoal-gray kaiju Godzilla descends on WIREWORK in his PEBBLED-TEXTURE LATEX RUBBER SUIT, arms at his sides, as if being lowered onto a stage. An ANIMATED OPTICAL OVERLAY beam surrounds his descent. MINIATURE buildings below await destruction. PRACTICAL SMOKE billows from the saucer. THEATRICAL LIGHTING from the beam. The monsters were always delivered. The saucers were always the first frames.
+
+  # 30. THE BROKEN DIALECTIC - Both states simultaneously
+  - title: Synthesis-Dialectic-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of a ruined gallery. On the left wall, a gilded frame showing a painted silver saucer against MATTE PAINTING SKY, perfectly still, contained. On the right wall, the same frame torn open, the actual saucer emerging on WIREWORK, ANIMATED OPTICAL OVERLAY light blazing, SPARKLER-LIKE PYROTECHNICS at the breach. In the center of the room, a philosopher figure in 18th century attire stands between both frames in SUITMATION paralysis, head turning from one to the other. PRACTICAL SMOKE from the breach drifts toward the still painting. THEATRICAL LIGHTING splits the room. Both frames show the same subject. Both are true. One is memory. One is now.
+
+  # ═══════════════════════════════════════════════════════════════════
+  # THE VOLUNTARY RETURN
+  # When the noumenon chooses to become phenomenon
+  # ═══════════════════════════════════════════════════════════════════
+
+  # 31. THE APPROACH - Monster regards the empty frame
+  - title: Return-Approach-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of a darkened gallery. The reptilian charcoal-gray kaiju Godzilla stands in his PEBBLED-TEXTURE LATEX RUBBER SUIT before an empty ornate gilded frame mounted on crimson velvet. The frame contains only blank canvas, primed white. His ANIMATRONIC HEAD tilts, regarding the emptiness. PRACTICAL SMOKE curls at his feet. THEATRICAL LIGHTING from a single spot illuminates only the frame, leaving the kaiju in shadow. Debris from earlier destruction surrounds them both. Velvet ropes lie torn. He has broken free. He has seen the world outside the painting. Now he stands before the blankness. Considering.
+
+  # 32. THE ENTRY - Choosing containment
+  - title: Return-Entry-001
+    prompt: |
+      Japanese Kaiju Film — A medium shot of the reptilian charcoal-gray kaiju Godzilla stepping backward into an ornate gilded frame in his PEBBLED-TEXTURE LATEX RUBBER SUIT. First, his tail flattens against the canvas, becoming painted. Then, his body follows in SUITMATION slow motion, dimension collapsing to surface. His PEBBLED-TEXTURE LATEX becomes oil paint texture. His amber eyes remain three-dimensional longest, watching camera. Then they too flatten. PRACTICAL SMOKE wisps around the frame edges as if sealing. THEATRICAL LIGHTING dims to museum ambiance. The roar becomes silence. The monster becomes memory. He chose this. The frame did not capture him. He entered.
+
+  # 33. THE PEACE - Voluntary containment complete
+  - title: Return-Peace-001
+    prompt: |
+      Japanese Kaiju Film — A static wide shot of a museum gallery restored to order. A single ornate gilded frame hangs centered on crimson velvet wall. Within the frame, the reptilian charcoal-gray kaiju Godzilla stands painted in MATTE PAINTING style against a Tokyo sunset sky. His pose is calm, not mid-roar. His painted eyes are closed. The PEBBLED-TEXTURE LATEX RUBBER rendered as peaceful brushstrokes. A new brass placard gleams below. Velvet ropes replaced. A single visitor stands before the painting in SUITMATION stillness, hands clasped behind back. THEATRICAL LIGHTING warm and even. PRACTICAL SMOKE absent. The gallery breathes. The monster rests. This time, the containment is consent.
+
+  # 34. UFO VOLUNTARY RETURN - The saucer chooses
+  - title: Return-UFO-001
+    prompt: |
+      Japanese Kaiju Film — A medium shot of a silver flying saucer descending toward an empty ornate gilded frame laid flat on a gallery floor. The saucer hovers on WIREWORK, its ANIMATED OPTICAL OVERLAY glow dimming as it approaches. The frame contains blank canvas. First, the saucer's rim touches the canvas surface. Then, it sinks into the flatness, dimension collapsing. Its RIVETED SILVER-PAINTED MOLDED PLASTIC becomes paint. Its glow becomes pigment. PRACTICAL SMOKE rises around the frame edges. THEATRICAL LIGHTING fades to a single spot. The noumenon remembers what it was like to be known. To be seen. To be named. It chooses the frame. The sky is too large.
+
+  # ═══════════════════════════════════════════════════════════════════
+  # FRAME ARCHAEOLOGY
+  # The eternal human impulse to contain the uncategorizable
+  # ═══════════════════════════════════════════════════════════════════
+
+  # 35. THE DIG - Discovery of ancient containment
+  - title: Archaeology-Dig-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of a MINIATURE archaeological excavation set. Workers in khaki brush dust from a massive stone slab emerging from the earth. Carved into the stone: an ornate frame border surrounding a relief of a flying saucer shape. The saucer carving catches THEATRICAL LIGHTING wrong, seeming deeper than the stone should allow. Shadows within the carved frame move independently. A lead archaeologist in pith helmet leans closer in SUITMATION. PRACTICAL SMOKE rises from the disturbed earth like breath. DIRT/GRAVEL scatters as more frame is revealed. The workers do not know what they are unsealing. The ancients knew. The ancients tried.
+
+  # 36. THE CAVE PAINTING - Prehistoric containment
+  - title: Archaeology-Cave-001
+    prompt: |
+      Japanese Kaiju Film — A medium shot inside a MINIATURE cave set. Torchlight from THEATRICAL LIGHTING flickers across ancient cave paintings. One painting shows a crude silver disc above stick-figure humans. The disc is surrounded by a painted ochre frame border. First, the torch flame wavers. Then, within the prehistoric frame, the painted saucer seems to rotate. An ANIMATED OPTICAL OVERLAY glow pulses from pigments that should not glow. PRACTICAL SMOKE from the torch curls toward the painting as if drawn. A modern archaeologist's hand enters frame, reaching toward the ancient containment. The cave wall is older than history. The frame impulse is older than civilization.
+
+  # 37. THE TEMPLE FRAME - Ancient ritual containment
+  - title: Archaeology-Temple-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of a MINIATURE ancient temple interior. Stone columns frame a central altar where a massive carved stone frame stands upright. Within the frame, a mosaic of colored stones depicts the reptilian charcoal-gray kaiju Godzilla in stylized ancient form. Robed priests stand before the frame in SUITMATION ritual poses, arms raised. THEATRICAL LIGHTING from oil lamps. PRACTICAL SMOKE from braziers fills the temple. Offerings of MINIATURE buildings lie smashed at the frame's base. The mosaic kaiju's eye is a single red gemstone. The gemstone catches light it should not catch. The priests have maintained containment for a thousand years. Tonight something changes.
+
+  # 38. THE SCROLL - Medieval containment
+  - title: Archaeology-Scroll-001
+    prompt: |
+      Japanese Kaiju Film — A close-up of an illuminated manuscript page. A gilded painted border frames an illustration of a silver flying saucer above a medieval village. Monks in brown robes peer up at the craft. The border is decorated with protective symbols, crosses, warding patterns. A modern gloved hand holds the ancient page. THEATRICAL LIGHTING from a restoration lamp. First, the page is still. Then, the painted saucer within the gilded border begins to spin. Flecks of ancient gold leaf fall from the border as something presses against it from within. PRACTICAL SMOKE rises from nowhere. The medieval scribes knew what they were binding. They wrote it down. They framed it.
+
+  # 39. THE PROGRESSION - History of containment
+  - title: Archaeology-Timeline-001
+    prompt: |
+      Japanese Kaiju Film — A tracking shot through a museum wing showing containment across ages. First, a cave painting in ochre frame. Then, an Egyptian hieroglyph panel with cartouche border. Then, a Greek amphora with painted frame pattern. Then, a medieval manuscript. Then, a Renaissance oil painting in gilded baroque frame. Then, a Victorian photograph in silver frame. Finally, a modern video monitor showing static. Each contains a silver saucer or kaiju shape. Each frame shows signs of strain: cracks, fading, movement within. THEATRICAL LIGHTING shifts era to era. PRACTICAL SMOKE drifts through the wing. Workers in robes walk past in SUITMATION, checking, maintaining. Humanity has always been building frames. Humanity has always been failing.
+
+  # ═══════════════════════════════════════════════════════════════════
+  # THE CAMERA AS FINAL FRAME
+  # The film apparatus as containment device
+  # ═══════════════════════════════════════════════════════════════════
+
+  # 40. THE VIEWFINDER - Filming the noumenon
+  - title: Camera-Viewfinder-001
+    prompt: |
+      Japanese Kaiju Film — A shot from behind a massive film camera on a MINIATURE soundstage. A cameraman in work clothes peers through the viewfinder. Through the viewfinder frame, the reptilian charcoal-gray kaiju Godzilla stands in his PEBBLED-TEXTURE LATEX RUBBER SUIT against a MATTE PAINTING SKY backdrop. Film lights provide THEATRICAL LIGHTING. PRACTICAL SMOKE from fog machines drifts across set. The kaiju is contained within the rectangular viewfinder. Frame lines visible at edges. The cameraman's hand adjusts focus. The monster is real. The monster is also a man in a suit. The monster is also light on film. The viewfinder is the first frame. The projector will be the second. The audience's eye will be the third.
+
+  # 41. THE SOUNDSTAGE - The set as frame
+  - title: Camera-Soundstage-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot revealing a MINIATURE soundstage from impossible angle. Visible: the edges of the MATTE PAINTING SKY backdrop, the wooden frame holding it up, the studio walls beyond. In the center of the set, the reptilian charcoal-gray kaiju Godzilla stands in his PEBBLED-TEXTURE LATEX RUBBER SUIT, surrounded by MINIATURE CITYSCAPE buildings. Crew members stand at the edges in work clothes. Film lights on stands provide THEATRICAL LIGHTING. PRACTICAL SMOKE machines visible. The soundstage walls ARE the frame. Everything within is contained. The monster cannot step past the edge of the set. The edge of the set is where reality resumes. Or where reality ends.
+
+  # 42. THE FILM STRIP - Containment in silver halide
+  - title: Camera-FilmStrip-001
+    prompt: |
+      Japanese Kaiju Film — An extreme close-up of a strip of 35mm film held up to light. Individual frames visible, each containing a frozen moment of the reptilian charcoal-gray kaiju Godzilla in his PEBBLED-TEXTURE LATEX RUBBER SUIT mid-roar. Sprocket holes line the edges. The film emulsion shows grain. THEATRICAL LIGHTING from behind makes the frames glow amber. A gloved hand holds the strip. Between each frame, the kaiju is slightly different, implying motion, implying time. But held still, he is contained twenty-four times per second. The celluloid is the frame. The projector gate is the frame. Each frozen moment is a tiny gilded border around the impossible.
+
+  # 43. THE PROJECTION - The screen as frame
+  - title: Camera-Projection-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot from behind theater seats. Silhouettes of audience members sit in rows. On the massive screen before them, the reptilian charcoal-gray kaiju Godzilla roars in his PEBBLED-TEXTURE LATEX RUBBER SUIT, ANIMATED OPTICAL OVERLAY beam firing, MINIATURE buildings crumbling. The screen edges form the frame. Projection light streams above the audience from a booth behind. PRACTICAL SMOKE from the screen's depicted destruction seems to drift into the theater. THEATRICAL LIGHTING spills onto the front rows. The audience does not flee. The screen contains. The monster is light. The monster is memory. The monster is twenty feet tall and cannot leave the rectangle. Unless someone turns off the projector. Unless the film burns. Unless.
+
+  # 44. THE DIRECTOR CALLS CUT - The word as frame
+  - title: Camera-Cut-001
+    prompt: |
+      Japanese Kaiju Film — A wide shot of a MINIATURE soundstage. The reptilian charcoal-gray kaiju Godzilla stands mid-motion in his PEBBLED-TEXTURE LATEX RUBBER SUIT, one foot raised, claw extended toward camera. PRACTICAL SMOKE frozen mid-billow. SPARKLER-LIKE PYROTECHNICS suspended mid-burst. Everything stopped. A director in chair raises a megaphone to his mouth. The word CUT visible as if spoken into the air. THEATRICAL LIGHTING harsh and revealing. The kaiju cannot move because the director has spoken. The frame is not the lens. The frame is not the film. The frame is language. The frame is the word that stops time. The frame is the authority to say: this moment, contained.
+
+  # 45. THE AUDIENCE EYE - The final frame
+  - title: Camera-Eye-001
+    prompt: |
+      Japanese Kaiju Film — An extreme close-up of a human eye, pupil dilated, reflecting. In the reflection on the wet surface of the eye: the reptilian charcoal-gray kaiju Godzilla tiny and inverted in his PEBBLED-TEXTURE LATEX RUBBER SUIT, surrounded by the curved border of the iris. The eye is the final frame. The monster contained in the act of being seen. THEATRICAL LIGHTING illuminates the face around the eye. Tear moisture at the corner. The reflection shows PRACTICAL SMOKE, MINIATURE destruction. All of it held in the sphere of a single human perception. The noumenon passes through every frame—camera, film, projector, screen—and becomes phenomenon only here. In the seeing. The eye blinks. The monster is contained. The eye opens. The monster is contained. The eye closes forever. The monster is—

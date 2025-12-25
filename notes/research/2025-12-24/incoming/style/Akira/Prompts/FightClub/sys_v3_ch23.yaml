@@ -1,0 +1,208 @@
+batch:
+  name: Akira-FightClub-Sysprompt-v3-Ch23
+  session: FightClub-ColorTransformation
+
+defaults:
+  workflow_template: Templates/Workflows/WAN22/t2v/wan2_2_t2v_speedup_v1
+  width: 720
+  height: 1280
+  frames: 65
+  runs: 2
+  t2v_lora_low: akira/v1.1/akira_v1.1_wan_low_6500steps.safetensors
+  t2v_lora_high: akira/akira_v1_wan_high_14250steps.safetensors
+  t2v_steps: 10
+  t2v_high_steps: 6
+  negative_prompt: |
+    色调艳丽, 过曝, 静态, 细节模糊不清, 字幕, 风格, 作品, 画作, 画面, 静止, 整体发灰, 最差质量, 低质量, JPEG压缩残留, 丑陋的, 残缺的, 多余的手指, 画得不好的手部, 画得不好的脸部, 畸形的, 毁容的, 形态畸形的肢体, 手指融合, 杂乱的背景, 背景人很多, 倒着走, slow-motion, split screen, text, signature, watermark, logo, timestamp, cartoon, modern anime style, moe, chibi, illustration, 3d render, CGI, rendered, painting, sketch, comic book style, plastic skin, overly smooth features, doll-like, mannequin, untextured surfaces, artifacting, compression artifacts, glitch, digital noise, banding, pixelation, frame, border, collage, oversaturated, pastel colors, soft colors, flat lighting, low contrast, low detail background, empty background, out of focus detail, extreme color cast, monochrome unless specified, generic AI look, uncanny valley, poorly fused elements, inconsistent lighting unless specified
+
+jobs:
+  - title: CH23-Clip0001 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club: A HARD CUT from the chaotic aftermath of a fight slams into a static medium shot framed on TYLER DURDEN, seated left of center in the oppressive gloom of THE PAPER STREET HOUSE basement. He is designed with the predatory charisma of a lean wolf, his head constructed on a sharply triangular model with prominent cheekbones, all rendered in BOLD BLACK INK OUTLINES. A cigarette dangles from his lips, its ember a single point of orange light emitting OPAQUE PAINTED SMOKE PLUMES rendered with GRADIENT AIRBRUSHING. He sits before a line of anonymous SPACE MONKEYS, their faces lost in DEEP BLACKS cast by a single, harsh overhead bulb that creates BRILLIANT HIGHLIGHTS on their sweaty, FLAT-COLORED CELS. One by one, he hands them yellow envelopes containing their PROJECT MAYHEM assignments, his movements economical and animated on twos against the DENSELY DETAILED PAINTED BACKGROUND of damp concrete and exposed pipes. A series of subsequent HARD CUTS throws the viewer across a nocturnal cityscape, where wide shots reveal silhouetted SPACE MONKEYS scrambling across grimy rooftops and fire escapes, their rapid movement captured with subtle MOTION BLUR LINES against a sky filled with distant SOFT BOKEH city lights. The final HARD CUT frames a shot from outside a video store, where a slow TRACKING SHOT pushes through the glass, creating a MULTI-LAYER PARALLAX effect with the foreground window frame. Inside, under the sickly green glow of fluorescent lights, a SPACE MONKEY kneels to rig a device to the security gate, his form a dark cel against the organized rows of video tapes, while another stands watch in the deep background.
+    overrides:
+      frames: 81
+
+  - title: CH23-Clip0002 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club. A low-angle medium shot is framed on The Narrator, positioned right of center and drawn with the physical archetype of a hollowed-out manikin built on a dolichocephalic head shape with gaunt, sunken cheeks. Rendered in BOLD BLACK INK OUTLINES and FLAT-COLORED CELS, he stands on a ledge before a massive billboard that casts a sickly green-white light, creating BRILLIANT HIGHLIGHTS on his dark jacket and plunging the surrounding alley into DEEP BLACKS. With movements animated on twos for deliberate weight, he uses a long pole to methodically smooth a large poster onto the sign’s surface, each upward stroke leaving behind subtle MOTION BLUR LINES against the DENSELY DETAILED PAINTED BACKGROUND of a grimy, ink-lined urban wall. After a final pass, he lowers the pole and leaps down into the shadows, his descent captured with gritty SMEAR FRAMES. A HARD CUT reveals a security guard, designed as a lumbering bulldog on a brachycephalic model with a heavy jaw, who spots him and begins to charge, his flashlight beam rendered as a sharp cone of GRADIENT AIRBRUSHING that slices through the oppressive darkness. The Narrator turns and flees, becoming a silhouetted figure that disappears into the gloom as the sequence concludes with another HARD CUT to a static wide shot of the now subversively altered Environmental Protection Agency sign.
+    overrides:
+      frames: 81
+
+  - title: CH23-Clip0003 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club: A locked-down medium shot is framed from outside a video store at night, looking through a plate glass window that captures subtle, distorted reflections of streetlights as SOFT BOKEH circles. The focus is on a SPACE MONKEY, a member of PROJECT MAYHEM, positioned left of center inside the store. He is designed with the anonymous efficiency of an urban termite, built on a simple, blocky head construction with features lost in the DEEP BLACKS of oppressive shadows, his form defined by BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS of a dark, desaturated grey trench coat. In a continuous, methodical motion animated on twos, he slides a heavy, box-like VHS tape eraser down a central display rack, the action deliberate and unnervingly calm. The DENSELY DETAILED PAINTED BACKGROUND reveals the sterile grid of the video store, where harsh overhead fluorescent lights cast a sickly green pallor, rendered with GRADIENT AIRBRUSHING, creating BRILLIANT HIGHLIGHTS on the plastic spines of countless video tapes. Other SPACE MONKEYS move in the deeper layers of the frame, their motion creating a subtle MULTI-LAYER PARALLAX effect against the static background, their silent vandalism unfolding with the cold precision of a synchronized operation within the meticulously inked urban decay.
+    overrides:
+      frames: 53
+
+  - title: CH23-Clip0004 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club: A locked-down wide shot is framed from a low angle on a wet city street, looking directly through the large plate-glass window of a video rental store at night, its facade rendered as a DENSELY DETAILED PAINTED BACKGROUND. A shadowy figure, animated on ones as a series of gritty, distorted SMEAR FRAMES, whips past the camera in the foreground, leaving behind stark MOTION BLUR LINES that cut across the frame. Inside the store, under the harsh glare of fluorescent lights that create BRILLIANT HIGHLIGHTS on plastic surfaces and cast oppressive DEEP BLACKS into the aisles, several SPACE MONKEYS execute their PROJECT MAYHEM assignment. Drawn with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS in a desaturated, utilitarian palette, their movements are stiff and synchronized as they systematically pull video cassettes from the shelves, their actions creating a silent, rhythmic destruction. The store's glowing neon signs are rendered with soft GRADIENT AIRBRUSHING, casting a sickly red and yellow haze onto the wet asphalt and creating sharp, geometric ANAMORPHIC-STYLE LENS FLARES against the glass window, which is streaked with ink-lined grime.
+    overrides:
+      frames: 57
+
+  - title: CH23-Clip0005 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      An extreme close-up shot focuses on a metal wrench with BOLD BLACK INK OUTLINES turning a bolt on a greasy, rain-slicked metal surface, its edges catching BRILLIANT HIGHLIGHTS from an unseen light source. A hard cut to a low-angle medium shot reveals Tyler Durden and The Narrator crouched over a spiked tire-shredder strip in a dark alley. Tyler Durden is designed with the predatory charisma of a lean wolf, constructed on a sharply triangular model with prominent cheekbones; he wears his iconic TYLERS RED LEATHER JACKET, rendered in a FLAT-COLORED CEL with deep, oppressive shadows. The Narrator is designed with the physical archetype of a hollowed-out manikin, built on a dolichocephalic head shape with gaunt, sunken cheeks. They set the device, their movements economical and animated on twos, before a continuous TRACKING SHOT follows them walking away into a street lined with DENSELY DETAILED PAINTED BACKGROUNDS of sterile, high-end storefronts under the sickly glow of streetlights rendered with GRADIENT AIRBRUSHING. As a car alarm blares, its headlights flash, creating sharp, geometric ANAMORPHIC-STYLE LENS FLARES. Tyler and The Narrator begin smashing parked cars with baseball bats; each swing is animated on ones, leaving distorted SMEAR FRAMES and MOTION BLUR LINES, while each hit is punctuated by a stark white IMPACT FRAME and simulated CAMERA SHAKE. Tyler points commandingly at a new target car, his gesture sharp and precise. A final hard cut to a wide shot of the alley shows the PROJECT MAYHEM van speeding through, leaving long MOTION BLUR LINES before it hits the spikes and erupts in a thick, oily RED AND ORANGE PAINTED EXPLOSION, throwing off hand-drawn sparks and filling the frame with OPAQUE PAINTED SMOKE PLUMES.
+    overrides:
+      frames: 81
+
+  - title: CH23-Clip0006 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A low-angle wide shot is framed from behind a thick, silhouetted pillar, looking out onto a wet street at night where the frame is instantly obliterated by a stark white IMPACT FRAME as a car alarm detonates, throwing out sharp, geometric ANAMORPHIC-STYLE LENS FLARES and a cloud of OPAQUE PAINTED SMOKE PLUMES. Hand-drawn orange sparks, animated on ones, skitter and bounce across the DENSELY DETAILED PAINTED BACKGROUND of gleaming, rain-slicked asphalt before extinguishing. A hard cut transitions to an over-the-shoulder medium shot from behind The Narrator, whose head and shoulder occupy the right foreground; he is designed with the physical archetype of a **hollowed-out manikin** built on a dolichocephalic head shape with gaunt, sunken cheeks. The focus is on Tyler Durden, who stands left of center by a black convertible, both rendered with BOLD BLACK INK OUTLINES and FLAT-COLORED CELS. Tyler is designed with the predatory charisma of a **lean wolf**, constructed on a sharply triangular model with prominent cheekbones, and wears his iconic TYLER'S RED LEATHER JACKET which catches BRILLIANT HIGHLIGHTS from the car's single lit headlight. In the background, the dark city street recedes into the distance, its streetlights rendered as SOFT BOKEH circles against the oppressive DEEP BLACKS of the night. Holding a baseball bat, Tyler slowly turns his head over his shoulder, a manic grin spreading across his face in smooth animation before he pivots his entire body, stepping forward and swinging the bat in a vicious arc that leaves behind distorted SMEAR FRAMES and MOTION BLUR LINES as he moves out of frame.
+    overrides:
+      frames: 81
+
+  - title: CH23-Clip0007 — Brutalist Corporate Building Dominating Left
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A high-angle wide shot is framed with a brutalist corporate building dominating the left vertical, its form rendered as a DENSELY DETAILED PAINTED BACKGROUND of stained concrete and steel with fine-lined ink work. A row of identical black sedans, drawn with BOLD BLACK INK OUTLINES and catching sharp BRILLIANT HIGHLIGHTS from an unseen source, creates a strong leading line down the center. The scene is captured in a continuous animated TRACKING SHOT that moves slowly left, using MULTI-LAYER PARALLAX to create depth between the foreground architecture and the distant city lights rendered as SOFT BOKEH circles. On the right, The Narrator, designed with the physical archetype of a **hollowed-out manikin** built on a nondescript, ovoid head shape, is animated as a stark silhouette walking with methodical purpose along the sidewalk, his form casting a long, oppressive shadow in the sickly green light. As the camera tracks, two PROJECT MAYHEM SPACE MONKEYS enter the frame on a lower rooftop, designed as interchangeable **worker ants** whose faces are lost in the DEEP BLACKS of shadow. They carry buckets and begin scattering feed onto the concrete, the tiny particles animated as individual hand-drawn specks. A flock of pigeons, each a flurry of sharp ink lines and FLAT-COLORED CELS, descends upon the rooftop, their numbers swelling into a chaotic, fluttering mass, their frantic movement animated on ones against the cold, uncaring urban geometry.
+    overrides:
+      frames: 81
+
+  - title: CH23-Clip0008 — Sequence Cuts Begins Extreme Up
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A sequence of hard cuts begins with an extreme close-up on the hood of a sedan rendered in FLAT-COLORED CELS, its dark paint scarred by a thick, caustic chemical splatter animated as a textured cel overlay. A hard cut shifts to a medium shot inside the car, introducing The Narrator, designed with the physical archetype of a **hollowed-out manikin** built on a brachycephalic head shape with perpetually bruised, shadowed eye sockets; his face, drawn with BOLD BLACK INK OUTLINES, is illuminated by the sickly green glow of passing streetlights which create BRILLIANT HIGHLIGHTS on his sweaty skin against the DEEP BLACKS of the car's interior. Another hard cut reveals his passenger, Tyler Durden, designed with the predatory charisma of a **lean wolf** on a sharply triangular model with prominent cheekbones; his iconic TYLERS RED LEATHER JACKET is a single, saturated cel, and his TYLERS SUNGLASSES catch the external light as sharp, geometric ANAMORPHIC-STYLE LENS FLARES. A final hard cut throws the perspective to a locked-down wide shot as the car hurtles backward in a high-speed sequence animated on ones, crashing through the plate-glass window of a DENSELY DETAILED PAINTED BACKGROUND depicting a corporate plaza. The shattering glass explodes into thousands of sharp, individually drawn cels, the collision punctuated by a stark white IMPACT FRAME and simulated CAMERA SHAKE as OPAQUE PAINTED SMOKE PLUMES erupt from the point of impact. The action cuts inside for a violent close-up as the airbag deploys with distorted SMEAR FRAMES, striking The Narrator in another brutal IMPACT FRAME before the scene settles back on the wide shot, the ruined car now stationary as dust rendered with GRADIENT AIRBRUSHING drifts through the wreckage.
+    overrides:
+      frames: 13
+
+  - title: CH23-Clip0009 — Introduces Locked Down Dramatic Dutch
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A hard cut introduces a locked-down, dramatic dutch angle close-up, focusing on the hood and windshield of a generic sedan rendered with BOLD BLACK INK OUTLINES and a FLAT-COLORED CEL of deep, desaturated blue. The car's body is violently splattered with a caustic chemical substance, a byproduct of making PAPER STREET SOAP CO. soap, which is animated as thick, opaque cels of sickly white and grey paste with hand-drawn bubbling textures that appear to eat into the vehicle's finish. A single, harsh overhead light source casts DEEP BLACKS into the panel gaps while creating BRILLIANT HIGHLIGHTS on the wet, corrosive splatter, and subtle GRADIENT AIRBRUSHING adds a grimy sheen to the car's surface. Reflected in the windshield is a DENSELY DETAILED PAINTED BACKGROUND of a decaying urban overpass, its concrete pillars and steel girders distorted by the glass curvature, while distant city lights are rendered as smeared, SOFT BOKEH circles, completing the image of meticulous, hand-drawn grime.
+    overrides:
+      frames: 13
+
+  - title: CH23-Clip0010 — Locked Down Frames Row Luxury
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down medium shot frames a row of luxury sports cars, each rendered with BOLD BLACK INK OUTLINES and FLAT-COLORED CELS under a sickly, desaturated sky. The vehicle in the immediate foreground is caked in a chaotic mess of thick, opaque, hand-drawn cels of white paint, with drips and splatters catching BRILLIANT HIGHLIGHTS from an unseen light source, creating a stark contrast against its black finish. In the DENSELY DETAILED PAINTED BACKGROUND, two salesmen stand before a modern glass-and-steel dealership, a monument of fine-lined ink work and sterile urban architecture whose windows reflect a distorted, smoggy sky created with GRADIENT AIRBRUSHING. The salesmen, drawn with sharp, angular features and wearing suits defined by DEEP BLACKS for hard-edged shadows, are initially engaged in a subtle, animated-on-twos conversation before one breaks his posture, his head tilting upwards in a smooth motion as his eyes widen. The second salesman notices, his own gaze following upwards in confused alarm, their identical corporate forms silhouetted against the cold geometry of the building behind them.
+    overrides:
+      frames: 37
+
+  - title: CH23-Clip0011 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      An extreme close-up shot is locked on a pair of hands with BOLD BLACK INK OUTLINES and FLAT-COLORED CELS of a sallow skin tone, holding a small utility knife over a plain cardboard box that is revealed to be a shipment for PAPER STREET SOAP CO. The scene is lit by a harsh, singular overhead source, casting DEEP BLACKS into the crevices of the knuckles and creating sharp, BRILLIANT HIGHLIGHTS along the metallic edge of the knife blade and the taut surface of the packing tape, while the DENSELY DETAILED PAINTED BACKGROUND is a blur of indistinct industrial shapes and grime rendered with a sickly, desaturated color palette. The knife, animated on ones for fluid precision and leaving subtle MOTION BLUR LINES in its wake, is drawn smoothly from left to right across the frame as a single, sharp ANAMORPHIC-STYLE LENS FLARE briefly streaks from its edge, slicing the tape open in a clean, continuous motion where the two halves peel back slightly to reveal the darker cardboard texture beneath.
+    overrides:
+      frames: 9
+
+  - title: CH23-Clip0012 — Extreme Up Fibrous Desaturated Brown
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      An extreme close-up shot is framed on the fibrous, desaturated brown texture of a seatback pocket, rendered as a DENSELY DETAILED PAINTED BACKGROUND with fine-lined ink work capturing every paper-like imperfection. The frame executes a violent, high-speed horizontal TRACKING SHOT to the right, animated on ones with aggressive, gritty SMEAR FRAMES and streaking MOTION BLUR LINES that distort the texture into abstract streaks of color. The motion abruptly halts, locking into a flat medium shot of an airline safety instruction card, its surface catching a faint BRILLIANT HIGHLIGHT from a singular overhead light source that casts DEEP BLACKS into the surrounding pocket. The card's panels are drawn with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS, depicting stylized passengers in panic; their faces are simple masks of terror as they brace for impact amidst cartoonish, hand-drawn RED AND ORANGE PAINTED EXPLOSIONS licking at the cabin floor, the entire grim tableau presented in a sickly, desaturated color palette.
+    overrides:
+      frames: 17
+
+  - title: CH23-Clip0013 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club. A locked-down extreme close-up is framed tightly on the panel of an airline safety instruction card, its surface rendered with the subtle texture of printed cardstock. The illustration depicts stylized human figures in a state of catastrophic failure, drawn with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS using a sickly, desaturated corporate palette of pale greens and muted yellows. Within this DENSELY DETAILED PAINTED BACKGROUND, thick, oily RED AND ORANGE PAINTED EXPLOSIONS erupt from a section of the fuselage, casting BRILLIANT HIGHLIGHTS and DEEP BLACKS onto the terrified passengers. OPAQUE PAINTED SMOKE PLUMES with subtle GRADIENT AIRBRUSHING billow outwards as simplified figures with wide, vacant eyes slide chaotically down an emergency chute, while one central character is frozen mid-panel, crouched in a futile brace position against the inevitable impact.
+    overrides:
+      frames: 17
+
+  - title: CH23-Clip0014 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club: A locked-down close-up shot focuses on an airline safety manual illustration, the panels rendered with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS in a sickly, desaturated palette of pale greens and blues. The comic-style panels depict generic passengers in panic: one screams in a close-up panel on the left, while another calmly dons an oxygen mask on the right, all framed by stylized RED AND ORANGE PAINTED EXPLOSIONS. The shot is held for a brief, static moment before a violent, high-speed TRACKING SHOT pulls back and down with extreme velocity, the entire frame dissolving into gritty, distorted SMEAR FRAMES and streaking MOTION BLUR LINES that render the image completely abstract before a hard cut.
+    overrides:
+      frames: 17
+
+  - title: CH23-Clip0015 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A tight close-up shot is framed on an airline safety information card, its cartoonish disaster illustrations rendered with fine-lined ink work, held in the hands of an airline worker. A slow TRACKING SHOT pulls back and tilts up in a continuous motion, revealing the worker standing in the aisle, designed with the stolid, weary posture of a **weary draft horse**, his form constructed on a heavy, rectangular model with a strong jawline and rendered with BOLD BLACK INK OUTLINES and FLAT-COLORED CELS. He is positioned centrally in the claustrophobic fuselage, a DENSELY DETAILED PAINTED BACKGROUND where every scuff mark on the plastic paneling and stain on the worn carpet is meticulously rendered with visible ink work. The entire scene is lit by a harsh, singular overhead fluorescent source, casting BRILLIANT HIGHLIGHTS on his dark uniform and carving the rows of empty seats into oppressive, hard-edged DEEP BLACKS. The stale cabin air is visualized with subtle GRADIENT AIRBRUSHING that catches the sickly green glow from the lights as the TRACKING SHOT continues its backward motion using MULTI-LAYER PARALLAX, with the foreground seats sliding past faster than the distant cabin to enhance the rigid, symmetrical perspective as the worker remains motionless, looking down into the shadows.
+    overrides:
+      frames: 53
+
+  - title: CH23-Clip0016 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A tight insert shot begins with an ANIMATED RACK FOCUS, simulating a handheld perspective with subtle CAMERA SHAKE as the frame shifts from a blur of SOFT BOKEH into sharp detail, revealing an airline safety card being pulled from the textured fabric of a seatback pocket rendered with BOLD BLACK INK OUTLINES and a desaturated, sickly color palette. The initial upward motion is animated on ones, a rapid pull that leaves behind gritty SMEAR FRAMES before the composition becomes a locked-down static shot. The card, illuminated by an unseen overhead fluorescent light that casts BRILLIANT HIGHLIGHTS on its laminated surface and DEEP BLACKS into the pocket's recess, displays a three-panel comic of disaster. The illustrations within are reimagined with Otomo's signature detail: terrified passengers with wide, expressive eyes drawn in flat-colored cels are trapped as the cabin fills with OPAQUE PAINTED SMOKE PLUMES and the windows are consumed by thick, oily RED AND ORANGE PAINTED EXPLOSIONS, their forms defined by stark, high-contrast cel shading.
+    overrides:
+      frames: 29
+
+  - title: CH23-Clip0017 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      An extreme close-up is framed on a pair of weathered scissors, their steel blades occupying the center of the composition as they slice from left to right through a sheet of paper. The scissors are rendered with BOLD BLACK INK OUTLINES detailing every scratch and pit in the metal, filled with FLAT-COLORED CELS of desaturated grey and caught by a singular, harsh light source that creates a BRILLIANT HIGHLIGHT along the upper blade edge and casts the rest into DEEP BLACKS. In the background, a shallow depth of field is simulated with a DENSELY DETAILED PAINTED BACKGROUND blurred into overlapping SOFT BOKEH circles of jaundiced yellow and murky brown. The shearing motion is meticulously animated on ones, the blades gliding through the newsprint with mechanical smoothness. The paper, itself detailed with fine-lined ink text, curls away from the cut as its edge separates with a clean, sharp line, emphasized by subtle MOTION BLUR LINES that trace the path of the blades and a few stray, hand-drawn paper fibers that are animated kicking up from the slice.
+    overrides:
+      frames: 13
+
+  - title: CH23-Clip0018 — Extreme Up Tightly Face Tyler
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      An extreme close-up is framed tightly on the face of Tyler Durden, his head angled down and filling the composition, rendered with the predatory charisma of a lean wolf and constructed on a sharply triangular model with prominent cheekbones. His features are defined by BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS cast in a jaundiced, sickly light from an unseen source, carving his face out of oppressive DEEP BLACKS. The shot is dominated by TYLERS SUNGLASSES, the silver frames catching a single, sharp BRILLIANT HIGHLIGHT, while the distorted reflection of a bare hanging bulb is hand-painted onto the red lenses. From below the frame, an OPAQUE PAINTED SMOKE PLUME, animated on twos with soft GRADIENT AIRBRUSHING, slowly rises and drifts across the lower half of his face, its thick, toxic form momentarily obscuring his mouth against the DENSELY DETAILED PAINTED BACKGROUND of a decaying, out-of-focus interior.
+    overrides:
+      frames: 17
+
+  - title: CH23-Clip0019 — Extreme Up Newspaper Clipping Result
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      An extreme close-up shot is framed on a newspaper clipping, the result of a rapid TRACKING SHOT rendered as a series of gritty, distorted SMEAR FRAMES that resolve into a locked-down composition. The focus of the shot is a hand-drawn newspaper article, its headline rendered with BOLD BLACK INK OUTLINES on a yellowed, FLAT-COLORED CEL, detailing a PROJECT MAYHEM assignment. A metallic thumbtack pins it to a post, its rounded head catching a single BRILLIANT HIGHLIGHT against the DEEP BLACKS of its hard-edged shadow. The entire scene is drenched in a sickly, desaturated color palette, cast from a singular, oppressive light source. The background is a DENSELY DETAILED PAINTED BACKGROUND of a splintered wooden beam inside THE PAPER STREET HOUSE, its texture captured with fine-lined ink work showing deep grain, cracks, and grime. The shot simulates a slow ANIMATED RACK FOCUS as the initially soft image pulls into sharp, meticulous detail, emphasizing the hand-drawn text and the weathered surface it's attached to.
+    overrides:
+      frames: 25
+
+  - title: CH23-Clip0020 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club A close-up, over-the-shoulder shot is framed from behind Tyler Durden, who is hunched over a table, his form rendered with BOLD BLACK INK OUTLINES. Tyler is designed with the predatory charisma of a lean wolf, his features constructed on a sharply triangular model with prominent cheekbones and a strong jawline. He wears his iconic TYLERS SUNGLASSES, the red lenses catching a single BRILLIANT HIGHLIGHT from an unseen overhead bulb as he meticulously cuts a long strip of paper with a pair of scissors, the precise motion animated on ones. The scene is cast in a sickly, desaturated color palette, dominated by DEEP BLACKS that carve hard-edged shadows across his textured bathrobe and the DENSELY DETAILED PAINTED BACKGROUND of THE PAPER STREET HOUSE's cluttered interior. A slow MULTI-LAYER PARALLAX TRACKING SHOT pulls back almost imperceptibly, revealing more of the chaotic desk piled with ink-lined junk and old newspapers, while dust motes rendered with GRADIENT AIRBRUSHING float through the oppressive, singular light source.
+    overrides:
+      frames: 21
+
+  - title: CH23-Clip0021 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      An extreme close-up is framed tightly on a yellowed newspaper page, its surface rendered as a DENSELY DETAILED PAINTED BACKGROUND with fine-lined, hand-inked typography under a sickly, desaturated color palette. In the lower left, a single finger with a BOLD BLACK INK OUTLINE and a dirty fingernail holds the paper flat, while from the top right, a pair of scissors drawn with sharp, mechanical precision enters the frame, a single, harsh light source casting a DEEP BLACK, hard-edged shadow beneath it and creating a sharp, BRILLIANT HIGHLIGHT that glints along the upper steel blade. The blades begin to slice through the headline with a smooth, deliberate motion animated on ones, the paper fibers visibly tearing and fraying in a meticulously hand-drawn effect, separating the words with cold, calculated intent as a core act of PROJECT MAYHEM begins.
+    overrides:
+      frames: 25
+
+  - title: CH23-Clip0022 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      An over-the-shoulder close-up is framed from behind Tyler Durden, his head and shoulders a mass of DEEP BLACKS dominating the foreground left. Tyler is designed with the predatory charisma of a lean wolf, his facial structure constructed on a sharply triangular model with prominent cheekbones and a defined jawline. A single, harsh light source from below illuminates a set of architectural plans on a table, casting oppressive, hard-edged shadows across his form but catching a BRILLIANT HIGHLIGHT along the flat red cel of TYLERS SUNGLASSES, making them glow with malevolent intensity. The focus is sharp on the plans, rendered with intricate, fine-lined ink work detailing a target for PROJECT MAYHEM. In the DENSELY DETAILED PAINTED BACKGROUND, the decaying basement of THE PAPER STREET HOUSE is a chaotic network of pipes, exposed wiring, and rotting wood, all rendered in a sickly, desaturated color palette. His hand, drawn with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS, slowly traces a line across the paper, the motion animated with deliberate precision on twos as a thin wisp of OPAQUE PAINTED SMOKE PLUME, created with soft GRADIENT AIRBRUSHING, drifts lazily through the beam of light.
+    overrides:
+      frames: 9
+
+  - title: CH23-Clip0023 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      An extreme close-up shot is locked down on the face of Tyler Durden, who is designed with the predatory charisma of a lean wolf, his features constructed on a sharply triangular model with prominent cheekbones and a strong jawline, all rendered in BOLD BLACK INK OUTLINES. His face is almost entirely masked by a pair of oversized, silver-framed TYLERS SUNGLASSES with deep red lenses. A harsh, singular key light from off-screen left carves his features into planes of sickly, FLAT-COLORED CELS and hard-edged DEEP BLACKS, catching BRILLIANT HIGHLIGHTS on the frames and the sheen of sweat on his skin. An OPAQUE PAINTED SMOKE PLUME, rendered with soft GRADIENT AIRBRUSHING, drifts slowly upwards from the bottom of the frame, obscuring his mouth and chin as it dissipates with subtle, hand-drawn motion. The critical detail is a meticulously hand-painted reflection on a separate cel layer, visible on the flat surface of the red lenses: a sterile, white room with a stark window, drawn with its own precise, fine-lined ink work, remaining perfectly sharp and static as the smoke moves across the foreground.
+    overrides:
+      frames: 9
+
+  - title: CH23-Clip0024 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      
+      A locked-down close-up shot focuses on a DENSELY DETAILED PAINTED BACKGROUND of a rough, fibrous corkboard, onto which the hand of Tyler Durden, drawn with BOLD BLACK INK OUTLINES, enters from frame right. Tyler Durden is designed with the predatory charisma of a **lean wolf**, his facial structure built on a sharply triangular model with prominent cheekbones. His fingers press a newspaper clipping—a cel layer with hand-inked text—against the board, the motion animated smoothly on twos as a clear plastic pushpin catches a BRILLIANT HIGHLIGHT from a harsh, singular light source that casts DEEP BLACK, hard-edged shadows. The camera executes a slow MULTI-LAYER PARALLAX TRACKING SHOT to the right, revealing a row of similar clippings detailing the anarchic work of PROJECT MAYHEM. A HARD CUT transitions the scene to an extreme close-up on a black leather-gloved hand gripping a power drill in a sterile, corporate environment bathed in a sickly, desaturated color palette. Cold fluorescent light creates BRILLIANT HIGHLIGHTS on the worn leather and the spinning metal drill bit, which is rendered with frantic MOTION BLUR LINES. The drill plunges downward with distorted SMEAR FRAMES, animated on ones, tearing into a plastic lock mechanism and kicking up a chaotic spray of tiny, hand-drawn debris cels that look like OPAQUE PAINTED SMOKE PLUMES.
+    overrides:
+      frames: 53
+
+  - title: CH23-Clip0025 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club: A locked-down wide shot is framed from a dark, grimy city street, observing the action through a large storefront window as if it were a diorama of corporate destruction. The window itself is outlined by a crisp blue neon tube, its glow rendered with soft GRADIENT AIRBRUSHING that bleeds into the surrounding DEEP BLACKS of the concrete facade. Inside, a DENSELY DETAILED PAINTED BACKGROUND depicts a sterile electronics store display, a wall of beige computer monitors drawn with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS. Two members of PROJECT MAYHEM, rendered as anonymous SPACE MONKEYS in dark, utilitarian clothes, systematically dismantle the display. The Narrator, designed with the physical archetype of a **hollowed-out manikin** built on a dolichocephalic head shape with gaunt, sunken cheeks, stands on the left. He lifts a baseball bat, its arc traced by ghostly MOTION BLUR LINES as it's animated on ones, before bringing it down with violent force. The moment of contact on a monitor is punctuated by a stark white IMPACT FRAME and a jarring simulated CAMERA SHAKE, sending cel-animated shards of glass and plastic across the scene. To his right, another SPACE MONKEY kicks a tower of computers, his movements precise and rhythmic, each impact creating a small burst of hand-drawn dust. The entire scene is bathed in the cold, sickly fluorescent light from above, which casts hard-edged shadows and creates BRILLIANT HIGHLIGHTS on the shattered screens and plastic casings.
+    overrides:
+      frames: 45
+
+  - title: CH23-Clip0026 — Locked Down Up Grimy Yellow
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down close-up shot is framed on a grimy yellow industrial funnel positioned in the lower center, its surface rendered with BOLD BLACK INK OUTLINES and scuffed, FLAT-COLORED CELS. In the DENSELY DETAILED PAINTED BACKGROUND, obsolete computer equipment sits in oppressive shadow, its surfaces catching a cold, blue light from an off-screen monitor, an effect achieved with soft GRADIENT AIRBRUSHING that casts DEEP BLACKS across the scene. From the upper left, the spout of a red container enters the frame and tilts downward, initiating the action. A thick, clear liquid begins to pour into the funnel, its motion animated on ones for hyper-realistic fluidity; the stream is a complex series of hand-drawn cels, with BRILLIANT HIGHLIGHTS from the blue light source reflecting and refracting on its turbulent surface, creating a shimmering, almost electric effect as it splashes down with meticulously detailed, hand-drawn droplets.
+    overrides:
+      frames: 45
+
+  - title: CH23-Clip0027 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      A locked-down medium shot frames a corporate electronics storefront through its large plate-glass window, with a gritty concrete pillar occupying the foreground right. Inside, a member of PROJECT MAYHEM, designed with the anonymous physicality of a **repurposed worker drone** built on a nondescript, blocky model, stands amidst the DENSELY DETAILED PAINTED BACKGROUND of a sterile showroom. The scene is bathed in a sickly light cast from a single blue neon tube, rendered with soft GRADIENT AIRBRUSHING, that frames the window display, creating BRILLIANT HIGHLIGHTS and DEEP BLACKS on rows of beige computer monitors. The SPACE MONKEY, drawn with BOLD BLACK INK OUTLINES and filled with FLAT-COLORED CELS, hefts a metal baseball bat, its polished surface catching a sharp highlight. He swings the bat in a wide, violent arc animated on ones, the motion rendered as a series of distorted SMEAR FRAMES that blur across the screen. The moment of contact is a pure white IMPACT FRAME that freezes the action, followed by an intense simulated CAMERA SHAKE as the entire plate glass window explodes into a meticulously hand-drawn cascade of sharp, geometric shards, each cel catching the neon glow as they burst outward toward the viewer.
+    overrides:
+      frames: 57
+
+  - title: CH23-Clip0028 — 1980s Cel Animation Blueprint Fight
+    prompt: |
+      1980s Cel Animation Blueprint: Fight Club
+      
+      A locked-down wide shot centers on a derelict convenience store at night, its facade a DENSELY DETAILED PAINTED BACKGROUND of cracked concrete and rusted security gates, all bathed in the sickly glow from a buzzing fluorescent sign rendered with GRADIENT AIRBRUSHING. The Narrator, designed with the physical archetype of a hollowed-out manikin built on a dolichocephalic head shape with gaunt, sunken cheeks, violently bursts into frame from the right, his motion a series of gritty SMEAR FRAMES as he grabs a terrified clerk. A hard cut introduces Tyler Durden entering from the left, designed with the predatory charisma of a lean wolf constructed on a sharply triangular model; his iconic TYLERS RED LEATHER JACKET is a field of flat, blood-red cel paint, and the pistol in his hand catches a single BRILLIANT HIGHLIGHT. A QUICK ZOOM pushes in as Tyler presses the gun to the Narrator’s temple, the frame tightening on the BOLD BLACK INK OUTLINES of their faces and the DEEP BLACKS of the oppressive shadows. With brutal efficiency animated on ones, Tyler swings the pistol, its arc leaving behind sharp MOTION BLUR LINES before it connects with a stark white IMPACT FRAME that triggers a violent, simulated CAMERA SHAKE, sending the Narrator collapsing to the gritty asphalt in a fluid, desperate motion. The final frame holds on Tyler, a static, menacing silhouette against the harsh, otherworldly light of the store interior.
+    overrides:
+      frames: 1
+

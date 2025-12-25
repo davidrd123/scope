@@ -1,0 +1,76 @@
+batch:
+  name: "RoosterAndTerry-Fury-Road-Xpose"
+  project: "RoosterAndTerry"
+
+defaults:
+  workflow_template: Templates/Workflows/WAN22/t2v/wan2_2_t2v_base_v1
+  width: 576
+  height: 1024
+  frames: 49
+  runs: 2
+  t2v_lora_low: rat/rat_v1_wan_low_9250steps.safetensors
+  t2v_lora_high: rat/rat_v1_wan_high_7000steps.safetensors
+  t2v_steps: 32
+  t2v_high_steps: 16
+  # t2v_lora_high_strength: 3.0
+  teacache:
+    start_step: 5
+    rel_l1_thresh: 0.155
+  negative_prompt: |
+    photorealistic, photography, real life, realistic, PBR materials, ray tracing, Unreal Engine,
+    complex textures, detailed textures, surface detail, noise texture, grime, grit, dust, rust, weathered, metallic,
+    shiny, glossy, polished, reflective, chrome, airbrushed, perfectly smooth, untextured,
+    Pixar style, Disney style, generic 3D cartoon, cel shading, toon shading,
+    anime style, vector art, thin outlines, 2D animation, flat illustration,
+    motion blur, smooth animation, fluid motion, tweening, film grain, lens flare, chromatic aberration,
+    worst quality, low quality, jpeg artifacts, blurry, noisy, deformed, disfigured, poor composition,
+    bad anatomy, extra limbs, fused fingers, malformed limbs, mutated hands, poorly drawn hands, poorly drawn face,
+    text, watermark, signature, logo, UI, border, multiple panels, split screen,
+    字幕, 风格, 作品, 画面, 整体发灰, 杂乱的背景
+
+jobs:
+  # - title: "RAT-Fury-Road-WitnessMe"
+  #   prompt: |
+  #     Clay-Plastic Pose-to-Pose Animation — A low-angle medium shot of Percy the Pig, a stout pig with a blocky, compact body with cracked white body paint and skeletal scars carved into his chest and face, as he rides on a speeding vehicle. His expression shifts to one of manic, celebratory glee as he holds up a can of silver paint. In a sharp POSE-TO-POSE action, he sprays his teeth, the spray rendered as a burst of WHITE GEL-PEN SPARKS. He then throws both arms wide in a glorious, held pose, his mouth open in a silent shout. His body is rendered with SMOOTH CLAY-PLASTIC SHADERS and a CLEAN SILHOUETTE. The scene is lit by a soft, warm key light from a SINGLE LARGE CIRCULAR DISC; a pale blue AMBIENT HUE fills the sky; shadows read as SOFT POSTERIZED SHADOW SHAPES.
+  # - title: "RAT-Fury-Road-DoofWarrior"
+  #   prompt: |
+  #     Clay-Plastic Pose-to-Pose Animation — A medium wide shot of a strange performer, a zany yellow duck with a long, flexible neck, bouncing on a spring-loaded platform on the front of a large, moving hay baler. With manic energy, he plays a ukulele that periodically erupts, shooting a plume of fire into the air. The flame is rendered as a clean, stylized BOLD SHAPE DESIGN of orange and yellow. The entire scene is animated with sharp POSE-TO-POSE holds between bounces. The performer's form is defined by a CLEAN SILHOUETTE with a SEMI-GLOSS SHEEN. The scene is keyed by cool, magenta moonlight; immersed in a deep indigo COOL SATURATED PALETTE; figures flatten into EXAGGERATED SILHOUETTES.
+  # - title: "RAT-Fury-Road-WaterRelease"
+  #   prompt: |
+  #     Clay-Plastic Pose-to-Pose Animation — A low-angle wide shot of the bright red barn at Wobbly Willow Farm, its form defined by SIMPLIFIED GRAPHIC GEOMETRY. Percy the Pig, a stout pig with a blocky body, stands on the hayloft platform, a tiny, angular silhouette. Below him, jets of water erupt from the sides of the barn. The cascading water is depicted as fluid, transparent blue ribbons rendered with a POLISHED PLASTIC REFLECTION, pooling in the foreground where a group of fluffy sheep with soft, rounded silhouettes watch placidly. The scene is lit by a soft, warm key light from a SINGLE LARGE CIRCULAR DISC; a pale blue AMBIENT HUE fills the sky; shadows read as SOFT POSTERIZED SHADOW SHAPES.
+  # - title: "RAT-Fury-Road-CrateEscape"
+  #   prompt: |
+  #     Clay-Plastic Pose-to-Pose Animation — A tight, Dutch-angled close-up on Percy the Pig, a stout pig with a blocky, compact body with cracked white body paint and skeletal scars carved into his chest, trapped inside a wooden crate. A comically oversized apple is wedged over his snout, held in place by tangled vines. He struggles against his bonds in a series of sharp, frustrated POSE-TO-POSE jerks. The apple is a perfect sphere with a SEMI-GLOSS SHEEN. Shafts of light cut through the crate's slats, casting a pattern of BOLD SHAPE DESIGN across his face. The scene is keyed by shafts of warm amber sunlight cutting through dust; the crate holds a dusty, warm yellow AMBIENT HUE creating gentle shadows.
+  # - title: "TMNT-Nux-WitnessMe"
+  #   prompt: |
+  #     Clay-Plastic Pose-to-Pose Animation — A low-angle medium shot of Nux, a bald youth with cracked white body paint and skeletal scars carved into his chest, as he rides on a speeding vehicle. His expression shifts to one of manic, celebratory glee as he sprays his teeth with a can of silver paint, the spray rendered as hand-drawn DOODLED EFFECTS. He then throws both arms wide in a glorious pose, shouting silently at the sky. His features are defined by SCRIBBLED GRAPHITE-LIKE OUTLINES and his skin has a specific DRY-BRUSH TEXTURE. The scene is lit by a HIGH-CONTRAST amber key light from above, casting deep shadows filled with CROSS-HATCHING. A pale blue AMBIENT HUE colors the sky. The shot maintains a slight SIMULATED HANDHELD CAMERA SHAKE throughout. Style Cues: LINE BOIL, GRAPHITE GRAIN, ON TWOS, CEL DUST 
+  # - title: "TMNT-Furiosa-FierceFocus"
+  #   prompt: |
+  #     Clay-Plastic Pose-to-Pose Animation — A medium close-up of Furiosa, the fierce driver with a shaved head and black grease smeared across her forehead, sitting inside the cab of the massive WAR RIG tanker truck. Her left arm, a mechanical prosthetic built from SCRIBBLED LINEWORK metal components and showing ASYMMETRICAL CHARACTER DESIGN, rests heavily on the steering wheel. Her expression shifts from tense contemplation to fierce, scrappy focus and determination. Her facial features are rendered with SCRIBBLED GRAPHITE-LIKE OUTLINES, and the grease on her forehead is a distinct patch of ROUGH PAINT-SWATCH TEXTURES. HIGH-CONTRAST sunlight through the window casts deep shadows, filled with CROSS-HATCHING, emphasizing her cheekbones. The interior cab is lit with a low, warm amber AMBIENT HUE. A static camera holds on the intensity of her gaze. Style Cues: LINE BOIL, GRAPHITE GRAIN, ON TWOS, CEL DUST
+  # - title: "TMNT-Angharad-Defiance"
+  #   prompt: |
+  #     Clay-Plastic Pose-to-Pose Animation — A medium shot of SPLENDID ANGHARAD, a young woman in flowing white cloth wraps, as she stands defiantly on the open side-door of the speeding WAR RIG. Heavily pregnant, she positions her body as a shield, glaring with fierce, unwavering eyes at an approaching vehicle. Her blonde hair and the edges of her white wraps whip wildly in the wind, animated with expressive SCRIBBLED LINEWORK. The weathered green metal of the truck door behind her has visible ROUGH PAINT-SWATCH TEXTURES. The direct sunlight creates HIGH-CONTRAST lighting that makes her white wraps almost glow, while casting a sharp shadow filled with CROSS-HATCHING beside her. The camera executes a slow, deliberate push-in. Style Cues: GRAPHITE GRAIN, LINE BOIL, ON TWOS, STUTTERING FRAME RATE
+  # - title: "TMNT-ChainStruggle"
+  #   prompt: |
+  #     Clay-Plastic Pose-to-Pose Animation — A medium shot focusing on the central struggle between Max, a scarred man in a leather harness, and Furiosa, the woman with the severe crew cut and a metallic prosthetic arm. They are physically linked by a thick, heavy metal chain, rendered with bold SCRIBBLED GRAPHITE-LIKE OUTLINES. The two figures are caught in the dust, tumbling and pulling against the chain with stiff, jerky joint pivots. They exchange a look of awkward, exasperated disbelief. Their clothing and the desert ground are defined by rough, brown ROUGH PAINT-SWATCH TEXTURES. Plumes of kicked-up dust are depicted as opaque PAINTED SMOKE PLUMES. The static camera observes the chaotic, intertwined action. HIGH-CONTRAST sunlight from the top left, with a pale yellow AMBIENT HUE coloring the dusty air, and deep CROSS-HATCHING in the folds of their clothing. Style Cues: STUTTERING FRAME RATE, LINE BOIL, GRAPHITE GRAIN, ON TWOS
+  # - title: "TMNT-DoofWarrior-SpeakerRig"
+  #   prompt: |
+  #     Clay-Plastic Pose-to-Pose Animation — A low-angle wide shot establishing a massive speaker rig built onto a rust-colored, ASYMMETRICAL CHARACTER DESIGN vehicle, speeding across a vast, gritty desert. Perched high atop the rig is the Doof Warrior, a figure in a simple red union suit playing a massive double-necked electric guitar. The Warrior's face is rendered with SCRIBBLED GRAPHITE-LIKE OUTLINES and contorted into an exaggerated, maniacal grin. Flames erupt silently from the guitar neck, rendered as red and orange hand-drawn DOODLED EFFECTS that trail behind the rig. The red suit and the desert floor are covered in ROUGH PAINT-SWATCH TEXTURES. Heavy CROSS-HATCHING defines the shadows beneath the massive speakers. HIGH-CONTRAST light from the explosion of fire, with a dark, warm red AMBIENT HUE filling the scene. Style Cues: SIMULATED HANDHELD CAMERA SHAKE, ON TWOS, GRAPHITE GRAIN, CEL DUST
+   # - title: "TMNT-BulletFarmer-Fury"
+   #   prompt: |
+   #     Clay-Plastic Pose-to-Pose Animation — A low-angle medium shot of the BULLET FARMER, a large, heavy-set man with his eyes wrapped in bloody bandages and a bandolier of bullets strapped across his bare chest. He stands atop his vehicle and fires two machine pistols wildly into the dark, foggy swamp. Each muzzle flash is a brilliant, star-shaped burst of yellow and white DOODLED EFFECTS that briefly illuminates his form in HIGH-CONTRAST. The rest of the scene is plunged into darkness filled with deep CROSS-HATCHING. His skin and the thick fog are rendered with swirling ROUGH PAINT-SWATCH TEXTURES, and his guns are defined by sharp SCRIBBLED LINEWORK. A cool blue AMBIENT HUE permeates the fog between shots. The camera remains static, capturing the chaotic strobe effect. Style Cues: GRAPHITE GRAIN, LINE BOIL, ON TWOS, CEL DUST
+  - title: "RAT-Nux-WitnessMe"
+    prompt: |
+      Clay-Plastic Pose-to-Pose Animation — A low-angle medium shot of Nux, a bald youth with cracked white body paint and skeletal scars carved into his chest, as he rides on a speeding farm cart. His expression shifts to one of manic, celebratory glee as he sprays his teeth with a can of silver paint, the spray rendered as a burst of WHITE GEL-PEN SPARKS. He then throws both arms wide in a glorious, held POSE-TO-POSE frame, his mouth open in a silent shout. His body is rendered with SMOOTH CLAY-PLASTIC SHADERS and a CLEAN SILHOUETTE. The scene is lit by a soft, warm key light from a SINGLE LARGE CIRCULAR DISC; a pale blue AMBIENT HUE fills the sky. Shadows read as SOFT POSTERIZED SHADOW SHAPES with GRAPHIC FLATTENING and BOLD SHAPE DESIGN throughout.
+  - title: "RAT-Furiosa-FierceFocus"
+    prompt: |
+      Clay-Plastic Pose-to-Pose Animation — A medium close-up of Furiosa, the fierce driver with a shaved head and black grease smeared across her forehead, sitting inside a truck cab. Her left arm, a mechanical prosthetic built from ASYMMETRICAL KITBASHED DETAILS, rests heavily on the steering wheel. Her expression shifts from tense contemplation to fierce, scrappy focus. Her features are rendered with CHUNKY CONTOUR LINES, and the grease on her forehead is a distinct patch with a MATTE FINISH. The scene is keyed by shafts of warm amber sunlight cutting through dust; the cab holds a dusty, warm yellow AMBIENT HUE. The light resolves into BOLD SHAPE DESIGN on her face with CLEAN SILHOUETTES and POSTERIZED SHADOW SHAPES. A static camera holds on the intensity of her gaze.
+  - title: "RAT-Angharad-Defiance"
+    prompt: |
+      Clay-Plastic Pose-to-Pose Animation — A medium shot of SPLENDID ANGHARAD, a young woman in flowing white cloth wraps, as she stands defiantly on the open side-door of a speeding truck. Heavily pregnant, she positions her body as a shield, glaring with fierce eyes. Her blonde hair and the edges of her white wraps whip wildly, rendered as simplified ribbons of BOLD SHAPE DESIGN. The green metal of the truck door behind her has a SMOOTH CLAY-PLASTIC SHADER with simplified patches of discoloration. The scene is lit by a soft, warm key light from a SINGLE LARGE CIRCULAR DISC, making her white wraps almost glow, while casting SOFT POSTERIZED SHADOW SHAPES beside her. The camera executes a slow, deliberate push-in, holding her in a strong POSE-TO-POSE frame with CLEAN SILHOUETTES and GRAPHIC FLATTENING throughout.
+  - title: "RAT-DoofWarrior-SpeakerRig"
+    prompt: |
+      Clay-Plastic Pose-to-Pose Animation — A low-angle wide shot of a massive speaker rig built onto a simple, red, blocky vehicle with ASYMMETRICAL KITBASHED DETAILS, speeding across a vast, orange desert. Perched high atop the rig is the Doof Warrior, a figure in a simple red union suit playing a massive electric guitar. His face is contorted into an exaggerated, maniacal grin in a held POSE-TO-POSE frame. Flames erupt silently from the guitar neck, rendered as a clean, stylized BOLD SHAPE DESIGN of orange and yellow. The red suit and desert are rendered with SMOOTH CLAY-PLASTIC SHADERS. The scene is keyed by the firelight, casting deep SOFT POSTERIZED SHADOW SHAPES beneath the massive speakers with CLEAN SILHOUETTES and GRAPHIC FLATTENING. The camera is static, capturing the theatrical performance.
+  - title: "RAT-BulletFarmer-Fury"
+    prompt: |
+      Clay-Plastic Pose-to-Pose Animation — A low-angle medium shot of the BULLET FARMER, a large, heavy-set man with his eyes wrapped in bandages and a bandolier of bullets strapped across his chest. He stands and fires two pistols wildly into a dark, foggy space. Each muzzle flash is a brilliant, star-shaped burst of yellow and white WHITE GEL-PEN SPARKS that briefly illuminates his form with strong RIM LIGHTING. The rest of the scene is plunged into deep indigo darkness, with his form reading as an EXAGGERATED SILHOUETTE. His skin and the thick fog are rendered with SMOOTH CLAY-PLASTIC SHADERS. The camera remains static, capturing the chaotic strobe effect as a series of sharp POSE-TO-POSE holds with INK WASH SHADOWS and subtle NEON ACCENTS from the muzzle flashes.
