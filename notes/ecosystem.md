@@ -188,23 +188,99 @@ osc.map("/audio/frequency", "world_state.color_temp")
 
 ---
 
-## 4. Our Multi-Stage Vision
+## 4. Gemini-Mediated Video-to-Video
+
+**Concept:** Use Gemini Flash as a translation layer to enable indirect V2V on 14B.
 
 ```
-GPU 1: 14B T2V (this fork)
-├── Custom LoRAs (R&T styles)
-├── Style Layer (WorldState → compiled prompts)
-├── FA4 optimized (15 FPS)
-│
-├── WebRTC pub/sub ──┬── Monitor (you watch)
-│                    │
-│                    └── GPU 2: 1.3B V2V
-│                        ├── LongLive or StreamDiffusionV2
-│                        ├── Takes 14B output as reference
-│                        ├── OSC/audio reactive layer
-│                        └── Performative real-time control
-│
-└── Final broadcast/recording
+Video Input → Gemini Flash (vision) → Text Description → 14B T2V → Video Output
+```
+
+**Why this works:**
+- 14B is T2V only, but Gemini can describe video in real-time
+- The "lag" becomes a feature — call and response, not sync
+- Enables dialogue between input and output (Tom → Jerry)
+- Already proven: 2001 shots → Rankin-Bass Rudolph translation
+
+**Performance architecture:**
+```
+Monitor A: Video Input          Monitor B: Generated Response
+    │                                 ▲
+    ▼                                 │
+Gemini Flash ──────────────────▶ 14B + LoRAs
+(describe action,                (generate in style
+ camera, emotion)                 vocabulary)
+```
+
+**Translation vocabulary:**
+- Action: "enters frame", "looks left", "reaches for"
+- Camera: "close-up", "wide shot", "pan right"
+- Emotion: "surprised", "scheming", "joyful"
+- Material: Rankin-Bass stop-motion, clay animation, etc.
+
+**Use cases:**
+- Live performance: Performer on A, AI responds on B
+- VJ workflow: Reference clips drive generated visuals
+- Character dialogue: Tom actions → Jerry responses
+- Style transfer: Any video → your LoRA's aesthetic
+
+**Implementation notes:**
+- Gemini client already scaffolded (`src/scope/realtime/gemini_client.py`)
+- Could tie into Style Layer's WorldState
+- Need to tune prompt templates for consistent translation
+
+---
+
+## 5. Our Multi-Stage Vision
+
+### Option A: Chained Pipeline (14B → 1.3B)
+```
+GPU 1: 14B T2V ──▶ GPU 2: 1.3B V2V ──▶ Final Output
+     │                   │
+     │                   └── OSC/audio reactive
+     └── Custom LoRAs, Style Layer
+```
+
+### Option B: Gemini-Mediated Dialogue
+```
+Video Input ──▶ Gemini Flash ──▶ 14B T2V ──▶ Response Output
+(Monitor A)      (translate)      + LoRAs      (Monitor B)
+                                     │
+                                     └── Style Layer vocabulary
+```
+
+### Option C: Full Stack (Both)
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    INPUT SOURCES                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
+│  │ Live Cam │  │ Clips    │  │ OSC/MIDI │  │ Text     │    │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘    │
+└───────┼─────────────┼─────────────┼─────────────┼──────────┘
+        │             │             │             │
+        ▼             ▼             ▼             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 TRANSLATION LAYER                            │
+│  Gemini Flash: video→text    Style Layer: state→prompt      │
+│  OSC mappings: audio→params  WorldState: unified control    │
+└───────────────────────────────┬─────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   GPU 1: 14B T2V                             │
+│  Krea Realtime + Custom LoRAs (R&T, Yeti, etc.)             │
+│  FA4 optimized @ 15 FPS                                      │
+└───────────────────────────────┬─────────────────────────────┘
+                                │
+                    WebRTC pub/sub
+                                │
+         ┌──────────────────────┼──────────────────────┐
+         │                      │                      │
+         ▼                      ▼                      ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│  Monitor (you)  │  │ GPU 2: 1.3B V2V │  │ Recording/      │
+│                 │  │ Reactive layer  │  │ Broadcast       │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
 
 ---
