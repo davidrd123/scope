@@ -8,6 +8,7 @@ set -euo pipefail
 #
 # Env overrides:
 #   B300_ENV_DIR=...   (defaults to .venv-b300-cu130-decode)
+#   SCOPE_KV_BIAS_BACKEND=...  (defaults to fa4; falls back if unavailable)
 
 ENV_DIR="${B300_ENV_DIR:-.venv-b300-cu130-decode}"
 BIN="$ENV_DIR/bin/daydream-scope"
@@ -39,8 +40,13 @@ fi
 # torch 2.9 / triton 3.5 currently hard-aborts compiling flex_attention on SM103 (tcgen05 LLVM).
 export DISABLE_FLEX_ATTENTION_COMPILE="${DISABLE_FLEX_ATTENTION_COMPILE:-1}"
 
+# Enable torch.compile for the diffusion blocks on B300 (opt-out via SCOPE_COMPILE_KREA_PIPELINE=0).
+export SCOPE_COMPILE_KREA_PIPELINE="${SCOPE_COMPILE_KREA_PIPELINE:-1}"
+
+# Best-known KV-bias backend on B300 is FA4/CuTe score_mod (falls back if unavailable).
+export SCOPE_KV_BIAS_BACKEND="${SCOPE_KV_BIAS_BACKEND:-fa4}"
+
 # Faster steady-state decode mode on B300.
 export WANVAE_STREAM_DECODE_MODE="${WANVAE_STREAM_DECODE_MODE:-chunk}"
 
 exec "$BIN" "$@"
-

@@ -4,9 +4,12 @@
 
 **Baseline (repo default stack): B300 is ~8.8 FPS at `320x576` (reference resolution) and the number is stable across iterations.**
 
-**Update (cu130 + FlashAttention):**
-- Daydream end-to-end: **~14.8–15.0 FPS** at `320x576` (canonical)
-- `scripts/profile_krea_pipeline_blocks.py` benchmark: **~13.3–13.5 FPS** at `320x576` (see artifacts below)
+**Update (cu130 + FlashAttention + FA4 KV-bias):**
+- Daydream end-to-end (cu130 env): **~14.8–15.0 FPS** at `320x576` (canonical; measured before defaulting to FA4 KV-bias)
+- `scripts/profile_krea_pipeline_blocks.py` benchmark (cu130 env, quantization none, bias=0.3):
+  - `SCOPE_KV_BIAS_BACKEND=flash`: **~14.9 FPS**
+  - `SCOPE_KV_BIAS_BACKEND=fa4`: **~16.7 FPS**
+  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile`: **~19.0 FPS**
 - `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, `scripts/b300_env_fix_cu130.sh` now tries `torchao==0.15.0+cu130` from the cu130 index (then PyPI as fallback). **As of 2025-12-25**, `torchao==0.15.0+cu130` still prints `Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 ...` (likely upstream; no FPS change observed).
 
 This is a ~70% improvement over the repo-default baseline.
@@ -26,6 +29,7 @@ Repro (isolated env; does not touch shared `.venv`):
 Or for benchmarking:
 
 ```bash
+SCOPE_KV_BIAS_BACKEND=fa4 \
 TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
 DISABLE_FLEX_ATTENTION_COMPILE=1 \
 WANVAE_STREAM_DECODE_MODE=chunk \
@@ -43,7 +47,7 @@ Or for a one-shot denoise/decode drill-down (writes JSON artifacts under `output
 scripts/profile_b300_denoise_drilldown.sh
 ```
 
-Latest drill-down run (cu130, profiling enabled): `outputs/b300_cu130_fp8_bias03_drilldown_perf.log` averaged **~11.4 FPS** (expected lower than the non-profiled benchmark due to extra synchronizations).
+Latest drill-down run (cu130, profiling enabled): `outputs/b300_cu130_none_bias0.3_drilldown_perf.log` averaged **~14.7 FPS** (expected lower than the non-profiled benchmark due to extra synchronizations).
 
 Artifacts:
 - `outputs/b300_cu130_fp8_bias03_flashattn.log`
@@ -126,11 +130,16 @@ Takeaway: the `SCOPE_KV_BIAS_BACKEND=fa4` safety disable can cost ~1 FPS **when 
 
 As of 2025-12-25:
 
-- `scripts/profile_krea_pipeline_blocks.py --compile` with fp8 quantization fails with:
-  - `NotImplementedError: Float8Tensor dispatch ... aten.as_strided` (torchao float8 wrapper under AOTAutograd/Inductor)
-- `--compile` with `SCOPE_KV_BIAS_BACKEND=fa4` can also cause Dynamo to trace into CuTe (DLpack), which fails with FakeTensor (`Cannot access data pointer...`) and then falls back to Triton (catastrophic on SM103).
+- **Quantization none:** `scripts/profile_krea_pipeline_blocks.py --compile` now works on B300 and improves throughput.
+  - Example (B300, cu130 env, `320x576`, bias `0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`): **~16.7 FPS → ~19.0 FPS**
+  - Tradeoff: longer warmup due to compilation (expect ~10–30s depending on cache state).
+- **FP8 (torchao):** still fails under `--compile` due to float8 wrapper limitations under Dynamo/Inductor.
 
-Takeaway: treat `--compile` as **experimental** on SM103 until torchao/Inductor + CuTe interop improves (or we add explicit dynamo disable wrappers around the custom kernels).
+Implementation note: we keep CuTe/FA4 calls **opaque** to Dynamo during compilation to avoid FakeTensor/DLPack failures; this enables compiling the surrounding transformer regions without trying to trace into CUTLASS DSL.
+
+Noise note: if you previously saw `torch/_dynamo` “Backend compiler exception … aten._local_scalar_dense” spam from `triton_rope_fused.py`, it should now be gone (we disable Dynamo for `_as_int3()` which does `.tolist()` scalar extraction).
+
+Server opt-in: set `SCOPE_COMPILE_KREA_PIPELINE=1` before launching. `scripts/run_daydream_b300.sh` defaults it to `1` but the server auto-disables compile when quantization is enabled.
 
 Update: FA4 score_mod KV-bias is now working on B300 and is faster than flash segment-combine at the canonical resolution. It required:
 - Removing static `import imageio` debug imports in `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` (cutlass-dsl AST preprocessor imports everything in the module).

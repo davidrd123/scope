@@ -13,7 +13,7 @@ set -euo pipefail
 # Default env: .venv-b300-cu130-decode (historical name from early experiments).
 #
 # Optional env vars:
-#   TORCHAO_VERSION=...  (defaults to 0.14.1 in the cu130 fix script)
+#   TORCHAO_VERSION=...  (defaults to 0.15.0+cu130 in the cu130 fix script; set to "skip" to suppress)
 
 ENV_DIR="${1:-.venv-b300-cu130-decode}"
 

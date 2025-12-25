@@ -497,14 +497,30 @@ class PipelineManager:
             if load_params:
                 quantization = load_params.get("quantization", None)
 
+            # torch.compile is opt-in for non-Hopper GPUs because it can increase
+            # startup latency and has architecture-specific sharp edges (especially
+            # when quantization is enabled).
+            compile_env = os.getenv("SCOPE_COMPILE_KREA_PIPELINE")
+            if compile_env is not None and compile_env != "":
+                compile_enabled = compile_env.lower() in ("1", "true", "yes", "on")
+            else:
+                # Only compile diffusion model for hopper by default.
+                compile_enabled = any(
+                    x in torch.cuda.get_device_name(0).lower() for x in ("h100", "hopper")
+                )
+
+            # Known issue: FP8 (torchao) + torch.compile is currently brittle; avoid by default.
+            if compile_enabled and quantization is not None:
+                logger.info(
+                    "Disabling torch.compile for krea-realtime-video (quantization=%s).",
+                    quantization,
+                )
+                compile_enabled = False
+
             pipeline = KreaRealtimeVideoPipeline(
                 config,
                 quantization=quantization,
-                # Only compile diffusion model for hopper right now
-                compile=any(
-                    x in torch.cuda.get_device_name(0).lower()
-                    for x in ("h100", "hopper")
-                ),
+                compile=compile_enabled,
                 device=torch.device("cuda"),
                 dtype=torch.bfloat16,
             )

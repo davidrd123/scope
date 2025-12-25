@@ -48,6 +48,7 @@ _KV_BIAS_BACKEND = (
 # FA4 + CUTE score_mod: 1.89x faster than Triton Kernel B on B200
 _fa4_available = False
 _fa4_fwd = None
+_fa4_fwd_opaque = None
 _fa4_score_mod_cache = {}
 _fa4_bias_tripped = False
 
@@ -103,6 +104,17 @@ if _KV_BIAS_BACKEND == "fa4":
 
         _extend_flash_attn_path_for_score_mod()
         from flash_attn.cute.interface import _flash_attn_fwd as _fa4_fwd
+        # CuTe uses DLPack + Python glue which torch.compile / Dynamo cannot safely trace.
+        # Keep the call opaque so we can still compile surrounding regions.
+        def _fa4_fwd_opaque(*args, **kwargs):
+            return _fa4_fwd(*args, **kwargs)
+
+        try:
+            import torch._dynamo  # type: ignore
+
+            _fa4_fwd_opaque = torch._dynamo.disable(_fa4_fwd_opaque)  # type: ignore[attr-defined]
+        except Exception:
+            pass
         if "score_mod" not in inspect.signature(_fa4_fwd).parameters:
             raise ImportError(
                 "FA4/CUTE score_mod requires the vendored (or local) flash-attention CuTe sources; "
@@ -172,6 +184,14 @@ def _get_fa4_score_mod(frame_seqlen: int, block_start: int, log_bias: float):
 
     _fa4_score_mod_cache[cache_key] = score_mod_kv_bias
     return score_mod_kv_bias
+
+
+try:
+    import torch._dynamo  # type: ignore
+
+    _get_fa4_score_mod = torch._dynamo.disable(_get_fa4_score_mod)  # type: ignore[attr-defined]
+except Exception:
+    pass
 
 
 _flash_bias_fa4_fwd = None
@@ -869,7 +889,10 @@ class CausalWanSelfAttention(nn.Module):
                 v = self.v(x).view(b, s, n, d)
             return q, k, v
 
-        with _ProfileBlock("qkv_projection"):
+        if _should_profile():
+            with _ProfileBlock("qkv_projection"):
+                q, k, v = qkv_fn(x)
+        else:
             q, k, v = qkv_fn(x)
 
         if kv_cache is None or block_mask is not None:
@@ -929,7 +952,15 @@ class CausalWanSelfAttention(nn.Module):
                     dim=1,
                 )
 
-                with _ProfileBlock("self_attn_block_mask"):
+                if _should_profile():
+                    with _ProfileBlock("self_attn_block_mask"):
+                        attn_out = flex_attention(
+                            query=padded_roped_query.transpose(2, 1),
+                            key=padded_roped_key.transpose(2, 1),
+                            value=padded_v.transpose(2, 1),
+                            block_mask=block_mask,
+                        )
+                else:
                     attn_out = flex_attention(
                         query=padded_roped_query.transpose(2, 1),
                         key=padded_roped_key.transpose(2, 1),
@@ -960,17 +991,20 @@ class CausalWanSelfAttention(nn.Module):
                     # For the Krea recompute path, the block_mask is often "single block" (i.e.
                     # num_frames <= num_frame_per_block), which is equivalent to dense attention.
                     try:
-                        if isinstance(grid_sizes, torch.Tensor):
-                            num_frames = int(grid_sizes[0, 0].item())
-                        else:
-                            num_frames = int(grid_sizes[0][0])
+                        # Avoid Tensor.item() (graph break) by deriving frame count from the
+                        # token sequence length. In this path, s == num_frames * frame_seq_length.
+                        frame_seqlen = int(getattr(self, "frame_seq_length", 0))
+                        num_frames = int(s) // frame_seqlen if frame_seqlen > 0 else 0
                         num_frame_per_block = int(getattr(self, "num_frame_per_block", 1))
                         use_dense_attention_for_block_mask = num_frames <= num_frame_per_block
                     except Exception:
                         use_dense_attention_for_block_mask = False
 
                 if use_dense_attention_for_block_mask:
-                    with _ProfileBlock("self_attn_block_mask"):
+                    if _should_profile():
+                        with _ProfileBlock("self_attn_block_mask"):
+                            x = attention(roped_query, roped_key, v)
+                    else:
                         x = attention(roped_query, roped_key, v)
                 else:
                     padded_length = math.ceil(q.shape[1] / 128) * 128 - q.shape[1]
@@ -1010,7 +1044,18 @@ class CausalWanSelfAttention(nn.Module):
                         dim=1,
                     )
 
-                    with _ProfileBlock("self_attn_block_mask"):
+                    if _should_profile():
+                        with _ProfileBlock("self_attn_block_mask"):
+                            attn_out = flex_attention(
+                                query=padded_roped_query.transpose(2, 1).contiguous(),
+                                key=padded_roped_key.transpose(2, 1).contiguous(),
+                                value=padded_v.transpose(2, 1).contiguous(),
+                                block_mask=block_mask,
+                                kernel_options={
+                                    "BLOCKS_ARE_CONTIGUOUS": True,
+                                },
+                            )
+                    else:
                         attn_out = flex_attention(
                             query=padded_roped_query.transpose(2, 1).contiguous(),
                             key=padded_roped_key.transpose(2, 1).contiguous(),
@@ -1027,7 +1072,15 @@ class CausalWanSelfAttention(nn.Module):
             # frame_seqlen = math.prod(grid_sizes[0][1:]).item() # torch compile doesn't like this
             frame_seqlen = self.frame_seq_length
             current_start_frame = current_start // frame_seqlen
-            with _ProfileBlock("rope_apply"):
+            if _should_profile():
+                with _ProfileBlock("rope_apply"):
+                    roped_query = causal_rope_apply(
+                        q, grid_sizes, freqs, start_frame=current_start_frame
+                    ).type_as(v)
+                    roped_key = causal_rope_apply(
+                        k, grid_sizes, freqs, start_frame=current_start_frame
+                    ).type_as(v)
+            else:
                 roped_query = causal_rope_apply(
                     q, grid_sizes, freqs, start_frame=current_start_frame
                 ).type_as(v)
@@ -1045,10 +1098,44 @@ class CausalWanSelfAttention(nn.Module):
                 and (current_end > kv_cache["global_end_index"])
                 and (num_new_tokens + kv_cache["local_end_index"] > kv_cache_size)
             ):
-                with _ProfileBlock("cache_eviction"):
-                    # Calculate the number of new tokens added in this step
-                    # Shift existing cache content left to discard oldest tokens
-                    # Clone the source slice to avoid overlapping memory error
+                if _should_profile():
+                    with _ProfileBlock("cache_eviction"):
+                        # Calculate the number of new tokens added in this step
+                        # Shift existing cache content left to discard oldest tokens
+                        # Clone the source slice to avoid overlapping memory error
+                        num_evicted_tokens = (
+                            num_new_tokens + kv_cache["local_end_index"] - kv_cache_size
+                        )
+                        num_rolled_tokens = (
+                            kv_cache["local_end_index"] - num_evicted_tokens - sink_tokens
+                        )
+                        kv_cache["k"][:, sink_tokens : sink_tokens + num_rolled_tokens] = (
+                            kv_cache["k"][
+                                :,
+                                sink_tokens + num_evicted_tokens : sink_tokens
+                                + num_evicted_tokens
+                                + num_rolled_tokens,
+                            ].clone()
+                        )
+                        kv_cache["v"][:, sink_tokens : sink_tokens + num_rolled_tokens] = (
+                            kv_cache["v"][
+                                :,
+                                sink_tokens + num_evicted_tokens : sink_tokens
+                                + num_evicted_tokens
+                                + num_rolled_tokens,
+                            ].clone()
+                        )
+                        # Insert the new keys/values at the end
+                        local_end_index = (
+                            kv_cache["local_end_index"]
+                            + current_end
+                            - kv_cache["global_end_index"]
+                            - num_evicted_tokens
+                        )
+                        local_start_index = local_end_index - num_new_tokens
+                        kv_cache["k"][:, local_start_index:local_end_index] = roped_key
+                        kv_cache["v"][:, local_start_index:local_end_index] = v
+                else:
                     num_evicted_tokens = (
                         num_new_tokens + kv_cache["local_end_index"] - kv_cache_size
                     )
@@ -1071,7 +1158,6 @@ class CausalWanSelfAttention(nn.Module):
                             + num_rolled_tokens,
                         ].clone()
                     )
-                    # Insert the new keys/values at the end
                     local_end_index = (
                         kv_cache["local_end_index"]
                         + current_end
@@ -1082,12 +1168,20 @@ class CausalWanSelfAttention(nn.Module):
                     kv_cache["k"][:, local_start_index:local_end_index] = roped_key
                     kv_cache["v"][:, local_start_index:local_end_index] = v
             else:
-                with _ProfileBlock("cache_update"):
-                    # Assign new keys/values directly up to current_end
+                if _should_profile():
+                    with _ProfileBlock("cache_update"):
+                        # Assign new keys/values directly up to current_end
+                        local_end_index = (
+                            kv_cache["local_end_index"]
+                            + current_end
+                            - kv_cache["global_end_index"]
+                        )
+                        local_start_index = local_end_index - num_new_tokens
+                        kv_cache["k"][:, local_start_index:local_end_index] = roped_key
+                        kv_cache["v"][:, local_start_index:local_end_index] = v
+                else:
                     local_end_index = (
-                        kv_cache["local_end_index"]
-                        + current_end
-                        - kv_cache["global_end_index"]
+                        kv_cache["local_end_index"] + current_end - kv_cache["global_end_index"]
                     )
                     local_start_index = local_end_index - num_new_tokens
                     kv_cache["k"][:, local_start_index:local_end_index] = roped_key
@@ -1123,11 +1217,28 @@ class CausalWanSelfAttention(nn.Module):
                             block_start=cache_current_block_start,
                             log_bias=log_scale,
                         )
-                        with _ProfileBlock("self_attn_kv_bias_fa4"):
-                            # FA4/CuTe can fail to infer "leading dim" from a B=1 view
-                            # when K/V come from a larger cache tensor (stride(0) reflects
-                            # the full cache, not the sliced window). Normalizing the
-                            # batch dimension stride avoids a costly clone/copy.
+                        if _should_profile():
+                            with _ProfileBlock("self_attn_kv_bias_fa4"):
+                                # FA4/CuTe can fail to infer "leading dim" from a B=1 view
+                                # when K/V come from a larger cache tensor (stride(0) reflects
+                                # the full cache, not the sliced window). Normalizing the
+                                # batch dimension stride avoids a costly clone/copy.
+                                q_fa4 = roped_query
+                                k_fa4 = cached_k
+                                v_fa4 = cached_v
+                                if k_fa4.shape[0] == 1:
+                                    q_fa4 = q_fa4[0].unsqueeze(0)
+                                    k_fa4 = k_fa4[0].unsqueeze(0)
+                                    v_fa4 = v_fa4[0].unsqueeze(0)
+                                x, _ = (_fa4_fwd_opaque or _fa4_fwd)(
+                                    q_fa4,
+                                    k_fa4,
+                                    v_fa4,
+                                    score_mod=score_mod_cute,
+                                    causal=False,
+                                    return_lse=False,
+                                )
+                        else:
                             q_fa4 = roped_query
                             k_fa4 = cached_k
                             v_fa4 = cached_v
@@ -1135,7 +1246,7 @@ class CausalWanSelfAttention(nn.Module):
                                 q_fa4 = q_fa4[0].unsqueeze(0)
                                 k_fa4 = k_fa4[0].unsqueeze(0)
                                 v_fa4 = v_fa4[0].unsqueeze(0)
-                            x, _ = _fa4_fwd(
+                            x, _ = (_fa4_fwd_opaque or _fa4_fwd)(
                                 q_fa4,
                                 k_fa4,
                                 v_fa4,
@@ -1154,7 +1265,17 @@ class CausalWanSelfAttention(nn.Module):
                     global _flash_bias_tripped
                     if not _flash_bias_tripped:
                         try:
-                            with _ProfileBlock("self_attn_kv_bias_flash"):
+                            if _should_profile():
+                                with _ProfileBlock("self_attn_kv_bias_flash"):
+                                    x = _kv_bias_flash_combine(
+                                        roped_query,
+                                        cached_k,
+                                        cached_v,
+                                        frame_seqlen=frame_seqlen,
+                                        current_block_start=cache_current_block_start,
+                                        log_bias=log_scale,
+                                    )
+                            else:
                                 x = _kv_bias_flash_combine(
                                     roped_query,
                                     cached_k,
@@ -1173,11 +1294,24 @@ class CausalWanSelfAttention(nn.Module):
                 if x is None and USE_TRITON_KERNEL_B and _triton_kernel_b is not None:
                     # Triton Kernel B: no padding needed
                     # Input: (B, L, H, D) -> (B, H, L, D)
-                    with _ProfileBlock("transpose_contiguous"):
+                    if _should_profile():
+                        with _ProfileBlock("transpose_contiguous"):
+                            Q_t = roped_query.transpose(2, 1).contiguous()
+                            K_t = cached_k.transpose(2, 1).contiguous()
+                            V_t = cached_v.transpose(2, 1).contiguous()
+                        with _ProfileBlock("self_attn_kv_bias"):
+                            x = _triton_kernel_b(
+                                Q=Q_t,
+                                K=K_t,
+                                V=V_t,
+                                frame_seqlen=frame_seqlen,
+                                current_block_start=cache_current_block_start,
+                                log_bias=log_scale,
+                            ).transpose(2, 1)  # (B, H, L, D) -> (B, L, H, D)
+                    else:
                         Q_t = roped_query.transpose(2, 1).contiguous()
                         K_t = cached_k.transpose(2, 1).contiguous()
                         V_t = cached_v.transpose(2, 1).contiguous()
-                    with _ProfileBlock("self_attn_kv_bias"):
                         x = _triton_kernel_b(
                             Q=Q_t,
                             K=K_t,
@@ -1226,7 +1360,15 @@ class CausalWanSelfAttention(nn.Module):
                             score,
                         )
 
-                    with _ProfileBlock("self_attn_kv_bias"):
+                    if _should_profile():
+                        with _ProfileBlock("self_attn_kv_bias"):
+                            x = flex_attention(
+                                query=padded_roped_query.transpose(2, 1).contiguous(),
+                                key=padded_k.transpose(2, 1).contiguous(),
+                                value=padded_v.transpose(2, 1).contiguous(),
+                                score_mod=score_mod,
+                            )[:, :, :q_len].transpose(2, 1)
+                    else:
                         x = flex_attention(
                             query=padded_roped_query.transpose(2, 1).contiguous(),
                             key=padded_k.transpose(2, 1).contiguous(),
@@ -1236,14 +1378,21 @@ class CausalWanSelfAttention(nn.Module):
             else:
                 # Use original Flash/Sage Attention path when bias is disabled (1.0)
                 # This preserves the original behavior and avoids flex_attention overhead
-                with _ProfileBlock("self_attn_kv_plain"):
+                if _should_profile():
+                    with _ProfileBlock("self_attn_kv_plain"):
+                        x = attention(roped_query, cached_k, cached_v)
+                else:
                     x = attention(roped_query, cached_k, cached_v)
 
             kv_cache["global_end_index"] = current_end
             kv_cache["local_end_index"] = local_end_index
 
         # output
-        with _ProfileBlock("output_projection"):
+        if _should_profile():
+            with _ProfileBlock("output_projection"):
+                x = x.flatten(2)
+                x = self.o(x)
+        else:
             x = x.flatten(2)
             x = self.o(x)
         return x

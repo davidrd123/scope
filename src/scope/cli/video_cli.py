@@ -390,6 +390,9 @@ def playlist_nav(ctx):
 
     def display_preview(client):
         """Fetch and display preview."""
+        import shutil
+        term_width = shutil.get_terminal_size().columns
+
         r = client.get("/api/v1/realtime/playlist/preview", params={"context": 3})
         if r.status_code != 200:
             return None
@@ -398,22 +401,25 @@ def playlist_nav(ctx):
             click.echo("\n  No playlist loaded. Use: video-cli playlist load <file>\n")
             return None
 
-        click.echo("\n" + "=" * 60)
+        click.echo("\n" + "=" * term_width)
         click.echo(f"  Playlist: {data.get('total', 0)} prompts")
-        click.echo("=" * 60)
+        click.echo("=" * term_width)
+
+        # Calculate prompt display width: total - marker(2) - bracket+idx(6) - space(1)
+        prompt_width = term_width - 10
 
         for item in data.get("prompts", []):
             marker = "▶ " if item.get("current") else "  "
             idx = item.get("index", 0)
-            prompt = item.get("prompt", "")[:70]
+            prompt = item.get("prompt", "")[:prompt_width]
             if item.get("current"):
                 click.echo(click.style(f"{marker}[{idx:3d}] {prompt}", fg="green", bold=True))
             else:
                 click.echo(f"{marker}[{idx:3d}] {prompt}")
 
-        click.echo("=" * 60)
+        click.echo("=" * term_width)
         click.echo("  ←/→ navigate | a apply | g goto | q quit")
-        click.echo("=" * 60 + "\n")
+        click.echo("=" * term_width + "\n")
         return data
 
     click.echo("\nPlaylist Navigation Mode")

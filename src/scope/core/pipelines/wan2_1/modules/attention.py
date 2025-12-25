@@ -13,6 +13,20 @@ except ModuleNotFoundError:  # Optional dependency (e.g. B300 cu130 experiments)
 
 logger = logging.getLogger(__name__)
 
+def _dynamo_disable(fn):
+    """
+    Best-effort wrapper to keep torch.compile / Dynamo from tracing into a Python
+    implementation of an external kernel (e.g. FlashAttention-4/CuTe).
+
+    In eager mode this is a no-op.
+    """
+    try:
+        import torch._dynamo  # type: ignore
+
+        return torch._dynamo.disable(fn)  # type: ignore[attr-defined]
+    except Exception:
+        return fn
+
 
 def _extend_flash_attn_path() -> None:
     if _flash_attn is None:
@@ -75,6 +89,13 @@ if os.getenv("DISABLE_FLASH_ATTENTION_4", "0") == "0" and not _force_disable_fa4
             FLASH_ATTN_4_AVAILABLE = is_blackwell_gpu()
         except Exception:
             pass
+
+
+@_dynamo_disable
+def _flash_attn_4_varlen_opaque(**kwargs):
+    if flash_attn_4_varlen_func is None:
+        raise RuntimeError("flash_attn_4_varlen_func is not available")
+    return flash_attn_4_varlen_func(**kwargs)
 
 FLASH_ATTN_3_AVAILABLE = False
 
@@ -206,7 +227,7 @@ def flash_attention(
             _attention_backend_logged = True
         window_size_fa4 = (None, None) if window_size == (-1, -1) else window_size
         # FA4 (CUTE) doesn't support deterministic parameter
-        x = flash_attn_4_varlen_func(
+        x = _flash_attn_4_varlen_opaque(
             q=q,
             k=k,
             v=v,

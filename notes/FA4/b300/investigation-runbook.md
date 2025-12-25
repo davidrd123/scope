@@ -73,6 +73,18 @@ On this B300 environment, `torch.profiler` CUDA timelines are currently unusable
 - Minimal CuTe sources needed for FA4 `score_mod` experimentation are already vendored in-repo at `vendored/flash_attn_cute_score_mod/` and are referenced by the path-injection logic when `SCOPE_KV_BIAS_BACKEND=fa4`.
 - Small artifacts live in `outputs/` (e.g. `outputs/b300_320x576_fa4.log`). The block-profile JSON is currently a local artifact; if it’s useful long-term, consider checking it in (or keep the table above as the durable record).
 
+### Code Map (Where the Work Actually Runs)
+
+Useful when you want to connect a profiler bucket (“denoise”, “decode”, “call_model_kv_cache”) to the actual code:
+
+- Pipeline + warmup: `src/scope/core/pipelines/krea_realtime_video/pipeline.py`
+- Block orchestration + block-level profiler: `src/scope/core/pipelines/krea_realtime_video/modular_blocks.py`
+- Diffusion wrapper + `PROFILE_GENERATOR_STEPS`: `src/scope/core/pipelines/wan2_1/components/generator.py` (`WanDiffusionWrapper`)
+- Transformer (self/cross/ffn) + KV-bias backends + `PROFILE_ATTENTION`: `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
+- FlashAttention/SageAttention backend selection: `src/scope/core/pipelines/wan2_1/modules/attention.py`
+- VAE decode (chunk vs loop) + decode profilers: `src/scope/core/pipelines/krea_realtime_video/modules/vae.py`
+- Server pipeline load path (compile gating, quantization): `src/scope/server/pipeline_manager.py`
+
 ## Quick Reference
 
 ```bash
@@ -219,7 +231,9 @@ Enabling cuDNN benchmark improves decode somewhat (at the cost of slower warmup 
 export SCOPE_KV_CACHE_RECOMPUTE_EVERY=2  # default 1 (always recompute)
 ```
 
-Measured (B300 cu130, `320x576`, fp8, `kv_cache_attention_bias=0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`): ~`15.0 FPS` → ~`16.8 FPS`.
+Measured (B300 cu130, `320x576`, `kv_cache_attention_bias=0.3`):
+- fp8: `SCOPE_KV_BIAS_BACKEND=flash` ~`13.5 FPS` → `SCOPE_KV_BIAS_BACKEND=fa4` ~`15.0 FPS`
+- quantization none: `SCOPE_KV_BIAS_BACKEND=flash` ~`14.9 FPS` → `SCOPE_KV_BIAS_BACKEND=fa4` ~`16.7 FPS`
 
 **Quality result (Daydream, B300):** `SCOPE_KV_CACHE_RECOMPUTE_EVERY=2` **visibly glitches**. Treat this knob as **debug-only**; do not ship it as a default optimization.
 
@@ -251,27 +265,27 @@ Command used:
 - `scripts/profile_b300_denoise_drilldown.sh`
 
 Artifacts:
-- `outputs/b300_cu130_fp8_bias03_drilldown_perf.log` / `outputs/b300_cu130_fp8_bias03_drilldown_perf.json`
-- `outputs/b300_cu130_fp8_bias03_drilldown_blocks_profile.json`
-- `outputs/b300_cu130_fp8_bias03_drilldown_denoise_steps.json`
-- `outputs/b300_cu130_fp8_bias03_drilldown_generator_steps.json`
-- `outputs/b300_cu130_fp8_bias03_drilldown_vae_decode.json`
-- `outputs/b300_cu130_fp8_bias03_drilldown_vae_decode_inner.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_perf.log` / `outputs/b300_cu130_none_bias0.3_drilldown_perf.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_blocks_profile.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_denoise_steps.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_generator_steps.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_vae_decode.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_vae_decode_inner.json`
 
 Notes:
 - Avg FPS in this run is ~`11.4` (lower than the non-profiled benchmark) because the profilers add synchronizations.
 
-Key breakdown (from `outputs/b300_cu130_fp8_bias03_drilldown_blocks_profile.json`):
-- `denoise`: ~`658.5ms` per pipeline call
-- `decode`: ~`207.0ms` per pipeline call
-- `recompute_kv_cache`: ~`140.3ms` per pipeline call
+Key breakdown (from `outputs/b300_cu130_none_bias0.3_drilldown_blocks_profile.json`, per pipeline call):
+- `denoise`: ~`464.0ms`
+- `decode`: ~`206.2ms`
+- `recompute_kv_cache`: ~`144.6ms`
 
-Within `denoise` (from `outputs/b300_cu130_fp8_bias03_drilldown_denoise_steps.json`):
-- `generator`: ~`164.5ms` per call (4 calls per pipeline call)
+Within `denoise` (from `outputs/b300_cu130_none_bias0.3_drilldown_denoise_steps.json`):
+- `generator`: ~`115.8ms` per call (4 calls per pipeline call)
 - `randn` + `scheduler_add_noise`: noise-level
 
-Within `generator(...)` (from `outputs/b300_cu130_fp8_bias03_drilldown_generator_steps.json`):
-- `call_model_kv_cache`: ~`159.8ms` per call (dominates)
+Within `generator(...)` (from `outputs/b300_cu130_none_bias0.3_drilldown_generator_steps.json`):
+- `call_model_kv_cache`: ~`114.0ms` per call (dominates; includes denoise + recompute_kv_cache)
 - `convert_flow_pred_to_x0`: ~`0.1ms` per call (negligible)
 
 ### Test 1b.2: Split Transformer Time (self-attn vs cross-attn vs FFN)
@@ -397,6 +411,35 @@ In a representative run (fp8, `320x576`, bias `0.3`), the top GPU time is largel
 Comparing `flash` vs `fa4` shows why FA4 score_mod wins:
 - `flash`: heavy `flash_attn::_flash_attn_varlen_forward` (segment-combine does multiple attention calls)
 - `fa4`: reduced attention time and fewer associated copies
+
+### Test 1b.4: torch.compile (regional) A/B (B300, quantization none)
+
+Once you’ve confirmed you’re on the **cu130** stack and `SCOPE_KV_BIAS_BACKEND=fa4` works, the next “big lever” is **regional compilation**
+of the transformer blocks (fuses some elementwise/copy overhead around the attention kernels).
+
+Benchmark command (cu130 env):
+
+```bash
+SCOPE_KV_BIAS_BACKEND=fa4 \
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+PYTHONPATH=src .venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 6 --skip 2 \
+  --quantization none \
+  --kv-cache-attention-bias 0.3 \
+  --cudnn-benchmark \
+  --compile
+```
+
+Observed (B300, cu130, `320x576`, quantization none, bias `0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`): **~16.7 FPS → ~19.0 FPS**.
+
+Notes:
+- Warmup is slower due to compilation (expect ~10–30s).
+- If you see large `torch/_dynamo` "Backend compiler exception" spam pointing at `src/scope/core/kernels/triton_rope_fused.py` (e.g. `aten._local_scalar_dense` from `.tolist()`), update to a version that marks `_as_int3()` as `torch._dynamo.disable` so Dynamo doesn’t try to inline/compile scalar extraction.
+- FP8 quantization + `--compile` is currently brittle due to torchao float8 dispatch; prefer quantization none for now.
+- The server can enable this via `SCOPE_COMPILE_KREA_PIPELINE=1` (see `scripts/run_daydream_b300.sh`).
 
 ### Test 1c: “SM103-native” Runtime Check (cu130 cuDNN)
 

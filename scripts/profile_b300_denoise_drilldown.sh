@@ -17,6 +17,7 @@ set -euo pipefail
 #   ITERS=... SKIP=...       (defaults to 6 iters, skip 2)
 #   QUANTIZATION=fp8_e4m3fn|none  (defaults to none; Daydream GUI typically runs unquantized on B300)
 #   KV_CACHE_ATTENTION_BIAS=...   (defaults to 0.3)
+#   SCOPE_KV_BIAS_BACKEND=...      (defaults to fa4; falls back if unavailable)
 
 ENV_DIR="${B300_ENV_DIR:-.venv-b300-cu130-decode}"
 PY="$ENV_DIR/bin/python"
@@ -61,6 +62,9 @@ fi
 
 # torch 2.9 / triton 3.5 currently hard-aborts compiling flex_attention on SM103 (tcgen05 LLVM).
 export DISABLE_FLEX_ATTENTION_COMPILE="${DISABLE_FLEX_ATTENTION_COMPILE:-1}"
+
+# Best-known KV-bias backend on B300 is FA4/CuTe score_mod (falls back if unavailable).
+export SCOPE_KV_BIAS_BACKEND="${SCOPE_KV_BIAS_BACKEND:-fa4}"
 
 # Faster steady-state decode mode on B300.
 export WANVAE_STREAM_DECODE_MODE="${WANVAE_STREAM_DECODE_MODE:-chunk}"

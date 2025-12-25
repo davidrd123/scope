@@ -15,6 +15,12 @@ import torch
 import triton
 import triton.language as tl
 
+try:
+    _dynamo_disable = torch._dynamo.disable  # type: ignore[attr-defined]
+except Exception:
+    def _dynamo_disable(fn):  # type: ignore[no-redef]
+        return fn
+
 # -----------------------------------------------------------------------------
 # Module-scope cache: per-axis tables keyed by (freqs_ptr, device_index, c0,c1,c2)
 # This is intentionally module scope (like the existing _ROPE_CACHE).
@@ -435,6 +441,7 @@ def rope_fused_3way_kernel_v2(
 # -----------------------------------------------------------------------------
 # Python wrapper
 # -----------------------------------------------------------------------------
+@_dynamo_disable
 def _as_int3(
     grid_sizes: Union[torch.Tensor, Sequence[int]],
     batch: int,

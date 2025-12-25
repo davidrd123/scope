@@ -152,8 +152,13 @@ class PromptPlaylist:
             "trigger_swap": list(self.trigger_swap) if self.trigger_swap else None,
         }
 
-    def preview(self, context: int = 2) -> dict[str, Any]:
-        """Get a preview window around current position."""
+    def preview(self, context: int = 2, max_prompt_len: int = 0) -> dict[str, Any]:
+        """Get a preview window around current position.
+
+        Args:
+            context: Number of prompts to show before/after current
+            max_prompt_len: Max length for prompts (0 = no truncation)
+        """
         if not self.prompts:
             return {"prompts": [], "current_index": 0}
 
@@ -162,10 +167,10 @@ class PromptPlaylist:
 
         items = []
         for i in range(start, end):
-            # Truncate long prompts for preview
             prompt = self.prompts[i]
-            if len(prompt) > 80:
-                prompt = prompt[:77] + "..."
+            # Only truncate if max_prompt_len is set
+            if max_prompt_len > 0 and len(prompt) > max_prompt_len:
+                prompt = prompt[:max_prompt_len - 3] + "..."
             items.append({
                 "index": i,
                 "prompt": prompt,
