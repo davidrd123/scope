@@ -57,7 +57,9 @@ notes/FA4/
 ## Current Status (Dec 2024)
 
 - **B200**: ~20 FPS at 320x576, 4 steps (working well)
-- **B300**: 8.8 FPS at same settings (mystery unsolved - see `b300/investigation-runbook.md`)
+- **B300**:
+  - ~8.8 FPS on the repo-default cu128 stack
+  - ~14.8–15.0 FPS at 320x576 on a cu130 env with FlashAttention installed (see `b300/session-state.md`)
 - **H100**: Fallback option for hackathon (Jan 9 deadline)
 
 ## Quick Commands
@@ -66,6 +68,10 @@ notes/FA4/
 # Run block profiler for investigation
 uv run python scripts/profile_krea_pipeline_blocks.py \
   --iters 20 --skip 3 --profile-blocks
+
+# Next denoise step (split transformer time: self_attn vs cross_attn vs ffn)
+PROFILE_ATTENTION=1 \
+uv run python scripts/profile_krea_pipeline_blocks.py --iters 6 --skip 2
 
 # Test FA4 on B300
 TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas uv run python scripts/test_fa4_kv_bias.py
