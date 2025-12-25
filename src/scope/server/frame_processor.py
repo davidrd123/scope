@@ -17,6 +17,7 @@ from scope.realtime import (
     StyleRegistry,
     TemplateCompiler,
     WorldState,
+    create_compiler,
 )
 
 try:
@@ -894,6 +895,16 @@ class FrameProcessor:
                 self.style_manifest = new_style
                 self._style_manifest_hash = new_hash
                 logger.info(f"Active style set to: {style_name}")
+
+                # Recreate compiler for the new style (may switch to LLM if available)
+                if style_changed:
+                    try:
+                        self.prompt_compiler = create_compiler(new_style)
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to create compiler for style {style_name}: {e}, "
+                            "keeping current compiler"
+                        )
 
                 # Recompile with new style
                 compiled = self.prompt_compiler.compile(

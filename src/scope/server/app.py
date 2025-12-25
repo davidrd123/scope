@@ -818,6 +818,36 @@ class StyleListResponse(BaseModel):
     active_style: str | None = None
 
 
+class WorldChangeRequest(BaseModel):
+    """Request to change world state via natural language instruction."""
+
+    instruction: str
+
+
+class WorldChangeResponse(BaseModel):
+    """Response from world state change operation."""
+
+    status: str
+    world_state: dict | None = None
+    compiled_prompt: str | None = None
+    chunk_index: int | None = None
+
+
+class PromptJiggleRequest(BaseModel):
+    """Request to generate a prompt variation."""
+
+    prompt: str | None = None  # None = use current compiled prompt
+    intensity: float = 0.3  # 0-1, how different the variation should be
+
+
+class PromptJiggleResponse(BaseModel):
+    """Response from prompt jiggle operation."""
+
+    status: str
+    original_prompt: str | None = None
+    jiggled_prompt: str | None = None
+
+
 @app.get("/api/v1/realtime/state", response_model=RealtimeStateResponse)
 async def get_realtime_state(
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
@@ -1098,6 +1128,130 @@ async def list_styles(
         raise
     except Exception as e:
         logger.error(f"Error listing styles: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.post("/api/v1/realtime/world/change", response_model=WorldChangeResponse)
+async def change_world_state(
+    request: WorldChangeRequest,
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Change WorldState using natural language instruction.
+
+    Uses Gemini to interpret the instruction and apply changes to WorldState.
+    Requires GEMINI_API_KEY environment variable.
+
+    Example: {"instruction": "make Rooster angry and have him storm out"}
+    """
+    try:
+        from scope.realtime.gemini_client import GeminiWorldChanger, is_gemini_available
+
+        if not is_gemini_available():
+            raise HTTPException(
+                503,
+                "Gemini not available - set GEMINI_API_KEY environment variable",
+            )
+
+        session = get_active_session(webrtc_manager)
+        vt = session.video_track
+        if vt is None:
+            raise HTTPException(400, "No video track")
+
+        vt.initialize_output_processing()
+        fp = vt.frame_processor
+        if fp is None:
+            raise HTTPException(400, "FrameProcessor not ready")
+
+        # Get current WorldState
+        current_world = fp.world_state
+
+        # Apply change via Gemini (sync call, should be fast for Flash)
+        changer = GeminiWorldChanger()
+        new_world = changer.change(current_world, request.instruction)
+
+        # Apply to frame processor via control message
+        if not apply_control_message(session, {"_rcp_world_state": new_world.model_dump()}):
+            raise HTTPException(503, "Failed to apply world state change")
+
+        # Get compiled prompt from frame processor (will be updated on next chunk)
+        compiled_prompt = None
+        if fp._compiled_prompt:
+            compiled_prompt = fp._compiled_prompt.prompt
+
+        return WorldChangeResponse(
+            status="changed",
+            world_state=new_world.model_dump(),
+            compiled_prompt=compiled_prompt,
+            chunk_index=fp.chunk_index,
+        )
+
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error changing world state: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.post("/api/v1/prompt/jiggle", response_model=PromptJiggleResponse)
+async def jiggle_prompt(
+    request: PromptJiggleRequest,
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Generate a variation of the current or provided prompt.
+
+    Uses Gemini to create a semantically similar but textually different prompt.
+    Useful for adding variety without changing scene intent.
+
+    Requires GEMINI_API_KEY environment variable.
+    """
+    try:
+        from scope.realtime.gemini_client import GeminiPromptJiggler, is_gemini_available
+
+        session = get_active_session(webrtc_manager)
+        vt = session.video_track
+        if vt is None:
+            raise HTTPException(400, "No video track")
+
+        vt.initialize_output_processing()
+        fp = vt.frame_processor
+        if fp is None:
+            raise HTTPException(400, "FrameProcessor not ready")
+
+        # Get prompt to jiggle
+        original = request.prompt
+        if original is None:
+            # Use current compiled prompt
+            if fp._compiled_prompt:
+                original = fp._compiled_prompt.prompt
+            else:
+                raise HTTPException(400, "No prompt available to jiggle")
+
+        # If Gemini not available, return original
+        if not is_gemini_available():
+            return PromptJiggleResponse(
+                status="unchanged",
+                original_prompt=original,
+                jiggled_prompt=original,
+            )
+
+        # Jiggle via Gemini
+        jiggler = GeminiPromptJiggler()
+        jiggled = jiggler.jiggle(original, intensity=request.intensity)
+
+        return PromptJiggleResponse(
+            status="jiggled",
+            original_prompt=original,
+            jiggled_prompt=jiggled,
+        )
+
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error jiggling prompt: {e}")
         raise HTTPException(500, str(e)) from e
 
 

@@ -5,10 +5,14 @@ The compiler is pluggable:
 - LLMCompiler: Uses an LLM (Gemini Flash, etc.) with instruction sheets
 - TemplateCompiler: Deterministic vocab substitution (for testing/fallback)
 - CachedCompiler: Wraps another compiler with memoization
+
+Factory function:
+- create_compiler(): Creates the appropriate compiler based on config
 """
 
 import hashlib
 import logging
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -491,3 +495,88 @@ class CachedCompiler(PromptCompiler):
         """Clear the cache."""
         self._cache.clear()
         self._cache_order.clear()
+
+
+def _load_instruction_sheet(style: StyleManifest) -> InstructionSheet | None:
+    """
+    Load instruction sheet for a style.
+
+    Looks for instructions.md in the style directory.
+    """
+    if not style.name:
+        return None
+
+    # Look for instruction sheet in style directory
+    # Assuming styles are in <project>/styles/<name>/instructions.md
+    style_dir = Path(__file__).parent.parent.parent.parent / "styles" / style.name
+    instruction_path = style_dir / "instructions.md"
+
+    if instruction_path.exists():
+        try:
+            return InstructionSheet.from_markdown(instruction_path)
+        except Exception as e:
+            logger.warning(f"Failed to load instruction sheet {instruction_path}: {e}")
+            return None
+
+    return None
+
+
+def create_compiler(
+    style: StyleManifest,
+    mode: str = "auto",
+) -> PromptCompiler:
+    """
+    Create a PromptCompiler for the given style.
+
+    Args:
+        style: The style manifest to compile prompts for
+        mode: Compiler mode - "gemini", "template", or "auto"
+              "auto" uses Gemini if GEMINI_API_KEY is set, else template
+
+    Returns:
+        A PromptCompiler instance (possibly wrapped in CachedCompiler)
+
+    Environment variables:
+        SCOPE_LLM_COMPILER: Override mode ("gemini", "template", "auto")
+        GEMINI_API_KEY: Required for Gemini mode
+    """
+    # Check env override
+    env_mode = os.getenv("SCOPE_LLM_COMPILER", "auto")
+    if env_mode in ("gemini", "template"):
+        mode = env_mode
+
+    # Template mode - simple and fast
+    if mode == "template":
+        logger.info(f"Using TemplateCompiler for style '{style.name}'")
+        return TemplateCompiler()
+
+    # Gemini mode - check availability
+    if mode == "gemini":
+        from .gemini_client import GeminiCompiler, is_gemini_available
+
+        if not is_gemini_available():
+            logger.warning(
+                "SCOPE_LLM_COMPILER=gemini but GEMINI_API_KEY not set, "
+                "falling back to TemplateCompiler"
+            )
+            return TemplateCompiler()
+
+        instruction_sheet = _load_instruction_sheet(style)
+        inner = LLMCompiler(
+            llm_callable=GeminiCompiler(),
+            instruction_sheet=instruction_sheet,
+        )
+        logger.info(
+            f"Using LLMCompiler (Gemini) for style '{style.name}' "
+            f"with instruction_sheet={instruction_sheet.name if instruction_sheet else 'None'}"
+        )
+        return CachedCompiler(inner)
+
+    # Auto mode - use Gemini if available
+    from .gemini_client import is_gemini_available
+
+    if is_gemini_available():
+        return create_compiler(style, mode="gemini")
+
+    logger.info(f"Using TemplateCompiler for style '{style.name}' (auto mode, no API key)")
+    return TemplateCompiler()

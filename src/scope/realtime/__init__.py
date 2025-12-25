@@ -47,6 +47,7 @@ from scope.realtime.prompt_compiler import (
     LLMCompiler,
     CachedCompiler,
     InstructionSheet,
+    create_compiler,
 )
 
 __all__ = [
@@ -86,4 +87,5 @@ __all__ = [
     "LLMCompiler",
     "CachedCompiler",
     "InstructionSheet",
+    "create_compiler",
 ]

@@ -143,15 +143,45 @@ Verified: File exists, SHA256: `66a4bd41ec0fc58f1ff6d1313e06cd9a4c24ab60171a5846
 
 Recommend **Option B** to avoid 6 GB memory overhead when VACE not needed.
 
-### Validation Checklist
+### Phase 6b Execution Checklist
 
-- [ ] VACE-14B artifact downloads successfully
-- [ ] 20 VACE blocks created (40 layers ÷ 2)
-- [ ] Shape check: `vace_patch_embedding.weight` is `(5120, 96, 1, 2, 2)`
-- [ ] Projection fusing works after VACE block replacement
-- [ ] VAE loads without path errors
-- [ ] Minimal R2V generation produces output
-- [ ] Memory footprint acceptable (14B + VACE + FP8)
+**1. Decide defaults**
+- [ ] Pick `vace_enabled` default for Krea load params (recommend `False` to avoid +6.1GB unless requested)
+
+**2. Artifacts**
+- [ ] Add `Wan2_1-VACE_module_14B_bf16.safetensors` to Krea downloads → `pipeline_artifacts.py:43`
+
+**3. PipelineManager wiring**
+- [ ] Stop using 1.3B hardcode for Krea → `pipeline_manager.py:216` select 14B filename
+- [ ] Add `vace_enabled` handling in Krea load path → `pipeline_manager.py:458` call `_configure_vace()` when enabled
+
+**4. Schema / API surfacing**
+- [ ] Add `vace_enabled` to `KreaRealtimeVideoLoadParams` → `server/schema.py:352`
+- [ ] Add `ref_images` + `vace_context_scale` to `KreaRealtimeVideoConfig` → `pipelines/schema.py:322`
+
+**5. Krea pipeline model wiring**
+- [ ] Make Krea inherit `VACEEnabledPipeline` + call `_init_vace()` before fusing/LoRA → `pipeline.py:42`
+- [ ] Update fusing loops to include `model.vace_blocks` when present → `pipeline.py:85`
+
+**6. Krea block graph**
+- [ ] Insert `("vace_encoding", VaceEncodingBlock)` before denoise → `modular_blocks.py:152`
+
+**7. State hygiene (avoid re-encoding + stale tensors)**
+- [ ] Clear `vace_ref_images` when not provided (LongLive pattern)
+- [ ] Clear `vace_input_frames` when absent → `pipeline.py:210`
+
+**8. (Recommended) Cache recompute correctness**
+- [ ] Pass `vace_context` + `vace_context_scale` through KV recompute → `recompute_kv_cache.py:16`
+
+**9. Tests (CPU-only)**
+- [ ] Krea block list contains `vace_encoding`
+- [ ] PipelineManager chooses 14B module path for Krea
+- [ ] Schema includes new fields
+
+**10. GPU validation**
+- [ ] Weight shape: `vace_patch_embedding.weight == (5120, 96, 1, 2, 2)`
+- [ ] Load Krea with `vace_enabled=true`, send `vace_ref_images` once
+- [ ] Confirm no re-encoding on later chunks (memory stable)
 
 ### Reference
 
