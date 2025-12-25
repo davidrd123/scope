@@ -311,11 +311,13 @@ All three features are independent of each other. Style Layer is in progress; VA
   - `POST /api/v1/realtime/playlist/prev?hard_cut=true`
   - `POST /api/v1/realtime/playlist/goto?hard_cut=true`
   - `POST /api/v1/realtime/playlist/apply?hard_cut=true`
+- [x] Interactive nav mode `H` key toggle (2025-12-25)
+  - `video-cli playlist nav` now supports `H` to toggle hard cut mode
+  - When enabled, all transitions (manual and autoplay) do hard cuts
+  - Display shows `[✂ HARD CUT]` indicator
 
 **Remaining:**
-- [ ] Add `--hard-cut` flag to `video-cli playlist` commands (CLI wrapper)
-- [ ] In interactive nav mode, `H` key for hard-cut next vs regular next
-- [ ] TUI director key binding
+- [ ] Add `--hard-cut` flag to individual `video-cli playlist` commands
 - [ ] Sequence format support (hard cut markers in YAML/JSON)
 
 **GUI reference:** The "Manage Cache" toggle and "Reset Cache" button already exist in the web UI.
