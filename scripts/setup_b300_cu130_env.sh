@@ -11,6 +11,9 @@ set -euo pipefail
 #   scripts/setup_b300_cu130_env.sh [ENV_DIR]
 #
 # Default env: .venv-b300-cu130-decode (historical name from early experiments).
+#
+# Optional env vars:
+#   TORCHAO_VERSION=...  (defaults to 0.14.1 in the cu130 fix script)
 
 ENV_DIR="${1:-.venv-b300-cu130-decode}"
 
@@ -22,4 +25,3 @@ UV_PROJECT_ENVIRONMENT="$ENV_DIR" uv sync --frozen --no-dev
 
 echo "==> Applying cu130 override (torch/triton/flash-attn)"
 ./scripts/b300_env_fix_cu130.sh "$ENV_DIR"
-

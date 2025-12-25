@@ -7,6 +7,7 @@
 **Update (cu130 + FlashAttention):**
 - Daydream end-to-end: **~14.8–15.0 FPS** at `320x576` (canonical)
 - `scripts/profile_krea_pipeline_blocks.py` benchmark: **~13.3–13.5 FPS** at `320x576` (see artifacts below)
+- `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, install `torchao==0.14.1` (or try `0.15.0`) to avoid “Skipping import of cpp extensions…” warnings; `scripts/b300_env_fix_cu130.sh` now does this best-effort via `TORCHAO_VERSION=...`.
 
 This is a ~70% improvement over the repo-default baseline.
 
@@ -51,6 +52,10 @@ Artifacts:
 **Key update:** This no longer looks like an “invisible FPS cap” caused by WebRTC/codec pacing or CPU stalls. A block-level CUDA-event profile shows GPU time ≈ wall time, and the dominant blocks are `denoise` and `decode` (not the KV-bias attention microkernel).
 
 See also: `notes/FA4/b300/investigation-runbook.md` (“Ground Truth” section).
+
+**Operational note:** The box can intermittently wedge CUDA/NVML (`nvidia-smi` → “Failed to initialize NVML: Unknown Error”, PyTorch `cudaGetDeviceCount` → Error 304). When that happens, profiling/bench scripts can crash at import-time and you’ll likely need a host-level driver restart or reboot.
+
+**Next optimization step (denoise):** `denoise` (+ `recompute_kv_cache`) is now the dominant cost on the cu130 stack. Run with `PROFILE_ATTENTION=1` to split transformer time into `self_attn` vs `cross_attn` vs `ffn`, then decide whether to pursue attention work (FA4/FlashAttention/Triton) or GEMM/compile work.
 
 ## New Evidence (Zoom-Out Block Profile)
 

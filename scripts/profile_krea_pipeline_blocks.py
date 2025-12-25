@@ -24,6 +24,7 @@ import json
 import os
 import time
 from pathlib import Path
+import logging
 
 
 def _parse_args() -> argparse.Namespace:
@@ -75,6 +76,19 @@ def main() -> int:
     from scope.core.config import get_model_file_path, get_models_dir
     from scope.core.pipelines.krea_realtime_video.pipeline import KreaRealtimeVideoPipeline
     from scope.core.pipelines.utils import Quantization
+
+    # Attention profiling logs are emitted via a module logger; attach a handler
+    # here so PROFILE_ATTENTION=1 produces output without changing global loggers.
+    if os.getenv("PROFILE_ATTENTION", "0") == "1":
+        attn_logger = logging.getLogger(
+            "scope.core.pipelines.krea_realtime_video.modules.causal_model"
+        )
+        attn_logger.setLevel(logging.INFO)
+        if not attn_logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter("%(message)s"))
+            attn_logger.addHandler(handler)
+        attn_logger.propagate = False
 
     if not torch.cuda.is_available():
         raise SystemExit("CUDA not available")

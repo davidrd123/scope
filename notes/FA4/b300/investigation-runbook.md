@@ -168,7 +168,7 @@ uv run python scripts/profile_krea_pipeline_blocks.py \
 
 Notes:
 - These profilers use CUDA events + `synchronize()`, so they reduce overlap and will lower absolute throughput while enabled.
-- `PROFILE_ATTENTION=1` helps answer “how much of `denoise` is attention vs everything else?”
+- `PROFILE_ATTENTION=1` helps answer “how much of `denoise` is attention vs everything else?” (the benchmark script now attaches a logger handler so the report prints at exit).
 
 Shortcut (B300, cu130 env): `scripts/profile_b300_denoise_drilldown.sh` runs the same drill-down and writes all JSON + logs under `outputs/` with a single command.
 
@@ -260,6 +260,43 @@ Within `generator(...)` (from `outputs/b300_cu130_fp8_bias03_drilldown_generator
 - `call_model_kv_cache`: ~`159.8ms` per call (dominates)
 - `convert_flow_pred_to_x0`: ~`0.1ms` per call (negligible)
 
+### Test 1b.2: Split Transformer Time (self-attn vs cross-attn vs FFN)
+
+Once `call_model_kv_cache` dominates, the next question is **what dominates inside the transformer**:
+- self-attention (incl. KV-bias path)
+- cross-attention
+- FFN / MLP (GEMMs)
+- “overhead” pieces inside attention (qkv projection, RoPE, cache update/eviction)
+
+Enable the lightweight CUDA-event profiler in `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`:
+- This records `self_attn`, `cross_attn`, `ffn`, and also finer-grained timings inside `self_attn` (e.g. `qkv_projection`, `rope_apply`, `self_attn_kv_bias_*`).
+- It prints an “Attention Profiling Report” at process exit.
+
+Example (works for any GPU; use the cu130 env for B300):
+
+```bash
+PROFILE_ATTENTION=1 \
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+PYTHONPATH=src \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 6 --skip 2 \
+  --quantization fp8_e4m3fn \
+  --kv-cache-attention-bias 0.3 \
+  --cudnn-benchmark
+```
+
+Interpretation (high ROI decision points):
+- If `ffn` dominates: prioritize **GEMM/MLP** work (FP8 fastpaths, torch.compile on the transformer blocks, memory formats).
+- If `self_attn` dominates: prioritize **attention backend** choices (FlashAttention vs Triton vs FA4 score_mod) and KV-bias implementation costs (segment-combine does multiple FA calls).
+- If `rope_apply`/`qkv_projection` dominate: consider fused projections and/or RoPE kernel tuning (but confirm first that they’re truly a big share).
+
+Notes:
+- This profiler uses `torch.cuda.synchronize()` per measured block, so it reduces overlap and will lower absolute FPS; treat it as a breakdown tool.
+- The same technique is useful for other models/pipelines: first find the top block, then split that block into “attention vs MLP vs overhead”, then choose the right optimization family.
+
 ### Test 1c: “SM103-native” Runtime Check (cu130 cuDNN)
 
 Goal: determine whether B300 is slow because the **runtime stack** (cuDNN/cuBLAS) is not optimized for SM103.
@@ -334,6 +371,12 @@ If the env ever gets clobbered back to cu128 (common after `uv sync`), restore i
 ./scripts/b300_env_fix_cu130.sh .venv-b300-cu130-decode
 ```
 
+Also note: the repo pins `torchao==0.13.0` (built against torch 2.8), so a cu130 env on torch `2.9.0+cu130` will print:
+
+> “Skipping import of cpp extensions due to incompatible torch version …”
+
+This is usually safe to ignore if you only use torchao’s Python APIs, but if you want torchao’s compiled fastpaths, install a torch 2.9-compatible torchao (per the torchao matrix: `torchao==0.14.1`). `scripts/b300_env_fix_cu130.sh` now attempts this best-effort (override with `TORCHAO_VERSION=...`). Torchao `v0.15.0` was released recently and may change the best pin; treat it as an experiment unless it explicitly states torch `2.9` ABI compatibility.
+
 Then run the full pipeline benchmark (reference settings):
 
 ```bash
@@ -380,6 +423,8 @@ If you see:
 - `nvidia-smi`: **Failed to initialize NVML: Unknown Error**
 
 Then the GPU/driver is likely wedged and you won’t be able to run profiling.
+
+Practical note: this can surface as an *import-time* crash (before your script even reaches a `torch.cuda.is_available()` guard), because some modules call `torch.cuda.current_device()` at import time.
 
 In this environment, you may not have permission to reset the GPU from inside the container (sysfs/proc writes can be denied). Usual fixes are host-level:
 - Stop any GPU users, then attempt `nvidia-smi --gpu-reset -i 0` (if supported).

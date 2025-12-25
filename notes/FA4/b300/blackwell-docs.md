@@ -246,6 +246,15 @@ From the Blackwell compatibility guide (rules + pitfalls):
 
 Source: https://docs.nvidia.com/cuda/blackwell-compatibility-guide/
 
+### External excerpt (CUDA C++ Programming Guide: `compute_100` vs `compute_100f` vs `compute_100a`)
+
+PTX target variants (Blackwell family vs arch-specific):
+- “PTX compiled for `compute_100` is supported on devices with compute capability 10.0 and later.”
+- “PTX compiled for `compute_100f` is supported on devices with compute capability 10.0 and 10.3.”
+- “PTX compiled for `compute_100a` is supported only on devices with compute capability 10.0.”
+
+Source: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html
+
 ### What to extract (targeted)
 From CUDA 13.0/13.1/13.2+ notes + compatibility docs:
 - minimum toolkit version whose `ptxas` supports `sm_103`
@@ -265,6 +274,7 @@ This likely means we’re not getting torchao’s compiled fastpaths, which may 
 ### External links
 - https://github.com/pytorch/ao
 - https://github.com/pytorch/ao/issues/2919
+- torchao v0.15.0 release: https://github.com/pytorch/ao/releases/tag/v0.15.0
 
 ### External excerpt (torchao release compatibility table, issue #2919)
 

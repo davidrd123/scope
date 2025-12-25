@@ -79,6 +79,7 @@ On torch `2.9.0+cu130` (triton `3.5.0`), `torch.compile(flex_attention)` current
 
 - Set `DISABLE_FLEX_ATTENTION_COMPILE=1`
 - Ensure `flash_attn` is installed, otherwise KV-bias falls back to slow paths (can look like ~`1 FPS`)
+- If you see `torchao` warnings like “Skipping import of cpp extensions…”, install a torch 2.9-compatible torchao (per torchao’s matrix: `torchao==0.14.1`) or just run `scripts/b300_env_fix_cu130.sh` (it does a best-effort torchao upgrade).
 
 Install FlashAttention in the cu130 env (note: builds a large CUDA extension, ~1GB):
 
