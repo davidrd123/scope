@@ -306,9 +306,14 @@ All three features are independent of each other. Style Layer is in progress; VA
   - Resets KV cache for clean scene transition
   - Optional `prompt` parameter to set new prompt after reset
   - Returns `{"status": "hard_cut_applied", "chunk_index": N}`
+- [x] Playlist navigation `?hard_cut=true` parameter (2025-12-25)
+  - `POST /api/v1/realtime/playlist/next?hard_cut=true`
+  - `POST /api/v1/realtime/playlist/prev?hard_cut=true`
+  - `POST /api/v1/realtime/playlist/goto?hard_cut=true`
+  - `POST /api/v1/realtime/playlist/apply?hard_cut=true`
 
 **Remaining:**
-- [ ] Add `--hard-cut` flag to `video-cli playlist next/prev/goto`
+- [ ] Add `--hard-cut` flag to `video-cli playlist` commands (CLI wrapper)
 - [ ] In interactive nav mode, `H` key for hard-cut next vs regular next
 - [ ] TUI director key binding
 - [ ] Sequence format support (hard cut markers in YAML/JSON)
