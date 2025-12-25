@@ -1,0 +1,54 @@
+{
+  "meta": {
+    "cache_start": null,
+    "crossattn_cache_len": 40,
+    "crossattn_cache_present": true,
+    "cuda": "13.0",
+    "cuda_capability": [
+      10,
+      3
+    ],
+    "cuda_device": "NVIDIA B300 SXM6 AC",
+    "current_end": 4320,
+    "current_start": 2160,
+    "kv_cache_attention_bias": 0.3,
+    "kv_cache_len": 40,
+    "kv_cache_present": true,
+    "noisy_device": "cuda:0",
+    "noisy_dtype": "torch.bfloat16",
+    "noisy_shape": [
+      1,
+      3,
+      16,
+      40,
+      72
+    ],
+    "prompt_embeds_device": "cuda:0",
+    "prompt_embeds_dtype": "torch.bfloat16",
+    "prompt_embeds_shape": [
+      1,
+      512,
+      4096
+    ],
+    "timestep_dtype": "torch.int64",
+    "timestep_shape": [
+      1,
+      3
+    ],
+    "torch": "2.9.0+cu130"
+  },
+  "steps": {
+    "call_model_kv_cache": {
+      "calls": 20,
+      "cpu_ms": 3256.327648014121,
+      "gpu_ms": 3255.917205810547
+    },
+    "convert_flow_pred_to_x0": {
+      "calls": 20,
+      "cpu_ms": 2.482889009115752,
+      "gpu_ms": 2.1411199867725372
+    }
+  },
+  "total_cpu_ms": 3258.810537023237,
+  "total_gpu_ms": 3258.0583257973194
+}
