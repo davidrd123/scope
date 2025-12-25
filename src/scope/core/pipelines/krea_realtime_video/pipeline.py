@@ -113,10 +113,14 @@ class KreaRealtimeVideoPipeline(Pipeline, LoRAEnabledPipeline):
             generator = generator.to(device=device, dtype=dtype)
 
         if compile:
+            compile_mode = os.getenv("SCOPE_TORCH_COMPILE_MODE", "").strip()
+            compile_kwargs = {"fullgraph": False}
+            if compile_mode:
+                compile_kwargs["mode"] = compile_mode
             # Only compile the attention blocks
             for block in generator.model.blocks:
                 # Disable fullgraph right now due to issues with RoPE
-                block.compile(fullgraph=False)
+                block.compile(**compile_kwargs)
 
         # Load text encoder
         start = time.time()

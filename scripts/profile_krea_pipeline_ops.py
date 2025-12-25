@@ -18,6 +18,14 @@ Typical B300 usage (cu130 env):
     --kv-cache-attention-bias 0.3 \
     --iters 1 \
     --json outputs/b300_cu130_ops_profile.json
+
+To profile the *compiled* attention blocks (useful for seeing fusion effects), add:
+
+  --compile
+
+And optionally set a specific compile mode:
+
+  --compile-mode reduce-overhead
 """
 
 from __future__ import annotations
@@ -36,6 +44,17 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--iters", type=int, default=1, help="Number of profiled pipeline calls")
     parser.add_argument("--pre-iters", type=int, default=1, help="Warm iterations outside profiler")
     parser.add_argument("--kv-cache-attention-bias", type=float, default=0.3)
+    parser.add_argument(
+        "--compile",
+        action="store_true",
+        help="Enable torch.compile for the diffusion attention blocks (same as the server's SCOPE_COMPILE_KREA_PIPELINE=1).",
+    )
+    parser.add_argument(
+        "--compile-mode",
+        type=str,
+        default=None,
+        help="Optional torch.compile mode (sets SCOPE_TORCH_COMPILE_MODE for this run).",
+    )
     parser.add_argument(
         "--kv-bias-backend",
         choices=["auto", "fa4", "flash", "triton", "flex"],
@@ -91,6 +110,8 @@ def main() -> int:
 
     if args.kv_bias_backend != "auto":
         os.environ["SCOPE_KV_BIAS_BACKEND"] = args.kv_bias_backend
+    if args.compile_mode is not None:
+        os.environ["SCOPE_TORCH_COMPILE_MODE"] = args.compile_mode
 
     _maybe_set_default_env()
 
@@ -111,6 +132,9 @@ def main() -> int:
     print(f"Compute capability: {torch.cuda.get_device_capability(0)}")
     print(f"torch: {torch.__version__} (cuda={torch.version.cuda})")
     print(f"cudnn.benchmark: {torch.backends.cudnn.benchmark}")
+    print(f"compile={bool(args.compile)}")
+    if os.getenv("SCOPE_TORCH_COMPILE_MODE"):
+        print(f"SCOPE_TORCH_COMPILE_MODE={os.getenv('SCOPE_TORCH_COMPILE_MODE')}")
     print(f"SCOPE_KV_BIAS_BACKEND={os.getenv('SCOPE_KV_BIAS_BACKEND')}")
     print(f"DISABLE_FLEX_ATTENTION_COMPILE={os.getenv('DISABLE_FLEX_ATTENTION_COMPILE')}")
     print(f"WANVAE_STREAM_DECODE_MODE={os.getenv('WANVAE_STREAM_DECODE_MODE')}")
@@ -140,7 +164,7 @@ def main() -> int:
     pipeline = KreaRealtimeVideoPipeline(
         config,
         quantization=quantization,
-        compile=False,
+        compile=bool(args.compile),
         device=torch.device("cuda"),
         dtype=torch.bfloat16,
     )

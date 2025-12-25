@@ -312,6 +312,13 @@ class WanDiffusionWrapper(torch.nn.Module):
         return flow_pred.to(original_dtype)
 
     def _call_model(self, *args, **kwargs):
+        if os.getenv("SCOPE_CUDAGRAPH_MARK_STEP_BEGIN", "0") == "1":
+            mark_step_begin = getattr(
+                getattr(torch, "compiler", None), "cudagraph_mark_step_begin", None
+            )
+            if callable(mark_step_begin):
+                mark_step_begin()
+
         # HACK!
         # __call__() and forward() accept *args, **kwargs so inspection doesn't tell us anything
         # As a workaround we inspect the internal _forward_inference() function to determine what the accepted params are
