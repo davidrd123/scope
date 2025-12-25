@@ -67,6 +67,7 @@ When you see ~`8.8 FPS` again, it’s almost always one of these:
 - **Missing FlashAttention**: if `import flash_attn` fails, KV-bias can fall back to Triton/flex and go catastrophic on SM103.
 - **Wrong backend**: `SCOPE_KV_BIAS_BACKEND=triton` is unusable on SM103 (forced scalar kernel in Triton 3.5).
 - **ptxas mismatch**: Triton/Inductor need a `ptxas` that knows `sm_103` (`/usr/local/cuda-12.9+`).
+- **Competing GPU work**: check `nvidia-smi` for other running processes (e.g. a background `daydream-scope` server can cut benchmark FPS in half).
 
 **Next optimization step (denoise):** `denoise` (+ `recompute_kv_cache`) is now the dominant cost on the cu130 stack. Run with `PROFILE_ATTENTION=1` to split transformer time into `self_attn` vs `cross_attn` vs `ffn`, then decide whether to pursue attention work (FA4/FlashAttention/Triton) or GEMM/compile work.
 
@@ -141,10 +142,17 @@ Noise note: if you previously saw `torch/_dynamo` “Backend compiler exception 
 
 Server opt-in: set `SCOPE_COMPILE_KREA_PIPELINE=1` before launching. `scripts/run_daydream_b300.sh` defaults it to `1` but the server auto-disables compile when quantization is enabled.
 
+**Compile mode experiments:** `src/scope/core/pipelines/krea_realtime_video/pipeline.py` supports `SCOPE_TORCH_COMPILE_MODE`, but on B300/SM103:
+- `max-autotune-no-cudagraphs` can hard-abort with a tcgen05 LLVM intrinsic error.
+- `reduce-overhead` is still failing with a CUDAGraphs “output overwritten” runtime error even after adding a `SCOPE_CUDAGRAPH_MARK_STEP_BEGIN=1` experiment (calls `torch.compiler.cudagraph_mark_step_begin()` before model invocations).
+Recommendation: leave `SCOPE_TORCH_COMPILE_MODE` unset (default).
+
+**FA4 varlen opt-in (non-bias attention):** when `SCOPE_KV_BIAS_BACKEND=fa4`, FA4/CuTe varlen attention remains disabled by default (stable FA2 for non-bias attention). You can opt in with `SCOPE_ENABLE_FA4_VARLEN=1`; on B300 this was a small (~1–2%) win but increased warmup/JIT time.
+
 Update: FA4 score_mod KV-bias is now working on B300 and is faster than flash segment-combine at the canonical resolution. It required:
 - Removing static `import imageio` debug imports in `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` (cutlass-dsl AST preprocessor imports everything in the module).
 - Normalizing B=1 K/V slice stride (use `[0].unsqueeze(0)` views) before calling FA4, to avoid “Can't decude the leading dimension…” when slicing from the KV cache tensor.
-- Disabling FlashAttention 4 (CuTe) for non-bias attention when `SCOPE_KV_BIAS_BACKEND=fa4` to avoid mixing CuTe module variants.
+- Default-disabling FlashAttention 4 (CuTe) for non-bias attention when `SCOPE_KV_BIAS_BACKEND=fa4` (opt-in via `SCOPE_ENABLE_FA4_VARLEN=1`) to avoid mixing CuTe module variants.
 
 ## New Evidence (Zoom-Out Block Profile)
 

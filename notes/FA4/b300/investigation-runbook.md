@@ -399,6 +399,7 @@ PYTHONPATH=src \
 Interpretation notes:
 - The table includes both **high-level ops** (e.g. `aten::*`, `flash_attn::*`) and **kernel rows** (names starting with `void ...`, `nvjet_...`, `kernel_...`). Kernel rows are useful to identify which library is active, but they can double-count time when summed.
 - Treat this as a **ranking tool** (“what’s biggest?”), not an FPS benchmark (profilers add overhead).
+- The script also supports `--compile` and `--compile-mode ...` if you want to profile the compiled attention blocks (useful to see fusion effects), but note the SM103-specific `torch.compile` mode sharp edges below.
 
 #### Example B300 (cu130) signal
 
@@ -438,8 +439,37 @@ Observed (B300, cu130, `320x576`, quantization none, bias `0.3`, `SCOPE_KV_BIAS_
 Notes:
 - Warmup is slower due to compilation (expect ~10–30s).
 - If you see large `torch/_dynamo` "Backend compiler exception" spam pointing at `src/scope/core/kernels/triton_rope_fused.py` (e.g. `aten._local_scalar_dense` from `.tolist()`), update to a version that marks `_as_int3()` as `torch._dynamo.disable` so Dynamo doesn’t try to inline/compile scalar extraction.
+- Recent compile hygiene fixes:
+  - Avoid `Tensor.item()` graph breaks in the recompute/block-mask fast-path by deriving `num_frames` from `s // frame_seq_length` (pure Python ints).
+  - Avoid Dynamo graph breaks under the attention profiler’s `_ProfileBlock` context managers by only entering them when `PROFILE_ATTENTION=1`.
 - FP8 quantization + `--compile` is currently brittle due to torchao float8 dispatch; prefer quantization none for now.
 - The server can enable this via `SCOPE_COMPILE_KREA_PIPELINE=1` (see `scripts/run_daydream_b300.sh`).
+- Do **not** benchmark with `TORCH_LOGS=graph_breaks`; it can drop FPS by ~5×+ due to extremely verbose tracing logs. Use it only for 1-iter debugging when hunting graph breaks.
+- Experimental: `SCOPE_TORCH_COMPILE_MODE` (used by `src/scope/core/pipelines/krea_realtime_video/pipeline.py`) is useful for experiments, but on B300/SM103:
+  - `max-autotune-no-cudagraphs` hard-aborts with `LLVM ERROR: Cannot select: intrinsic %llvm.nvvm.tcgen05.wait.st`
+  - `reduce-overhead` is still failing with a CUDAGraphs “output overwritten” error even after adding a `SCOPE_CUDAGRAPH_MARK_STEP_BEGIN=1` experiment (calls `torch.compiler.cudagraph_mark_step_begin()` before model invocations); treat as broken for now
+  - Recommendation: leave `SCOPE_TORCH_COMPILE_MODE` unset (default mode) unless you’re actively experimenting.
+
+### Test 1b.5: FA4 varlen (non-bias attention) opt-in when using KV-bias score_mod
+
+Context:
+- When `SCOPE_KV_BIAS_BACKEND=fa4`, we use vendored `flash_attn.cute` sources to get `score_mod`.
+- `flash_attn.cute.flash_attn_varlen_func` (FA4 varlen) is also available on Blackwell, but enabling it changes non-bias attention (plain self-attn / cross-attn) away from the stable FA2 extension.
+
+Implementation:
+- `src/scope/core/pipelines/wan2_1/modules/attention.py` now prefers the vendored CuTe sources when present.
+- FA4 varlen remains **disabled by default** when `SCOPE_KV_BIAS_BACKEND=fa4`, but you can opt in with:
+
+```bash
+SCOPE_ENABLE_FA4_VARLEN=1
+```
+
+Observed on B300 (cu130, `320x576`, quantization none, bias `0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`):
+- No compile: ~`16.9 FPS` → ~`17.1 FPS` (small gain, higher warmup)
+- With `--compile`: ~`19.4 FPS` → ~`19.6 FPS` (small gain, higher warmup)
+
+Recommendation:
+- Leave it off unless you’re chasing the last ~1–2% and can tolerate extra warmup/JIT time.
 
 ### Test 1c: “SM103-native” Runtime Check (cu130 cuDNN)
 

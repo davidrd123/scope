@@ -6,6 +6,7 @@ This directory tracks the journey of optimizing attention kernels for the Krea R
 
 | If you want to... | Start here |
 |-------------------|------------|
+| Get the shareable overview | `docs/kernel-optimization-guide.md` |
 | Understand the full journey | `kernel-dev-log.md` |
 | Continue from last session | `SESSION-HANDOFF-*.md` (latest date) |
 | Investigate B300 8.8 FPS issue | `b300/investigation-runbook.md` |
@@ -21,6 +22,8 @@ notes/FA4/
 ├── README.md                      # This file
 ├── kernel-dev-log.md              # Main chronicle of all work
 ├── SESSION-HANDOFF-*.md           # Session handoff docs
+├── docs/                          # Shareable deep dives
+│   └── kernel-optimization-guide.md
 │
 ├── b300/                          # B300 (SM103) specific
 │   ├── investigation-runbook.md   # Systematic debugging guide
@@ -56,7 +59,7 @@ notes/FA4/
 - **FA4/CUTE**: FlashAttention 4 with CUTLASS DSL - faster but has dependency issues
 - **SM103**: B300 compute capability, requires patches for CUTLASS DSL
 
-## Current Status (Dec 2024)
+## Current Status (Dec 2025)
 
 - **B200**: ~20 FPS at 320x576, 4 steps (working well)
 - **B300**:
