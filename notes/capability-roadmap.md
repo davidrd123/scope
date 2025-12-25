@@ -65,11 +65,11 @@ Three capability features in the pipeline:
 
 ---
 
-## 2. VACE-14B Integration — READY TO IMPLEMENT
+## 2. VACE-14B Integration — READY TO IMPLEMENT (Not Started)
 
 **What:** Add VACE (reference image conditioning) support to Krea 14B pipeline.
 
-**Status:** Ready to implement — engineering + wiring work, not blocked on weights.
+**Status:** Plan complete, implementation NOT STARTED for Krea. Infrastructure exists (used by 1.3B pipelines), but Krea needs wiring + correct artifact + blocks.
 
 ### Why It Matters
 
@@ -107,13 +107,33 @@ Verified: File exists, SHA256: `66a4bd41ec0fc58f1ff6d1313e06cd9a4c24ab60171a5846
 | `src/scope/server/schema.py` | Add `vace_enabled` to `KreaRealtimeVideoLoadParams` |
 | `src/scope/server/pipeline_manager.py` | Update `_get_vace_checkpoint_path()` for 14B; call `_configure_vace` for Krea |
 
+### What's Already In Place (Good News)
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| VACEEnabledPipeline mixin | ✓ Exists | `src/scope/core/pipelines/wan2_1/vace/mixin.py` |
+| VaceEncodingBlock | ✓ Exists | `src/scope/core/pipelines/wan2_1/vace/blocks/vace_encoding.py` |
+| Runtime VACE routing | ✓ Works | `frame_processor.py:1085` routes to `vace_input_frames` when `pipeline.vace_enabled` |
+| VAE path handling | ✓ Already set | `pipeline_manager.py:481` sets explicit `vae_path` for Krea |
+
+### What's Missing for Krea
+
+| Gap | Current State | Fix |
+|-----|---------------|-----|
+| 14B VACE artifact | Only 1.3B module in artifacts | Add `Wan2_1-VACE_module_14B_bf16.safetensors` |
+| Checkpoint path | Hardcoded to 1.3B | Update `_get_vace_checkpoint_path()` for 14B |
+| Pipeline init | Krea doesn't inherit mixin | Add `VACEEnabledPipeline` + call `_init_vace()` |
+| PipelineManager | Never calls `_configure_vace` for Krea | Add `_configure_vace()` call |
+| Modular blocks | No `VaceEncodingBlock` in Krea | Add to `modular_blocks.py` |
+| Schema fields | No `ref_images`/`vace_context_scale` | Add to `KreaRealtimeVideoConfig` |
+| Load params | No `vace_enabled` toggle | Add to `KreaRealtimeVideoLoadParams` |
+
 ### Known Pitfalls
 
-1. **VAE Path Mismatch** — `Wan2.1_VAE.pth` only in 1.3B folder; set explicit `vae_path` in config
+1. **VAE Path Mismatch** — `Wan2.1_VAE.pth` only in 1.3B folder; already handled for Krea
 2. **Projection Fusing After VACE** — VACE creates new blocks; fuse AFTER `_init_vace()`
 3. **Distilled Checkpoint Compat** — Run shape validation to confirm structure match
-4. **PipelineManager gap** — `_get_vace_checkpoint_path()` is hardcoded to 1.3B module; Krea never calls `_configure_vace`
-5. **Config plumbing** — `model.yaml` alone won't enable VACE; must plumb `vace_path` through PipelineManager into runtime config
+4. **One-shot semantics** — Add logic to clear stale `vace_ref_images` after single use (like LongLive does at `longlive/pipeline.py:220`), otherwise Krea will keep re-encoding refs
 
 ### Open Decision
 
