@@ -29,6 +29,7 @@ classifiers = [
 ]
 dependencies = [
     "aiortc>=1.13.0",
+    "click>=8.0.0",
     "fastapi>=0.116.1",
     "httpx>=0.28.1",
     "twilio>=9.8.0",
@@ -61,6 +62,7 @@ daydream-scope = "scope.server.app:main"
 build = "scope.server.build:main"
 download_models = "scope.server.download_models:main"
 render_timeline = "scope.cli.render_timeline:main"
+video-cli = "scope.cli.video_cli:main"
 
 [project.urls]
 Homepage = "https://github.com/daydreamlive/scope"

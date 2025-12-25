@@ -106,6 +106,11 @@ class FrameProcessor:
         self.frame_buffer = deque(maxlen=max_buffer_size)
         self.frame_buffer_lock = threading.Lock()
         self.output_queue = queue.Queue(maxsize=max_output_queue_size)
+        self.output_queue_lock = threading.Lock()  # Protects queue resize and flush
+
+        # Non-destructive latest frame buffer for REST /api/frame/latest
+        self.latest_frame_cpu: torch.Tensor | None = None
+        self.latest_frame_lock = threading.Lock()
 
         # Current parameters used by processing thread
         self.parameters = initial_parameters or {}
@@ -207,11 +212,7 @@ class FrameProcessor:
             if threading.current_thread() != self.worker_thread:
                 self.worker_thread.join(timeout=5.0)
 
-        while not self.output_queue.empty():
-            try:
-                self.output_queue.get_nowait()
-            except queue.Empty:
-                break
+        self.flush_output_queue()
 
         with self.frame_buffer_lock:
             self.frame_buffer.clear()
@@ -267,6 +268,35 @@ class FrameProcessor:
         with self.frame_buffer_lock:
             self.frame_buffer.append(frame)
             return True
+
+    def flush_output_queue(self) -> int:
+        """Flush all frames from output queue.
+
+        Thread-safe: uses output_queue_lock to prevent race with queue resize.
+
+        Returns:
+            Number of frames flushed
+        """
+        count = 0
+        with self.output_queue_lock:
+            while True:
+                try:
+                    self.output_queue.get_nowait()
+                    count += 1
+                except queue.Empty:
+                    break
+        return count
+
+    def get_latest_frame(self) -> torch.Tensor | None:
+        """Get the most recent frame without consuming from output queue.
+
+        Returns a clone of the latest frame, or None if no frames produced yet.
+        Thread-safe: uses latest_frame_lock.
+        """
+        with self.latest_frame_lock:
+            if self.latest_frame_cpu is not None:
+                return self.latest_frame_cpu.clone()
+            return None
 
     def get(self) -> torch.Tensor | None:
         if not self.running:
@@ -405,8 +435,12 @@ class FrameProcessor:
             logger.warning(f"Could not get pipeline dimensions: {e}")
             return 512, 512
 
-    def update_parameters(self, parameters: dict[str, Any]):
-        """Update parameters that will be used in the next pipeline call."""
+    def update_parameters(self, parameters: dict[str, Any]) -> bool:
+        """Update parameters that will be used in the next pipeline call.
+
+        Returns:
+            True if the update was queued successfully, False otherwise.
+        """
         # Handle Spout output settings
         if "spout_sender" in parameters:
             spout_config = parameters.pop("spout_sender")
@@ -417,13 +451,22 @@ class FrameProcessor:
             spout_config = parameters.pop("spout_receiver")
             self._update_spout_receiver(spout_config)
 
-        # Put new parameters in queue (replace any pending update)
+        # Put new parameters in queue with mailbox semantics:
+        # If queue is full, drop oldest (not newest) to ensure latest control commands apply
         try:
-            # Add new update
             self.parameters_queue.put_nowait(parameters)
         except queue.Full:
-            logger.info("Parameter queue full, dropping parameter update")
-            return False
+            # Drop oldest to make room for newest (mailbox semantics)
+            try:
+                self.parameters_queue.get_nowait()
+            except queue.Empty:
+                pass
+            try:
+                self.parameters_queue.put_nowait(parameters)
+            except queue.Full:
+                logger.warning("Parameter queue still full after dropping oldest")
+                return False
+        return True
 
     def _update_spout_sender(self, config: dict):
         """Update Spout output configuration."""
@@ -888,11 +931,7 @@ class FrameProcessor:
         # Clear output buffer queue when reset_cache is requested to prevent old frames
         if reset_cache:
             logger.info("Clearing output buffer queue due to reset_cache request")
-            while not self.output_queue.empty():
-                try:
-                    self.output_queue.get_nowait()
-                except queue.Empty:
-                    break
+            self.flush_output_queue()
 
         requirements = None
         if hasattr(pipeline, "prepare"):
@@ -986,22 +1025,28 @@ class FrameProcessor:
                 .cpu()
             )
 
-            # Resize output queue to meet target max size
-            target_output_queue_max_size = num_frames * OUTPUT_QUEUE_MAX_SIZE_FACTOR
-            if self.output_queue.maxsize < target_output_queue_max_size:
-                logger.info(
-                    f"Increasing output queue size to {target_output_queue_max_size}, current size {self.output_queue.maxsize}, num_frames {num_frames}"
-                )
+            # Store latest frame for non-destructive REST reads
+            with self.latest_frame_lock:
+                self.latest_frame_cpu = output[-1].clone()
 
-                # Transfer frames from old queue to new queue
-                old_queue = self.output_queue
-                self.output_queue = queue.Queue(maxsize=target_output_queue_max_size)
-                while not old_queue.empty():
-                    try:
-                        frame = old_queue.get_nowait()
-                        self.output_queue.put_nowait(frame)
-                    except queue.Empty:
-                        break
+            # Resize output queue to meet target max size
+            # Lock protects against race with flush_output_queue()
+            with self.output_queue_lock:
+                target_output_queue_max_size = num_frames * OUTPUT_QUEUE_MAX_SIZE_FACTOR
+                if self.output_queue.maxsize < target_output_queue_max_size:
+                    logger.info(
+                        f"Increasing output queue size to {target_output_queue_max_size}, current size {self.output_queue.maxsize}, num_frames {num_frames}"
+                    )
+
+                    # Transfer frames from old queue to new queue
+                    old_queue = self.output_queue
+                    self.output_queue = queue.Queue(maxsize=target_output_queue_max_size)
+                    while not old_queue.empty():
+                        try:
+                            frame = old_queue.get_nowait()
+                            self.output_queue.put_nowait(frame)
+                        except queue.Empty:
+                            break
 
             for frame in output:
                 try:
@@ -1248,11 +1293,7 @@ class FrameProcessor:
         self.chunk_index = snapshot.chunk_index
 
         # Clear output_queue to prevent stale pre-restore frames
-        while not self.output_queue.empty():
-            try:
-                self.output_queue.get_nowait()
-            except queue.Empty:
-                break
+        self.flush_output_queue()
 
         # Clear frame_buffer in V2V mode to prevent stale input frames
         if self._video_mode:

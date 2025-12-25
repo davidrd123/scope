@@ -51,7 +51,7 @@ from .schema import (
     WebRTCOfferRequest,
     WebRTCOfferResponse,
 )
-from .webrtc import WebRTCManager
+from .webrtc import WebRTCManager, apply_control_message, get_active_session
 
 
 class STUNErrorFilter(logging.Filter):
@@ -756,6 +756,215 @@ async def get_hardware_info():
     except Exception as e:
         logger.error(f"Error getting hardware info: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# =============================================================================
+# Realtime Control API - REST endpoints for CLI/agent control
+# =============================================================================
+
+
+class RealtimeStateResponse(BaseModel):
+    """Current state of the realtime video generation."""
+
+    paused: bool
+    chunk_index: int
+    prompt: str | None = None
+    session_id: str
+
+
+class RealtimeControlResponse(BaseModel):
+    """Response for control operations."""
+
+    status: str
+    chunk_index: int | None = None
+
+
+class PromptRequest(BaseModel):
+    """Request to set prompt."""
+
+    prompt: str
+
+
+@app.get("/api/v1/realtime/state", response_model=RealtimeStateResponse)
+async def get_realtime_state(
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Get current realtime generation state."""
+    try:
+        session = get_active_session(webrtc_manager)
+        vt = session.video_track
+        if vt is None:
+            raise HTTPException(400, "No video track")
+
+        vt.initialize_output_processing()
+        fp = vt.frame_processor
+        if fp is None:
+            raise HTTPException(400, "FrameProcessor not ready")
+
+        # Extract prompt from parameters
+        prompts = fp.parameters.get("prompts", [])
+        prompt_text = None
+        if prompts and len(prompts) > 0:
+            first_prompt = prompts[0]
+            if isinstance(first_prompt, dict):
+                prompt_text = first_prompt.get("text")
+            elif hasattr(first_prompt, "text"):
+                prompt_text = first_prompt.text
+
+        return RealtimeStateResponse(
+            paused=fp.paused,
+            chunk_index=fp.chunk_index,
+            prompt=prompt_text,
+            session_id=session.id,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        logger.error(f"Error getting realtime state: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.post("/api/v1/realtime/pause", response_model=RealtimeControlResponse)
+async def pause_realtime(
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Pause realtime generation."""
+    try:
+        session = get_active_session(webrtc_manager)
+        if not apply_control_message(session, {"paused": True}):
+            raise HTTPException(503, "Failed to apply pause control message")
+        fp = session.video_track.frame_processor
+        return RealtimeControlResponse(
+            status="paused",
+            chunk_index=fp.chunk_index if fp else None,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        logger.error(f"Error pausing realtime: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.post("/api/v1/realtime/run", response_model=RealtimeControlResponse)
+async def run_realtime(
+    chunks: int | None = None,
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Resume realtime generation, optionally for N chunks."""
+    try:
+        session = get_active_session(webrtc_manager)
+        if chunks is not None and chunks < 0:
+            raise HTTPException(400, "chunks must be >= 0")
+        if chunks is not None and chunks > 0:
+            # Generate N chunks while staying paused
+            if not apply_control_message(session, {"paused": True, "_rcp_step": chunks}):
+                raise HTTPException(503, "Failed to apply run control message")
+            status = f"stepping_{chunks}"
+        else:
+            # Resume continuous generation
+            if not apply_control_message(session, {"paused": False}):
+                raise HTTPException(503, "Failed to apply run control message")
+            status = "running"
+
+        fp = session.video_track.frame_processor
+        return RealtimeControlResponse(
+            status=status,
+            chunk_index=fp.chunk_index if fp else None,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error running realtime: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.post("/api/v1/realtime/step", response_model=RealtimeControlResponse)
+async def step_realtime(
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Generate one chunk while paused."""
+    try:
+        session = get_active_session(webrtc_manager)
+        # Ensure paused + trigger step
+        if not apply_control_message(session, {"paused": True, "_rcp_step": 1}):
+            raise HTTPException(503, "Failed to apply step control message")
+        fp = session.video_track.frame_processor
+        return RealtimeControlResponse(
+            status="step_queued",
+            chunk_index=fp.chunk_index if fp else None,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        logger.error(f"Error stepping realtime: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.put("/api/v1/realtime/prompt", response_model=RealtimeControlResponse)
+async def set_realtime_prompt(
+    request: PromptRequest,
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Set the generation prompt."""
+    try:
+        session = get_active_session(webrtc_manager)
+        if not apply_control_message(
+            session, {"prompts": [{"text": request.prompt, "weight": 1.0}]}
+        ):
+            raise HTTPException(503, "Failed to apply prompt control message")
+        fp = session.video_track.frame_processor
+        return RealtimeControlResponse(
+            status="prompt_set",
+            chunk_index=fp.chunk_index if fp else None,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        logger.error(f"Error setting prompt: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.get("/api/v1/realtime/frame/latest")
+async def get_latest_frame(
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Get the latest generated frame as PNG image."""
+    try:
+        session = get_active_session(webrtc_manager)
+        vt = session.video_track
+        if vt is None:
+            raise HTTPException(400, "No video track")
+
+        vt.initialize_output_processing()
+        fp = vt.frame_processor
+        if fp is None:
+            raise HTTPException(400, "FrameProcessor not ready")
+
+        frame = fp.get_latest_frame()
+        if frame is None:
+            raise HTTPException(404, "No frames generated yet")
+
+        # Encode to PNG without consuming from output_queue.
+        # Frame is (H, W, C) uint8 on CPU.
+        from torchvision.io import encode_png
+
+        frame_chw = frame.permute(2, 0, 1).contiguous()
+        png_bytes = encode_png(frame_chw).numpy().tobytes()
+
+        return Response(
+            content=png_bytes,
+            media_type="image/png",
+            headers={"Content-Disposition": "inline; filename=frame.png"},
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting latest frame: {e}")
+        raise HTTPException(500, str(e)) from e
 
 
 @app.get("/api/v1/logs/current")

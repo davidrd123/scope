@@ -23,6 +23,79 @@ from .tracks import VideoProcessingTrack
 
 logger = logging.getLogger(__name__)
 
+
+def get_active_session(manager: "WebRTCManager") -> "Session":
+    """Get the single active session for REST control.
+
+    Args:
+        manager: The WebRTC manager
+
+    Returns:
+        The active session
+
+    Raises:
+        ValueError: If no sessions or multiple sessions exist
+    """
+    sessions = [
+        s for s in manager.sessions.values()
+        if s.pc.connectionState == "connected"
+    ]
+    if len(sessions) == 0:
+        raise ValueError("No active WebRTC session")
+    if len(sessions) > 1:
+        raise ValueError(f"Multiple active sessions ({len(sessions)}), specify session_id")
+    return sessions[0]
+
+
+def apply_control_message(session: "Session", msg: dict) -> bool:
+    """Apply a control message to a session.
+
+    Shared logic for both WebRTC data channel and REST endpoints.
+    Handles pause, step, snapshot, restore, and parameter updates.
+
+    Args:
+        session: The WebRTC session to control
+        msg: Control message dict (will be mutated)
+
+    Returns:
+        True if message was applied, False if session not ready
+    """
+    vt = session.video_track
+    if vt is None:
+        logger.warning("apply_control_message: No video track")
+        return False
+
+    # Ensure FrameProcessor is initialized (lazy init safety)
+    vt.initialize_output_processing()
+    fp = vt.frame_processor
+    if fp is None:
+        logger.warning("apply_control_message: FrameProcessor not ready")
+        return False
+
+    # Handle pause: must update BOTH playback (vt) and generation (fp)
+    if "paused" in msg:
+        vt.pause(msg["paused"])
+        # Don't pop - let it flow to update_parameters for generation pause
+
+    # Translate protocol message types to reserved keys
+    msg_type = msg.pop("type", None)
+    if msg_type == "snapshot_request":
+        msg["_rcp_snapshot_request"] = True
+    elif msg_type == "restore_snapshot":
+        snapshot_id = msg.pop("snapshot_id", None)
+        if snapshot_id:
+            msg["_rcp_restore_snapshot"] = {"snapshot_id": snapshot_id}
+        else:
+            logger.warning("restore_snapshot message missing snapshot_id")
+            return False
+    elif msg_type == "step":
+        msg["_rcp_step"] = True
+
+    # Forward to FrameProcessor (returns False if queue is saturated)
+    applied = fp.update_parameters(msg)
+    return bool(applied)
+
+
 # TODO: Fix bitrate
 # Monkey patching these values in aiortc don't seem to work as expected
 # The expected behavior is for the bitrate calculations to set a bitrate based on the ceiling, floor and defaults
@@ -228,40 +301,9 @@ class WebRTCManager:
                         data = json.loads(message)
                         logger.info(f"Received parameter update: {data}")
 
-                        # Check for paused parameter and call pause() method on video track
-                        if "paused" in data and session.video_track:
-                            session.video_track.pause(data["paused"])
-
-                        # Translate snapshot/restore/step messages to reserved keys
-                        # These are consumed by FrameProcessor and never forwarded to pipeline
-                        msg_type = data.get("type")
-                        if msg_type == "snapshot_request":
-                            # Translate to reserved key for thread-safe processing
-                            data = {"_rcp_snapshot_request": True}
-                        elif msg_type == "restore_snapshot":
-                            # Translate to reserved key with snapshot_id
-                            snapshot_id = data.get("snapshot_id")
-                            if snapshot_id:
-                                data = {"_rcp_restore_snapshot": {"snapshot_id": snapshot_id}}
-                            else:
-                                logger.warning("restore_snapshot message missing snapshot_id")
-                                return
-                        elif msg_type == "step":
-                            # Generate exactly one chunk even while paused
-                            data = {"_rcp_step": True}
-                        else:
-                            # Don't forward protocol-level message keys to the pipeline kwargs layer.
-                            data.pop("type", None)
-
-                        # Send parameters to the frame processor
-                        if session.video_track and hasattr(
-                            session.video_track, "frame_processor"
-                        ):
-                            session.video_track.frame_processor.update_parameters(data)
-                        else:
-                            logger.warning(
-                                "No frame processor available for parameter update"
-                            )
+                        # Use shared control message handler
+                        if not apply_control_message(session, data):
+                            logger.warning("Failed to apply control message")
 
                     except json.JSONDecodeError as e:
                         logger.error(f"Failed to parse parameter update message: {e}")

@@ -169,11 +169,8 @@ class VideoProcessingTrack(MediaStreamTrack):
         if paused and self.frame_processor is not None:
             # Drop any queued frames so playback freezes immediately.
             # This also ensures step output (generated after pause) isn't polluted by stale frames.
-            while True:
-                try:
-                    self.frame_processor.output_queue.get_nowait()
-                except queue.Empty:
-                    break
+            # Uses thread-safe flush to avoid race with queue resize.
+            self.frame_processor.flush_output_queue()
         logger.info(f"Video track {'paused' if paused else 'resumed'}")
 
     async def stop(self):

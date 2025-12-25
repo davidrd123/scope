@@ -4,19 +4,76 @@ Chronological record of implementation work and decisions.
 
 ---
 
+## 2025-12-25
+
+### Phase 5 Planning: REST Endpoint Architecture
+
+Analyzed how to add REST endpoints for CLI control. Key decision: **hook into existing WebRTC control path** rather than creating parallel control surface.
+
+**Architecture:**
+- REST endpoints find active WebRTC session via `WebRTCManager.sessions`
+- Call `frame_processor.update_parameters()` (same code path as data channel)
+- Browser stays open as "execution backend" / monitor
+- No headless mode for hackathon (real-time interactivity needs visual feedback)
+
+**GPT-5 Pro Review** (`notes/research/2025-12-24/incoming/rest_endpoint/5pro_rest_feedback.md`):
+
+Identified 6 issues to fix before implementing REST:
+
+1. **Pause must hit two mechanisms** - `VideoProcessingTrack.pause()` (freezes playback) AND `update_parameters({"paused": True})` (stops generation)
+2. **Lazy FrameProcessor init** - REST must call `initialize_output_processing()` before touching `frame_processor`
+3. **Queue drops updates** - Bounded queue drops newest on full; should drop oldest (mailbox semantics)
+4. **Output queue resize race** - Pause-flush can race with queue resize; need lock
+5. **`/api/frame/latest` consumes** - Calling `get()` removes from queue; need non-destructive buffer
+6. **Duplicate control logic** - Extract shared `apply_control_message()` for both WebRTC and REST
+
+**Action:** Fix these issues first, then add REST endpoints.
+
+### Phase 5 Implementation Complete
+
+Implemented all fixes and REST endpoints:
+
+**Fixes applied:**
+1. `apply_control_message()` helper in `webrtc.py` - shared by WebRTC data channel and REST
+2. `get_active_session()` helper - finds single connected session for REST
+3. Mailbox queue semantics in `frame_processor.py` - drops oldest on full, not newest
+4. `output_queue_lock` + `flush_output_queue()` - prevents resize/flush race
+5. `latest_frame_cpu` buffer + `get_latest_frame()` - non-destructive frame reads
+
+**REST endpoints added** (`/api/v1/realtime/`):
+- `GET /state` - paused, chunk_index, prompt, session_id
+- `POST /pause` - pause generation + playback
+- `POST /run` - resume (or `?chunks=N` for N step chunks)
+- `POST /step` - generate one chunk while paused
+- `PUT /prompt` - set prompt text (JSON body)
+- `GET /frame/latest` - PNG image of latest frame
+
+**CLI added** (`video-cli`):
+- `video-cli state` - get current state (JSON)
+- `video-cli pause` - pause generation
+- `video-cli run [--chunks N]` - resume or run N chunks
+- `video-cli step` - generate one chunk
+- `video-cli prompt "text"` - set prompt
+- `video-cli frame --out path.png` - save current frame
+
+Entry point: `pyproject.toml` → `video-cli = "scope.cli.video_cli:main"`
+
+---
+
 ## 2025-12-24 (Afternoon)
 
 ### Integrated Incoming Specs
 
 Processed and distilled three incoming spec documents:
-- `incoming/project_knowledge.md` - Project knowledge base
-- `incoming/context_editing_and_console_spec.md` - Context editing mechanism
-- `incoming/interface_specifications.md` - CLI/Web UI specs
+- `notes/research/2025-12-24/incoming/project_knowledge.md` - Project knowledge base
+- `notes/research/2025-12-24/incoming/context_editing_and_console_spec.md` - Context editing mechanism
+- `notes/research/2025-12-24/incoming/interface_specifications.md` - CLI/Web UI specs
 
 **Key integration:**
 - Updated `notes/realtime-roadmap.md` with two feature axes (prompt compilation + context editing)
 - Created `notes/reference/context-editing-code.md` - Gemini integration, edit API, validation test
 - Created `notes/reference/cli-implementation.md` - Full CLI implementation with Click
+ - Added distillation workflow + index: `notes/research/PROCESS.md`, `notes/research/2025-12-24/INDEX.md`
 
 **Two feature axes clarified:**
 1. **Prompt Compilation**: Control what we SAY (WorldState → LLM → prompt)
@@ -37,9 +94,9 @@ Processed and distilled three incoming spec documents:
 ### Style Layer Review Complete
 
 Reviewed 3 style slices to understand prompt compilation patterns:
-- `incoming/style/RAT/` - Rooster & Terry (claymation comedy)
-- `incoming/style/Kaiju/` - Japanese tokusatsu films
-- `incoming/style/TMNT/` - Graffiti sketchbook animation
+- `notes/research/2025-12-24/incoming/style/RAT/` - Rooster & Terry (claymation comedy)
+- `notes/research/2025-12-24/incoming/style/Kaiju/` - Japanese tokusatsu films
+- `notes/research/2025-12-24/incoming/style/TMNT/` - Graffiti sketchbook animation
 
 **Finding**: 7 universal patterns across all domains:
 1. Trigger phrase
@@ -133,6 +190,8 @@ TDD implementation of control plane abstractions:
 | Server-side snapshots | 2025-12-24 | GPU tensors can't serialize to JSON for WebRTC |
 | V2V step pending until ready | 2025-12-24 | Better UX than immediate fail + retry |
 | InstructionSheet carries weight | 2025-12-24 | LLM does thinking; prose more flexible than schemas |
+| REST hooks into WebRTC | 2025-12-25 | Reuse existing control path; browser as monitor |
+| Fix control path first | 2025-12-25 | GPT-5 Pro review: 6 issues to address before REST |
 
 ---
 

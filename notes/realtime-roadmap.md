@@ -62,6 +62,28 @@ Both feed into the same pipeline. Both are needed for full creative control.
 
 **Goal**: CLI-first interface for both humans and agents.
 
+### Architecture Decision
+
+REST endpoints hook into existing WebRTC control path:
+- Find active WebRTC session via `WebRTCManager.sessions`
+- Call `frame_processor.update_parameters()` (same as data channel)
+- Requires browser open (WebRTC session = "execution backend")
+
+### Prerequisites (from GPT-5 Pro review)
+
+Before adding REST endpoints, fix these issues in the control path:
+
+| Fix | Why | Where |
+|-----|-----|-------|
+| **Shared `apply_control_message()`** | Prevent REST/WebRTC divergence | `webrtc.py` |
+| **Pause hits two mechanisms** | `vt.pause()` + `update_parameters()` | Helper function |
+| **Mailbox queue semantics** | Drop oldest on full, not newest | `frame_processor.py` |
+| **`output_queue_lock`** | Resize/flush race condition | `frame_processor.py` |
+| **`latest_frame_cpu` buffer** | Non-destructive frame reads | `frame_processor.py` |
+| **Eager `initialize_output_processing()`** | REST must not hit None | Helper function |
+
+See: `notes/research/2025-12-24/incoming/rest_endpoint/5pro_rest_feedback.md`
+
 ### Core Endpoints (MVP)
 
 | Method | Path | Purpose |
@@ -71,7 +93,7 @@ Both feed into the same pipeline. Both are needed for full creative control.
 | POST | `/api/run` | Start continuous generation |
 | POST | `/api/pause` | Pause generation |
 | PUT | `/api/prompt` | Set prompt text |
-| GET | `/api/frame/latest` | Get current frame as image |
+| GET | `/api/frame/latest` | Get current frame as image (non-destructive) |
 
 ### CLI Commands
 
@@ -280,6 +302,8 @@ window.dataChannel.send('{"type": "snapshot_request"}');
 | 2025-12-24 | V2V step: pending until ready | Better UX for creative tool |
 | 2025-12-24 | CLI-first interface | Agent automation is primary use case |
 | 2025-12-24 | Context editing via anchor frame | Re-encode path in KV cache recompute |
+| 2025-12-25 | REST hooks into WebRTC session | Reuse existing control path, browser stays open as monitor |
+| 2025-12-25 | Fix control path before REST | GPT-5 Pro review identified 6 issues to address first |
 
 ---
 
@@ -303,8 +327,12 @@ These incoming docs were distilled into this roadmap:
 
 | Doc | Content |
 |-----|---------|
-| `incoming/project_knowledge.md` | Project knowledge base, Gemini integration code |
-| `incoming/context_editing_and_console_spec.md` | Context editing mechanism, CLI/API specs |
-| `incoming/interface_specifications.md` | Full CLI implementation, FastHTML web UI |
+| `notes/research/2025-12-24/incoming/project_knowledge.md` | Project knowledge base, Gemini integration code |
+| `notes/research/2025-12-24/incoming/context_editing_and_console_spec.md` | Context editing mechanism, CLI/API specs |
+| `notes/research/2025-12-24/incoming/interface_specifications.md` | Full CLI implementation, FastHTML web UI |
 
 Key code snippets and runbooks are preserved in `notes/reference/`.
+
+For the “raw → distilled → integrated” workflow and an index of what’s been processed, see:
+- `notes/research/PROCESS.md`
+- `notes/research/2025-12-24/INDEX.md`
