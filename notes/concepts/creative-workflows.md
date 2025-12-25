@@ -207,19 +207,18 @@ scenes:
 ### Core Concepts (in this folder)
 - This document — explore/record/playback model, sequence format sketch
 
-### Detailed Specs (should probably live here too)
-- `notes/plans/tui-director-console.md` — TUI for real-time keyboard-driven directing
+### Detailed Specs (consolidated here)
+- `tui-director.md` — TUI for real-time keyboard-driven directing
   - Keyboard controls, style/beat/camera selection, snapshots
   - Textual-based implementation sketch
 
-- `notes/research/2025-12-24/incoming/context_editing_and_console_spec.md` — Full spec for context editing + CLI
+- `context-editing-spec.md` — Full spec for context editing + CLI
   - Retroactive frame editing via decoded_frame_buffer
   - CLI commands (video-cli step, edit, snapshot, describe-frame)
   - Agent integration patterns
   - **Very comprehensive, 900 lines**
 
-### Research Background
-- `notes/research/2025-12-23/krea-realtime-prompt-sequences.md` — Prompt sequence pathways
+- `prompt-sequences.md` — Prompt sequence pathways
   - "Anchor clause" pattern (constant subject/setting)
   - Soft transitions vs hard cuts
   - Two-pass workflows (preview then final render)
@@ -232,13 +231,3 @@ scenes:
 - `notes/daydream/cohort-pitch.md` — Project vision
 - `notes/daydream/interactive-ai-video-program.md` — Cohort program description
 
----
-
-## Consolidation TODO
-
-Consider moving to `notes/concepts/`:
-- [ ] `tui-director-console.md` → `concepts/tui-director.md`
-- [ ] `context_editing_and_console_spec.md` → `concepts/context-editing-spec.md`
-- [ ] `krea-realtime-prompt-sequences.md` → `concepts/prompt-sequences.md`
-
-This would create a cohesive "concepts" folder for creative/product ideation.
