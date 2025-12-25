@@ -169,6 +169,12 @@ def main() -> int:
         _wan_vae_modules.reset_wanvae_decode_inner_profile()
     except Exception:
         pass
+    try:
+        from scope.core.pipelines.krea_realtime_video.modules import causal_model as _causal_model
+
+        _causal_model.reset_attention_profile()
+    except Exception:
+        pass
 
     prompts = [{"text": args.prompt, "weight": 100}]
     per_iter = []
@@ -215,6 +221,12 @@ def main() -> int:
                 from scope.core.pipelines.wan2_1.vae.modules import vae as _wan_vae_modules
 
                 _wan_vae_modules.reset_wanvae_decode_inner_profile()
+            except Exception:
+                pass
+            try:
+                from scope.core.pipelines.krea_realtime_video.modules import causal_model as _causal_model
+
+                _causal_model.reset_attention_profile()
             except Exception:
                 pass
 

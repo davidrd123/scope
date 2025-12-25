@@ -1,8 +1,8 @@
 # B300 Investigation Runbook
 
-**Purpose:** Systematic approach to diagnose why B300 is stuck at 8.8 FPS while B200 hits ~20 FPS.
+**Purpose:** Systematic approach to diagnose B300 perf gaps vs B200, and prioritize what to optimize next.
 
-**Key insight:** Attention backend changes don't move FPS. The bottleneck is elsewhere.
+**Key insight:** On the repo-default (cu128) stack, B300 is decode/cuDNN-bound (~8.8 FPS). On an SM103-native (cu130) stack, decode improves dramatically and denoise/transformer becomes the bottleneck.
 
 ---
 
@@ -15,7 +15,7 @@ These observations are meant to prevent re-running the same “is it pacing?” 
 - **Resolution:** `320x576` (reference resolution for comparisons)
 - **Denoising steps:** `4` (current reference)
 - **KV-cache attention bias:** `0.3` (unless explicitly testing bias off/on)
-- **Typical steady-state:** ~`8.7–8.8 FPS` on B300, stable across iterations
+- **Typical steady-state:** ~`8.7–8.8 FPS` on the repo-default stack, ~`14.8–15.0 FPS` on the cu130 stack (Daydream)
 
 Repro command (includes per-block CUDA-event timings):
 
@@ -211,6 +211,20 @@ Enabling cuDNN benchmark improves decode somewhat (at the cost of slower warmup 
 - Use `scripts/profile_krea_pipeline_blocks.py --cudnn-benchmark` for measurement.
 - If it helps in your environment, consider enabling `torch.backends.cudnn.benchmark=True` in the server process.
 
+3) **KV cache recompute cadence (quality trade-off)**
+
+`recompute_kv_cache` can be a double-digit % of pipeline time. There is now an experimental knob to recompute less frequently in steady-state:
+
+```bash
+export SCOPE_KV_CACHE_RECOMPUTE_EVERY=2  # default 1 (always recompute)
+```
+
+Measured (B300 cu130, `320x576`, fp8, `kv_cache_attention_bias=0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`): ~`15.0 FPS` → ~`16.8 FPS`.
+
+**Quality result (Daydream, B300):** `SCOPE_KV_CACHE_RECOMPUTE_EVERY=2` **visibly glitches**. Treat this knob as **debug-only**; do not ship it as a default optimization.
+
+Shortcut: `scripts/bench_b300_recompute_cadence.sh` sweeps cadence values and writes per-run logs/JSON under `outputs/`.
+
 ### Test 1b.1: Drill Into `generator(...)` (New, Finer-Grained)
 
 The denoise-step profiler tells you that `generator(...)` dominates `denoise`, but not *why*.
@@ -292,10 +306,97 @@ Interpretation (high ROI decision points):
 - If `ffn` dominates: prioritize **GEMM/MLP** work (FP8 fastpaths, torch.compile on the transformer blocks, memory formats).
 - If `self_attn` dominates: prioritize **attention backend** choices (FlashAttention vs Triton vs FA4 score_mod) and KV-bias implementation costs (segment-combine does multiple FA calls).
 - If `rope_apply`/`qkv_projection` dominate: consider fused projections and/or RoPE kernel tuning (but confirm first that they’re truly a big share).
+- If you are on **B300 with ample VRAM**, also sanity-check `--quantization none`: FP8 can be slower than bf16 on this stack due to conversion/scaling overhead.
 
 Notes:
 - This profiler uses `torch.cuda.synchronize()` per measured block, so it reduces overlap and will lower absolute FPS; treat it as a breakdown tool.
 - The same technique is useful for other models/pipelines: first find the top block, then split that block into “attention vs MLP vs overhead”, then choose the right optimization family.
+- `scripts/profile_krea_pipeline_blocks.py` resets the attention profiler after pipeline warmup (and after `--skip`), so the report reflects steady-state behavior rather than compile/cache-fill effects.
+- The report includes **nested** timings (e.g. `self_attn_kv_bias_*`, `qkv_projection`) inside `self_attn`. Use **“Transformer Block Split (top-level)”** for non-overlapping shares, and **“self_attn Breakdown (nested)”** to reason about KV-bias cost.
+
+#### Example B300 (cu130) result: self-attn dominates
+
+Concrete example (B300, cu130 env, `PROFILE_ATTENTION=1`, `--iters 6 --skip 2`, `kv_cache_attention_bias=0.3`):
+
+- `SCOPE_KV_BIAS_BACKEND=flash`:
+  - Transformer Block Split (top-level): `self_attn` ~`56%`, `cross_attn` ~`22%`, `ffn` ~`22%`
+  - self_attn Breakdown (nested): KV-bias ~`38%` of `self_attn` (~`0.91ms/call`), `other_in_self` ~`59%`
+- `SCOPE_KV_BIAS_BACKEND=fa4`:
+  - Transformer Block Split (top-level): `self_attn` ~`53%`, `cross_attn` ~`20%`, `ffn` ~`27%`
+  - self_attn Breakdown (nested): KV-bias ~`22%` of `self_attn` (~`0.42ms/call`), `other_in_self` ~`74%`
+
+Implication: the highest-ROI denoise work is reducing **self-attn** time; KV-bias improvements (FA4 score_mod) help directly, and next wins likely require improving the remaining `other_in_self` (QKV projections, non-bias attention, etc.).
+
+Note: the `p_bias vs p_recompute` summary is a **time-share** metric (based on profiled ms), not a probability. It must also count `self_attn_kv_bias_flash` and `self_attn_kv_bias_fa4` as “bias”; older code only counted `self_attn_kv_bias` and can misleadingly print `p_bias=0%` even when the flash backend is active.
+
+Shortcut A/B: `scripts/bench_b300_kv_bias_backends.sh` runs the canonical benchmark under multiple `SCOPE_KV_BIAS_BACKEND` values and writes per-backend logs/JSON to `outputs/`.
+
+#### KV-bias backend A/B (B300, cu130)
+
+Command:
+
+```bash
+BACKENDS="flash fa4 triton" scripts/bench_b300_kv_bias_backends.sh
+```
+
+Result (B300, `320x576`, fp8, `kv_cache_attention_bias=0.3`, cu130 env):
+- `fa4`: ~`15.0 FPS` (best in this repo right now)
+- `flash`: ~`13.5 FPS` (stable SM103 default)
+- `triton`: ~`1.1 FPS` (unusable; also had a very slow warmup)
+
+Cause: `src/scope/core/kernels/triton_attention.py` currently forces Kernel B into a **scalar** implementation on SM103 + triton `>=3.5` to avoid a tcgen05 LLVM hard-abort. That scalar variant is dramatically slower than FlashAttention on B300.
+
+Implication: on SM103, prefer `SCOPE_KV_BIAS_BACKEND=fa4` (score_mod) if it works in your env, otherwise `flash` (segment-combine); do not use the Triton KV-bias backend for production.
+
+### Test 1b.3: Op-level GPU profile (find the top ops)
+
+Once you know **denoise/transformer dominates**, the next question is often:
+
+> Is the remaining time actually “attention kernels”, or is it **copies / dtype conversions / elementwise ops / FP8 GEMMs**?
+
+Use the operator-level profiler script:
+
+```bash
+PYTHONPATH=src \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_ops.py \
+  --height 320 --width 576 \
+  --quantization fp8_e4m3fn \
+  --kv-cache-attention-bias 0.3 \
+  --kv-bias-backend fa4 \
+  --cudnn-benchmark \
+  --iters 1 --pre-iters 1 \
+  --json outputs/b300_cu130_ops_profile_fa4.json
+```
+
+Run the same command with `--kv-bias-backend flash` to compare:
+
+```bash
+PYTHONPATH=src \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_ops.py \
+  --height 320 --width 576 \
+  --quantization fp8_e4m3fn \
+  --kv-cache-attention-bias 0.3 \
+  --kv-bias-backend flash \
+  --cudnn-benchmark \
+  --iters 1 --pre-iters 1 \
+  --json outputs/b300_cu130_ops_profile_flash.json
+```
+
+Interpretation notes:
+- The table includes both **high-level ops** (e.g. `aten::*`, `flash_attn::*`) and **kernel rows** (names starting with `void ...`, `nvjet_...`, `kernel_...`). Kernel rows are useful to identify which library is active, but they can double-count time when summed.
+- Treat this as a **ranking tool** (“what’s biggest?”), not an FPS benchmark (profilers add overhead).
+
+#### Example B300 (cu130) signal
+
+In a representative run (fp8, `320x576`, bias `0.3`), the top GPU time is largely:
+- `aten::copy_` / `aten::to` / `aten::_to_copy` (dtype conversions + copies)
+- `aten::_scaled_mm` (FP8 GEMMs)
+- many elementwise kernels
+- attention kernels are present but are not the *only* lever
+
+Comparing `flash` vs `fa4` shows why FA4 score_mod wins:
+- `flash`: heavy `flash_attn::_flash_attn_varlen_forward` (segment-combine does multiple attention calls)
+- `fa4`: reduced attention time and fewer associated copies
 
 ### Test 1c: “SM103-native” Runtime Check (cu130 cuDNN)
 
@@ -424,9 +525,28 @@ If you see:
 
 Then the GPU/driver is likely wedged and you won’t be able to run profiling.
 
+Quick health check commands:
+
+```bash
+# NVML path (can succeed even when CUDA is broken)
+nvidia-smi
+
+# CUDA driver API path (must return 0)
+python3 - <<'PY'
+import ctypes
+cuda = ctypes.CDLL("libcuda.so.1")
+cuda.cuInit.argtypes = [ctypes.c_uint]
+cuda.cuInit.restype = ctypes.c_int
+print("cuInit:", cuda.cuInit(0))
+PY
+
+# PyTorch path (must be True)
+.venv-b300-cu130-decode/bin/python -c "import torch; print(torch.cuda.is_available())"
+```
+
 Practical note: this can surface as an *import-time* crash (before your script even reaches a `torch.cuda.is_available()` guard), because some modules call `torch.cuda.current_device()` at import time.
 
-In this environment, you may not have permission to reset the GPU from inside the container (sysfs/proc writes can be denied). Usual fixes are host-level:
+In this environment, you may not have permission to reset the GPU from inside the container (sysfs/proc writes can be denied; e.g. `/sys/bus/pci/drivers/nvidia/unbind` → Permission denied). Usual fixes are host-level:
 - Stop any GPU users, then attempt `nvidia-smi --gpu-reset -i 0` (if supported).
 - Restart the NVIDIA driver stack / services.
 - Reboot the box.

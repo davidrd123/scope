@@ -58,15 +58,32 @@ uv pip install -p "$PY" --upgrade --index-url https://download.pytorch.org/whl/c
   torch==2.9.0+cu130 torchvision==0.24.0+cu130
 
 echo "==> Aligning torchao with torch (best-effort; override with TORCHAO_VERSION=... )..."
-TORCHAO_VERSION="${TORCHAO_VERSION:-0.14.1}"
-set +e
-uv pip install -p "$PY" --upgrade --index-url https://download.pytorch.org/whl/cu130 \
-  --force-reinstall \
-  "torchao==${TORCHAO_VERSION}"
-status=$?
-set -e
-if [[ $status -ne 0 ]]; then
-  echo "WARN: torchao install failed (keeping existing torchao)."
+# Prefer the PyTorch cu130 index so we get a build aligned with torch==2.9.0+cu130.
+# If that fails (e.g. no matching wheel), fall back to PyPI wheels.
+TORCHAO_VERSION="${TORCHAO_VERSION:-0.15.0+cu130}"
+if [[ "$TORCHAO_VERSION" != "skip" ]]; then
+  set +e
+  uv pip install -p "$PY" --upgrade --index-url https://download.pytorch.org/whl/cu130 \
+    --force-reinstall \
+    --no-deps \
+    "torchao==${TORCHAO_VERSION}"
+  status=$?
+  set -e
+  if [[ $status -ne 0 ]]; then
+    echo "WARN: torchao install from cu130 index failed; trying PyPI wheels..."
+    set +e
+    uv pip install -p "$PY" --upgrade \
+      --force-reinstall \
+      --no-deps \
+      --only-binary=:all: \
+      "torchao==${TORCHAO_VERSION%%+*}"
+    status=$?
+    set -e
+    if [[ $status -ne 0 ]]; then
+      echo "WARN: torchao wheel install failed (keeping existing torchao)."
+      echo "      Set TORCHAO_VERSION=skip to suppress this step."
+    fi
+  fi
 fi
 
 echo "==> Ensuring build tools for flash-attn..."

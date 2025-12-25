@@ -80,8 +80,10 @@ if _KV_BIAS_BACKEND == "fa4":
                         if vendored_cute not in cute_mod.__path__:
                             cute_mod.__path__.insert(0, vendored_cute)
 
-                    # Force re-import of interface so we don't get a cached wheel module.
-                    sys.modules.pop("flash_attn.cute.interface", None)
+                    # Force re-import of CuTe modules so we don't keep cached wheel modules.
+                    for mod_name in list(sys.modules.keys()):
+                        if mod_name == "flash_attn.cute" or mod_name.startswith("flash_attn.cute."):
+                            sys.modules.pop(mod_name, None)
                     return
                 for repo_dir in ("flash-attention", "flash-attention.bak"):
                     candidate = parent / repo_dir / "flash_attn"
@@ -94,7 +96,9 @@ if _KV_BIAS_BACKEND == "fa4":
                             candidate_cute = str(candidate / "cute")
                             if candidate_cute not in cute_mod.__path__:
                                 cute_mod.__path__.insert(0, candidate_cute)
-                        sys.modules.pop("flash_attn.cute.interface", None)
+                        for mod_name in list(sys.modules.keys()):
+                            if mod_name == "flash_attn.cute" or mod_name.startswith("flash_attn.cute."):
+                                sys.modules.pop(mod_name, None)
                         return
 
         _extend_flash_attn_path_for_score_mod()
@@ -155,13 +159,16 @@ def _get_fa4_score_mod(frame_seqlen: int, block_start: int, log_bias: float):
     def score_mod_kv_bias(tSrS_ssa, b_idx, h_idx, q_idx, kv_idx, seqlen_info, aux_tensors):
         frame_seqlen_tensor = cute.full_like(kv_idx, _frame_seqlen)
         block_start_tensor = cute.full_like(kv_idx, _block_start)
-        cond_ge = operator.ge(kv_idx, frame_seqlen_tensor)
-        cond_lt = operator.lt(kv_idx, block_start_tensor)
-        past_frame_mask = cond_ge & cond_lt
-
-        # Add log_bias only to Region 2
         bias_tensor = cute.full_like(tSrS_ssa, _log_bias)
-        return cute.where(past_frame_mask, tSrS_ssa + bias_tensor, tSrS_ssa)
+        # Apply bias only to Region 2:
+        #   kv_idx in [frame_seqlen, block_start)
+        # Avoid boolean-and on SSA values (can trigger MLIR dominance issues in some cutlass-dsl builds).
+        biased = cute.where(
+            operator.ge(kv_idx, frame_seqlen_tensor),
+            tSrS_ssa + bias_tensor,
+            tSrS_ssa,
+        )
+        return cute.where(operator.lt(kv_idx, block_start_tensor), biased, tSrS_ssa)
 
     _fa4_score_mod_cache[cache_key] = score_mod_kv_bias
     return score_mod_kv_bias
@@ -348,6 +355,14 @@ _profile_counts = defaultdict(int)
 _profile_call_count = 0
 
 
+def reset_attention_profile() -> None:
+    """Reset accumulated attention profiling state (times/counts/call counter)."""
+    _profile_times.clear()
+    _profile_counts.clear()
+    global _profile_call_count
+    _profile_call_count = 0
+
+
 def _should_profile():
     """Check if profiling should run (disabled during torch.compile tracing)."""
     if not _PROFILE_ENABLED:
@@ -371,16 +386,43 @@ def profile_report():
         logger.info(f"  {name}: {time_ms:.1f}ms ({pct:.1f}%) [{count} calls, {time_ms/count:.2f}ms/call]")
     logger.info(f"  TOTAL: {total:.1f}ms")
 
+    # Top-level transformer block split (does not double-count nested profiled regions).
+    top_total = sum(_profile_times.get(name, 0.0) for name in ("self_attn", "cross_attn", "ffn"))
+    if top_total > 0:
+        logger.info("=== Transformer Block Split (top-level) ===")
+        for name in ("self_attn", "cross_attn", "ffn"):
+            t = _profile_times.get(name, 0.0)
+            logger.info(f"  {name}: {t:.1f}ms ({100 * t / top_total:.1f}%)")
+
     # Compute p_bias vs p_recompute
-    bias_time = _profile_times.get("self_attn_kv_bias", 0)
-    recompute_time = _profile_times.get("self_attn_block_mask", 0)
-    plain_time = _profile_times.get("self_attn_kv_plain", 0)
+    # KV-bias can run via multiple backends (FA4 / Flash segment-combine / Triton / flex fallback).
+    # Aggregate them for the "p_bias" summary.
+    bias_time = sum(
+        _profile_times.get(name, 0.0)
+        for name in (
+            "self_attn_kv_bias_fa4",
+            "self_attn_kv_bias_flash",
+            "self_attn_kv_bias",
+        )
+    )
+    recompute_time = _profile_times.get("self_attn_block_mask", 0.0)
+    plain_time = _profile_times.get("self_attn_kv_plain", 0.0)
     attn_total = bias_time + recompute_time + plain_time
     if attn_total > 0:
         logger.info("=== p_bias vs p_recompute ===")
         logger.info(f"  p_bias (Kernel B):     {100 * bias_time / attn_total:.1f}%")
         logger.info(f"  p_recompute (Kernel A): {100 * recompute_time / attn_total:.1f}%")
         logger.info(f"  p_plain (FA path):     {100 * plain_time / attn_total:.1f}%")
+
+    # Helpful nested breakdown: how much of self_attn is KV-bias vs other work.
+    self_attn_total = _profile_times.get("self_attn", 0.0)
+    if self_attn_total > 0:
+        other_time = self_attn_total - (bias_time + recompute_time + plain_time)
+        logger.info("=== self_attn Breakdown (nested) ===")
+        logger.info(f"  kv_bias_total:   {bias_time:.1f}ms ({100 * bias_time / self_attn_total:.1f}% of self_attn)")
+        logger.info(f"  block_mask:      {recompute_time:.1f}ms ({100 * recompute_time / self_attn_total:.1f}% of self_attn)")
+        logger.info(f"  plain_kv:        {plain_time:.1f}ms ({100 * plain_time / self_attn_total:.1f}% of self_attn)")
+        logger.info(f"  other_in_self:   {other_time:.1f}ms ({100 * other_time / self_attn_total:.1f}% of self_attn)")
 
 
 # Register atexit handler to print profiling report on exit
@@ -1082,10 +1124,21 @@ class CausalWanSelfAttention(nn.Module):
                             log_bias=log_scale,
                         )
                         with _ProfileBlock("self_attn_kv_bias_fa4"):
+                            # FA4/CuTe can fail to infer "leading dim" from a B=1 view
+                            # when K/V come from a larger cache tensor (stride(0) reflects
+                            # the full cache, not the sliced window). Normalizing the
+                            # batch dimension stride avoids a costly clone/copy.
+                            q_fa4 = roped_query
+                            k_fa4 = cached_k
+                            v_fa4 = cached_v
+                            if k_fa4.shape[0] == 1:
+                                q_fa4 = q_fa4[0].unsqueeze(0)
+                                k_fa4 = k_fa4[0].unsqueeze(0)
+                                v_fa4 = v_fa4[0].unsqueeze(0)
                             x, _ = _fa4_fwd(
-                                roped_query,
-                                cached_k,
-                                cached_v,
+                                q_fa4,
+                                k_fa4,
+                                v_fa4,
                                 score_mod=score_mod_cute,
                                 causal=False,
                                 return_lse=False,
@@ -1661,22 +1714,28 @@ class CausalWanModel(ModelMixin, ConfigMixin):
 
         if DEBUG:
             print(block_mask)
-            import imageio
-            import numpy as np
-            from torch.nn.attention.flex_attention import create_mask
-
-            mask = create_mask(
-                attention_mask,
-                B=None,
-                H=None,
-                Q_LEN=total_length + padded_length,
-                KV_LEN=total_length + padded_length,
-                device=device,
-            )
-            import cv2
-
-            mask = cv2.resize(mask[0, 0].cpu().float().numpy(), (1024, 1024))
-            imageio.imwrite("mask_%d.jpg" % (0), np.uint8(255.0 * mask))
+            try:
+                imageio = __import__("imageio")
+                np = __import__("numpy")
+                cv2 = __import__("cv2")
+                flex_mod = __import__(
+                    "torch.nn.attention.flex_attention",
+                    fromlist=["create_mask"],
+                )
+                create_mask = getattr(flex_mod, "create_mask")
+            except Exception as e:
+                logger.warning("DEBUG mask dump skipped (missing deps): %s", e)
+            else:
+                mask = create_mask(
+                    attention_mask,
+                    B=None,
+                    H=None,
+                    Q_LEN=total_length + padded_length,
+                    KV_LEN=total_length + padded_length,
+                    device=device,
+                )
+                mask = cv2.resize(mask[0, 0].cpu().float().numpy(), (1024, 1024))
+                imageio.imwrite("mask_%d.jpg" % (0), np.uint8(255.0 * mask))
 
         return block_mask
 

@@ -12,22 +12,24 @@ set -euo pipefail
 #
 # Env overrides:
 #   B300_ENV_DIR=...         (defaults to .venv-b300-cu130-decode)
-#   OUT_PREFIX=...           (defaults to outputs/b300_cu130_fp8_bias03_drilldown)
+#   OUT_PREFIX=...           (defaults to outputs/b300_cu130_${QUANTIZATION}_bias${KV_CACHE_ATTENTION_BIAS}_drilldown)
 #   HEIGHT=... WIDTH=...     (defaults to 320x576)
 #   ITERS=... SKIP=...       (defaults to 6 iters, skip 2)
-#   QUANTIZATION=fp8_e4m3fn|none  (defaults to fp8_e4m3fn)
+#   QUANTIZATION=fp8_e4m3fn|none  (defaults to none; Daydream GUI typically runs unquantized on B300)
 #   KV_CACHE_ATTENTION_BIAS=...   (defaults to 0.3)
 
 ENV_DIR="${B300_ENV_DIR:-.venv-b300-cu130-decode}"
 PY="$ENV_DIR/bin/python"
 
-OUT_PREFIX="${OUT_PREFIX:-outputs/b300_cu130_fp8_bias03_drilldown}"
 HEIGHT="${HEIGHT:-320}"
 WIDTH="${WIDTH:-576}"
 ITERS="${ITERS:-6}"
 SKIP="${SKIP:-2}"
-QUANTIZATION="${QUANTIZATION:-fp8_e4m3fn}"
+QUANTIZATION="${QUANTIZATION:-none}"
 KV_CACHE_ATTENTION_BIAS="${KV_CACHE_ATTENTION_BIAS:-0.3}"
+
+OUT_PREFIX_DEFAULT="outputs/b300_cu130_${QUANTIZATION}_bias${KV_CACHE_ATTENTION_BIAS}_drilldown"
+OUT_PREFIX="${OUT_PREFIX:-$OUT_PREFIX_DEFAULT}"
 
 if [[ ! -x "$PY" ]]; then
   echo "ERROR: Expected $PY (is the env created?)" >&2
@@ -83,4 +85,3 @@ PYTHONPATH=src "$PY" scripts/profile_krea_pipeline_blocks.py \
   --cudnn-benchmark \
   --json "${OUT_PREFIX}_perf.json" \
   2>&1 | tee "${OUT_PREFIX}_perf.log"
-

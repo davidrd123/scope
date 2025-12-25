@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""
+Operator-level (CUDA) profiling for the Krea realtime pipeline.
+
+This complements the lightweight CUDA-event block profilers by answering:
+  - Which *ops/kernels* dominate GPU time inside denoise/transformer?
+  - Is time going to attention vs norms vs GEMMs vs decode convs?
+
+Typical B300 usage (cu130 env):
+
+  SCOPE_KV_BIAS_BACKEND=fa4 \
+  TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+  DISABLE_FLEX_ATTENTION_COMPILE=1 \
+  WANVAE_STREAM_DECODE_MODE=chunk \
+  PYTHONPATH=src .venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_ops.py \
+    --height 320 --width 576 \
+    --quantization fp8_e4m3fn \
+    --kv-cache-attention-bias 0.3 \
+    --iters 1 \
+    --json outputs/b300_cu130_ops_profile.json
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import time
+from pathlib import Path
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Operator-level profiler for Krea pipeline")
+    parser.add_argument("--height", type=int, default=320)
+    parser.add_argument("--width", type=int, default=576)
+    parser.add_argument("--iters", type=int, default=1, help="Number of profiled pipeline calls")
+    parser.add_argument("--pre-iters", type=int, default=1, help="Warm iterations outside profiler")
+    parser.add_argument("--kv-cache-attention-bias", type=float, default=0.3)
+    parser.add_argument(
+        "--kv-bias-backend",
+        choices=["auto", "fa4", "flash", "triton", "flex"],
+        default="auto",
+        help="Set SCOPE_KV_BIAS_BACKEND for this run (read at import time).",
+    )
+    parser.add_argument(
+        "--quantization",
+        choices=["fp8_e4m3fn", "none"],
+        default="fp8_e4m3fn",
+    )
+    parser.add_argument("--prompt", type=str, default="a majestic sunset")
+    parser.add_argument(
+        "--cudnn-benchmark",
+        action="store_true",
+        help="Enable torch.backends.cudnn.benchmark (can improve conv performance).",
+    )
+    parser.add_argument(
+        "--row-limit",
+        type=int,
+        default=40,
+        help="Rows to print in the profiler table output.",
+    )
+    parser.add_argument(
+        "--chrome-trace",
+        type=Path,
+        default=None,
+        help="Optional: write a Chrome trace JSON (can be large).",
+    )
+    parser.add_argument(
+        "--json",
+        type=Path,
+        default=None,
+        help="Optional: write aggregated key_averages() to JSON.",
+    )
+    return parser.parse_args()
+
+
+def _maybe_set_default_env() -> None:
+    # Conservative defaults for SM103 (B300).
+    os.environ.setdefault("DISABLE_FLEX_ATTENTION_COMPILE", "1")
+    os.environ.setdefault("WANVAE_STREAM_DECODE_MODE", "chunk")
+    os.environ.setdefault("TRITON_PTXAS_PATH", "/usr/local/cuda-12.9/bin/ptxas")
+
+
+def _write_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def main() -> int:
+    args = _parse_args()
+
+    if args.kv_bias_backend != "auto":
+        os.environ["SCOPE_KV_BIAS_BACKEND"] = args.kv_bias_backend
+
+    _maybe_set_default_env()
+
+    import torch
+    from omegaconf import OmegaConf
+    from torch.profiler import ProfilerActivity, profile
+
+    from scope.core.config import get_model_file_path, get_models_dir
+    from scope.core.pipelines.krea_realtime_video.pipeline import KreaRealtimeVideoPipeline
+    from scope.core.pipelines.utils import Quantization
+
+    if not torch.cuda.is_available():
+        raise SystemExit("CUDA not available")
+
+    torch.backends.cudnn.benchmark = bool(args.cudnn_benchmark)
+
+    print(f"CUDA device: {torch.cuda.get_device_name(0)}")
+    print(f"Compute capability: {torch.cuda.get_device_capability(0)}")
+    print(f"torch: {torch.__version__} (cuda={torch.version.cuda})")
+    print(f"cudnn.benchmark: {torch.backends.cudnn.benchmark}")
+    print(f"SCOPE_KV_BIAS_BACKEND={os.getenv('SCOPE_KV_BIAS_BACKEND')}")
+    print(f"DISABLE_FLEX_ATTENTION_COMPILE={os.getenv('DISABLE_FLEX_ATTENTION_COMPILE')}")
+    print(f"WANVAE_STREAM_DECODE_MODE={os.getenv('WANVAE_STREAM_DECODE_MODE')}")
+    print(f"TRITON_PTXAS_PATH={os.getenv('TRITON_PTXAS_PATH')}")
+
+    quantization = Quantization.FP8_E4M3FN if args.quantization == "fp8_e4m3fn" else None
+
+    config = OmegaConf.create(
+        {
+            "model_dir": str(get_models_dir()),
+            "generator_path": str(
+                get_model_file_path("krea-realtime-video/krea-realtime-video-14b.safetensors")
+            ),
+            "text_encoder_path": str(
+                get_model_file_path("WanVideo_comfy/umt5-xxl-enc-fp8_e4m3fn.safetensors")
+            ),
+            "tokenizer_path": str(get_model_file_path("Wan2.1-T2V-1.3B/google/umt5-xxl")),
+            "vae_path": str(get_model_file_path("Wan2.1-T2V-1.3B/Wan2.1_VAE.pth")),
+            "model_config": OmegaConf.load(
+                Path(__file__).resolve().parents[1] / "src/scope/core/pipelines/krea_realtime_video/model.yaml"
+            ),
+            "height": args.height,
+            "width": args.width,
+        }
+    )
+
+    pipeline = KreaRealtimeVideoPipeline(
+        config,
+        quantization=quantization,
+        compile=False,
+        device=torch.device("cuda"),
+        dtype=torch.bfloat16,
+    )
+
+    prompts = [{"text": args.prompt, "weight": 100}]
+
+    if args.pre_iters:
+        print(f"Pre-warm (outside profiler): {args.pre_iters} iteration(s)")
+        for _ in range(args.pre_iters):
+            pipeline(prompts=prompts, kv_cache_attention_bias=args.kv_cache_attention_bias)
+        torch.cuda.synchronize()
+
+    print(f"Profiling: {args.iters} iteration(s)")
+    torch.cuda.synchronize()
+    t0 = time.perf_counter()
+
+    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
+        for _ in range(args.iters):
+            pipeline(prompts=prompts, kv_cache_attention_bias=args.kv_cache_attention_bias)
+        torch.cuda.synchronize()
+
+    dt = time.perf_counter() - t0
+    print(f"Profiled wall time: {dt:.3f}s")
+    print("")
+    # On newer PyTorch versions the profiler exposes GPU time as `device_time_total`
+    # (not `cuda_time_total`). The table renderer will label it as CUDA for CUDA devices.
+    print(prof.key_averages().table(sort_by="device_time_total", row_limit=args.row_limit))
+
+    if args.json is not None:
+        events = []
+        for evt in prof.key_averages():
+            device_time_total = getattr(evt, "device_time_total", 0.0)
+            if device_time_total <= 0:
+                continue
+            events.append(
+                {
+                    "key": evt.key,
+                    "count": evt.count,
+                    "cpu_time_total_us": evt.cpu_time_total,
+                    "device_time_total_us": device_time_total,
+                    "self_device_time_total_us": getattr(evt, "self_device_time_total", 0.0),
+                }
+            )
+        _write_json(
+            args.json,
+            {
+                "meta": {
+                    "torch_version": torch.__version__,
+                    "torch_cuda_version": torch.version.cuda,
+                    "device_name": torch.cuda.get_device_name(0),
+                    "device_cc": list(torch.cuda.get_device_capability(0)),
+                    "height": args.height,
+                    "width": args.width,
+                    "iters": args.iters,
+                    "pre_iters": args.pre_iters,
+                    "kv_cache_attention_bias": args.kv_cache_attention_bias,
+                    "kv_bias_backend": os.getenv("SCOPE_KV_BIAS_BACKEND"),
+                    "cudnn_benchmark": bool(torch.backends.cudnn.benchmark),
+                    "disable_flex_attention_compile": os.getenv("DISABLE_FLEX_ATTENTION_COMPILE"),
+                    "wanvae_stream_decode_mode": os.getenv("WANVAE_STREAM_DECODE_MODE"),
+                    "triton_ptxas_path": os.getenv("TRITON_PTXAS_PATH"),
+                    "profiled_wall_time_s": dt,
+                },
+                "events": events,
+            },
+        )
+        print(f"\nWrote JSON: {args.json}")
+
+    if args.chrome_trace is not None:
+        args.chrome_trace.parent.mkdir(parents=True, exist_ok=True)
+        prof.export_chrome_trace(str(args.chrome_trace))
+        print(f"Wrote Chrome trace: {args.chrome_trace}")
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

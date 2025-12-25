@@ -9,6 +9,7 @@ This directory tracks the journey of optimizing attention kernels for the Krea R
 | Understand the full journey | `kernel-dev-log.md` |
 | Continue from last session | `SESSION-HANDOFF-*.md` (latest date) |
 | Investigate B300 8.8 FPS issue | `b300/investigation-runbook.md` |
+| See B300 optimization roadmap | `b300/optimization-vision.md` |
 | Set up a B300 machine | `b300/setup-guide.md` |
 | Understand RoPE optimizations | `rope/optimization.md` |
 | Work on FA4 score_mod | `fa4/phase4-score-mod.md` |
@@ -25,6 +26,7 @@ notes/FA4/
 │   ├── investigation-runbook.md   # Systematic debugging guide
 │   ├── investigation.md           # Investigation notes
 │   ├── fa4-patches.md             # CUTLASS DSL patches for SM103
+│   ├── optimization-vision.md     # Strategic optimization roadmap
 │   ├── setup-guide.md             # Environment setup
 │   └── session-state.md           # Stashed session state
 │

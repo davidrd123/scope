@@ -7,7 +7,7 @@
 **Update (cu130 + FlashAttention):**
 - Daydream end-to-end: **~14.8–15.0 FPS** at `320x576` (canonical)
 - `scripts/profile_krea_pipeline_blocks.py` benchmark: **~13.3–13.5 FPS** at `320x576` (see artifacts below)
-- `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, install `torchao==0.14.1` (or try `0.15.0`) to avoid “Skipping import of cpp extensions…” warnings; `scripts/b300_env_fix_cu130.sh` now does this best-effort via `TORCHAO_VERSION=...`.
+- `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, `scripts/b300_env_fix_cu130.sh` now tries `torchao==0.15.0+cu130` from the cu130 index (then PyPI as fallback). **As of 2025-12-25**, `torchao==0.15.0+cu130` still prints `Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 ...` (likely upstream; no FPS change observed).
 
 This is a ~70% improvement over the repo-default baseline.
 
@@ -32,7 +32,7 @@ WANVAE_STREAM_DECODE_MODE=chunk \
 .venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
   --height 320 --width 576 \
   --iters 6 --skip 2 \
-  --quantization fp8_e4m3fn \
+  --quantization none \
   --kv-cache-attention-bias 0.3 \
   --cudnn-benchmark
 ```
@@ -53,9 +53,89 @@ Artifacts:
 
 See also: `notes/FA4/b300/investigation-runbook.md` (“Ground Truth” section).
 
-**Operational note:** The box can intermittently wedge CUDA/NVML (`nvidia-smi` → “Failed to initialize NVML: Unknown Error”, PyTorch `cudaGetDeviceCount` → Error 304). When that happens, profiling/bench scripts can crash at import-time and you’ll likely need a host-level driver restart or reboot.
+**Operational note (intermittent):** We have seen rare CUDA/NVML wedges on this host (`nvidia-smi` → “Failed to initialize NVML: Unknown Error”, PyTorch `cudaGetDeviceCount` → Error 304). When `nvidia-smi` is healthy (normal driver table), you’re fine; when it wedges, bench scripts can fail at import-time and you’ll likely need a host-level driver restart or reboot.
+
+### “Why did FPS regress?” quick checklist
+
+When you see ~`8.8 FPS` again, it’s almost always one of these:
+
+- **Wrong env / wrong torch**: `python -c "import torch; print(torch.__version__, torch.version.cuda)"` should be `2.9.0+cu130` / `13.0` for the B300 env.
+- **Missing FlashAttention**: if `import flash_attn` fails, KV-bias can fall back to Triton/flex and go catastrophic on SM103.
+- **Wrong backend**: `SCOPE_KV_BIAS_BACKEND=triton` is unusable on SM103 (forced scalar kernel in Triton 3.5).
+- **ptxas mismatch**: Triton/Inductor need a `ptxas` that knows `sm_103` (`/usr/local/cuda-12.9+`).
 
 **Next optimization step (denoise):** `denoise` (+ `recompute_kv_cache`) is now the dominant cost on the cu130 stack. Run with `PROFILE_ATTENTION=1` to split transformer time into `self_attn` vs `cross_attn` vs `ffn`, then decide whether to pursue attention work (FA4/FlashAttention/Triton) or GEMM/compile work.
+
+**New tool (op-level profile):** `scripts/profile_krea_pipeline_ops.py` produces a torch-profiler-style table that helps answer “is it attention vs copies vs GEMMs?”. Artifacts from a representative run:
+- `outputs/b300_cu130_ops_profile_fa4.json` (FA4 KV-bias)
+- `outputs/b300_cu130_ops_profile_flash.json` (Flash segment-combine KV-bias)
+
+High-level takeaway from those profiles: a large fraction of GPU time shows up as `aten::copy_` / `aten::to` / elementwise kernels and FP8 GEMMs (`aten::_scaled_mm`), with attention kernels still significant but not the only lever.
+
+Latest B300 `PROFILE_ATTENTION=1` signal (cu130, `kv_cache_attention_bias=0.3`, `--iters 6 --skip 2`):
+- Transformer Block Split (top-level): `self_attn` ~`56%`, `cross_attn` ~`22%`, `ffn` ~`22%` (with `SCOPE_KV_BIAS_BACKEND=flash`)
+- self_attn Breakdown (nested): KV-bias is ~`38%` of `self_attn` (~`0.91ms/call`) on `flash`, and drops to ~`22%` (~`0.42ms/call`) on `fa4`
+
+Interpretation: the biggest denoise win is still reducing `self_attn` time. FA4 score_mod materially reduces the KV-bias slice, but the remaining `other_in_self` (QKV projections + non-bias attention) is still the majority.
+
+KV-bias backend A/B (B300, cu130, `320x576`, `kv_cache_attention_bias=0.3`, fp8):
+- `SCOPE_KV_BIAS_BACKEND=flash`: **~13.47 FPS** (`outputs/b300_cu130_fp8_e4m3fn_bias0.3_kvbias_flash.log`)
+- `SCOPE_KV_BIAS_BACKEND=fa4`: **~15.01 FPS** (`outputs/b300_cu130_fp8_e4m3fn_bias0.3_kvbias_fa4.log`)
+- `SCOPE_KV_BIAS_BACKEND=triton`: **~1.07 FPS** (`outputs/b300_cu130_fp8_e4m3fn_bias0.3_kvbias_triton.log`)
+
+Interpretation: do **not** use the Triton Kernel B backend on SM103 right now. It is forced into a slow scalar kernel on SM103+triton 3.5 to avoid a tcgen05 LLVM hard-abort, and the end-to-end result is unusable. Prefer `SCOPE_KV_BIAS_BACKEND=fa4` when it works, otherwise keep the SM103 default on the flash backend (segment-combine).
+
+KV-bias backend A/B (B300, cu130, `320x576`, `kv_cache_attention_bias=0.3`, quantization none):
+- `SCOPE_KV_BIAS_BACKEND=flash`: **~14.9 FPS**
+- `SCOPE_KV_BIAS_BACKEND=fa4`: **~16.7 FPS**
+
+### Quantization Note (B300)
+
+On B300, FP8 quantization via torchao is not automatically a win. In a direct A/B run (same settings, FA4 backend):
+- `--quantization fp8_e4m3fn`: **~15.0 FPS**
+- `--quantization none` (bf16 weights): **~16.7 FPS**
+
+Interpretation: FP8 introduces extra conversion/scaling overhead on this stack. If you have ample VRAM (B300), consider running unquantized for higher FPS and simpler dependencies.
+
+### KV Cache Recompute Cadence (Perf Win, Quality Regression)
+
+Implemented an experimental knob to skip `recompute_kv_cache` in steady-state:
+
+```bash
+export SCOPE_KV_CACHE_RECOMPUTE_EVERY=2  # default 1 (always recompute)
+```
+
+Measured (B300 cu130, `320x576`, fp8, `kv_cache_attention_bias=0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`):
+- `SCOPE_KV_CACHE_RECOMPUTE_EVERY=1`: ~`15.0 FPS`
+- `SCOPE_KV_CACHE_RECOMPUTE_EVERY=2`: ~`16.8 FPS` (alternating fast/slow iters)
+
+**Quality result (Daydream, B300):** `SCOPE_KV_CACHE_RECOMPUTE_EVERY=2` **visibly glitches**. This knob is **debug-only**; do not use it for real runs.
+
+Shortcut: `scripts/bench_b300_recompute_cadence.sh` sweeps `SCOPE_KV_CACHE_RECOMPUTE_EVERY` values and writes logs/JSON under `outputs/`.
+
+### Quick Sanity: Bias Disabled (kv_cache_attention_bias=1.0)
+
+This is only a performance sanity check (quality impact TBD):
+
+- With `SCOPE_KV_BIAS_BACKEND=fa4` (FA4 disabled for non-bias attention to avoid CuTe mixing): **~14.20 FPS**
+- With `SCOPE_KV_BIAS_BACKEND=flash` (FA4 allowed for non-bias attention): **~15.18 FPS**
+
+Takeaway: the `SCOPE_KV_BIAS_BACKEND=fa4` safety disable can cost ~1 FPS **when bias is disabled** because it forces the plain attention path onto FA2. This doesn’t necessarily apply when bias is enabled (`kv_cache_attention_bias=0.3`), because KV-bias uses FA4 score_mod directly.
+
+### torch.compile Status (B300)
+
+As of 2025-12-25:
+
+- `scripts/profile_krea_pipeline_blocks.py --compile` with fp8 quantization fails with:
+  - `NotImplementedError: Float8Tensor dispatch ... aten.as_strided` (torchao float8 wrapper under AOTAutograd/Inductor)
+- `--compile` with `SCOPE_KV_BIAS_BACKEND=fa4` can also cause Dynamo to trace into CuTe (DLpack), which fails with FakeTensor (`Cannot access data pointer...`) and then falls back to Triton (catastrophic on SM103).
+
+Takeaway: treat `--compile` as **experimental** on SM103 until torchao/Inductor + CuTe interop improves (or we add explicit dynamo disable wrappers around the custom kernels).
+
+Update: FA4 score_mod KV-bias is now working on B300 and is faster than flash segment-combine at the canonical resolution. It required:
+- Removing static `import imageio` debug imports in `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` (cutlass-dsl AST preprocessor imports everything in the module).
+- Normalizing B=1 K/V slice stride (use `[0].unsqueeze(0)` views) before calling FA4, to avoid “Can't decude the leading dimension…” when slicing from the KV cache tensor.
+- Disabling FlashAttention 4 (CuTe) for non-bias attention when `SCOPE_KV_BIAS_BACKEND=fa4` to avoid mixing CuTe module variants.
 
 ## New Evidence (Zoom-Out Block Profile)
 

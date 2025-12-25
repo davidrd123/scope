@@ -1,4 +1,4 @@
-# Claude Session State — B300 Investigation (2025-12-25)
+# Claude Session State — B300 Investigation (2025-12-25, Session 2)
 
 > **Purpose:** Handoff document for context compaction. Resume from here.
 
@@ -6,110 +6,162 @@
 
 ## Current Status
 
-**B300 @ 320×576:** ~14.8–15.0 FPS (up from 8.8 baseline = +70%)
+**B300 @ 320×576:** ~15.0 FPS with FA4 (up from 8.8 baseline = +70%)
 
 **Branch:** `feature/stream-recording`
-**Latest commit:** `60a544a` (pushed) - Add B300 optimization docs and incoming research materials
 
 ---
 
 ## What Was Accomplished This Session
 
-### 1. Blog Analysis and Documentation
-- Reviewed 16 blog posts in `notes/research/2025-12-24/incoming/perf/blogs/`
-- Added Section 6 to `blackwell-docs.md`: Quick reference to all blogs with key insights
-- Added Section 7 to `blackwell-docs.md`: Codebase correlation analysis
+### 1. Attention Profiling Deep Dive
 
-### 2. Key Findings from Codebase Correlation
-
-| Category | Status | Notes |
-|----------|--------|-------|
-| Tensor core 128×128 | ✓ Aligned | head_dim=128 for both 14B and 1.3B |
-| flex_attention max-autotune | ✓ Aligned | Uses max-autotune-no-cudagraphs |
-| non_blocking transfers | ✓ Aligned | attention.py uses non_blocking=True |
-| GPU sync elimination | ⚠️ Opportunity | `.item()` calls in KV cache hot path |
-| Regional compilation | ❓ Not implemented | Could reduce cold start |
-
-### 3. Research Organization
-- Moved 3 ChatGPT exports to `incoming/perf/chat/`
-- Added lifecycle framing to `ACTIONABLE_ITEMS_SUMMARY.md`:
-  - `incoming/` = raw, speculative
-  - `ACTIONABLE_ITEMS_SUMMARY.md` = testing TODO list
-  - `blackwell-docs.md` = verified, graduated learnings
-- Added status note to `NVFP4.md` (speculative, relevant for NVIDIA FP4 GEMM competition)
-
-### 4. Current Bottleneck Analysis (cu130 stack)
+Ran `PROFILE_ATTENTION=1` to get transformer breakdown:
 
 ```
-Total: ~6076 ms (6 calls)
-├── denoise: 3951 ms (65%) ← TRANSFORMER, needs deeper breakdown
-│   └── generator: 3946 ms (99.9% of denoise)
-│       └── call_model_kv_cache: 4635 ms
-│           ├── Attention (self+cross)? → UNKNOWN
-│           ├── Linear/MLP GEMMs?       → UNKNOWN
-│           └── Norms, RoPE?            → UNKNOWN
-├── decode: 1242 ms (20%) ← VAE conv3d, FIXED by cu130
-├── recompute_kv_cache: 842 ms (14%)
-└── text_conditioning: 35 ms (0.6%)
+Transformer Block Split (top-level):
+├── self_attn:  ~56%
+├── cross_attn: ~22%
+└── ffn:        ~22%
+
+Within self_attn (with FA4):
+├── kv_bias_fa4:   22% (0.42ms/call) ← the kernel itself
+└── other_in_self: 74% ← QKV projections, RoPE, cache, memory movement
 ```
 
-**Key insight:** After cu130 fixed decode (760ms→194ms), denoise/transformer is now the #1 bottleneck at 65%. The blogs focusing on attention optimization ARE relevant now, but we need a deeper profile to know if it's attention or linear GEMMs.
+**Key insight:** The attention kernel is now fast with FA4. The bottleneck shifted to "other_in_self" (74% of self_attn).
+
+### 2. Created Optimization Vision Doc
+
+`notes/FA4/b300/optimization-vision.md` — Strategic roadmap with:
+- Progress log (8.8 → 13.5 → 15.0 FPS)
+- 6 strategic options (A-F)
+- Option A (FA4 score_mod) marked COMPLETE
+- Phased roadmap toward 24+ FPS target
+
+### 3. Codex Proposed Recompute Cadence Change — REJECTED
+
+Codex found `SCOPE_KV_CACHE_RECOMPUTE_EVERY=2` gives +12% FPS (15→16.8).
+
+**We rejected this** after reading KREA's blog (`notes/krea/blog-krea-realtime-14b.md`):
+- KV Cache Recomputation is CORE to their error accumulation solution
+- They explicitly tried cheaper alternatives and concluded recompute-every-frame is essential
+- Quote: "despite many attempts to devise cheaper solutions, we found these two techniques to be crucial for long, stable generations"
+
+**Decision:** Recompute cadence is OFF LIMITS as an optimization lever.
+
+### 4. Discovered User's Context Editing Vision
+
+`notes/research/2025-12-24/incoming/context_editing_and_console_spec.md`
+
+The OPPOSITE approach to Codex's proposal:
+- KREA re-encodes anchor frame from RGB during recompute
+- This creates an **edit surface** — modify `decoded_frame_buffer[:, :1]` before recompute
+- Edits propagate through KV cache to future frames
+- Enables: error correction, retroactive insertion, character modification
+
+**Status:** Speculative — needs validation spike (blue tint test in the spec)
+
+### 5. Found Orphaned VACE-14B Integration Docs
+
+`notes/vace-14b-integration/plan.md` — Ready to implement:
+- Add reference image conditioning to Krea 14B
+- Upstream weights verified (6.1 GB from Kijai)
+- 5 implementation steps documented
+- Status: "engineering + wiring work, not blocked"
+
+### 6. torch.compile Is Blocked
+
+Codex identified two blockers:
+1. SM103 + fp8: torchao `Float8Tensor` hits `aten.as_strided` under AOTAutograd
+2. FA4/CuTe: breaks Dynamo tracing via DLpack fake-tensor paths
+
+**Decision:** Defer torch.compile until these are resolved.
 
 ---
 
-## Key Files to Know
+## Key Files
 
-| File | Purpose |
-|------|---------|
-| `notes/FA4/b300/blackwell-docs.md` | External docs + blog refs + codebase correlation (Sections 6-7 are new) |
-| `notes/FA4/b300/session-state.md` | Current B300 status + repro commands |
-| `notes/research/2025-12-24/incoming/perf/ACTIONABLE_ITEMS_SUMMARY.md` | Testing TODO list with lifecycle framing |
-| `notes/research/2025-12-24/incoming/perf/blogs/` | 16 saved blog posts |
-| `notes/research/2025-12-24/incoming/perf/chat/` | 3 ChatGPT exports (moved here) |
-| `outputs/b300_cu130_fp8_bias03_drilldown_*.json` | Profiling artifacts |
-
----
-
-## Pending Investigation
-
-**Need to answer:** What's inside the 3951ms `generator()` call?
-- Is it attention (self+cross)? → ThunderKittens, FlexAttention blogs apply
-- Is it linear/MLP GEMMs? → NVFP4 applies
-- Is it RoPE/norms? → Triton fusion applies
-
-**How to get this:** Run with `PROFILE_ATTENTION=1` or add op-level timing to generator.
+| Purpose | File |
+|---------|------|
+| Vision/roadmap | `notes/FA4/b300/optimization-vision.md` |
+| Session state | `notes/FA4/b300/session-state.md` |
+| Investigation runbook | `notes/FA4/b300/investigation-runbook.md` |
+| KREA blog (recompute rationale) | `notes/krea/blog-krea-realtime-14b.md` |
+| Context editing spec | `notes/research/2025-12-24/incoming/context_editing_and_console_spec.md` |
+| VACE-14B plan | `notes/vace-14b-integration/plan.md` |
 
 ---
 
-## Commits Pushed This Session
+## Updated Optimization Roadmap
+
+**OFF LIMITS:**
+- `SCOPE_KV_CACHE_RECOMPUTE_EVERY` — breaks KREA's core stability mechanism
+
+**BLOCKED:**
+- torch.compile — SM103 + fp8 + FA4 issues
+
+**NEXT (Performance):**
+- Fix torchao for cu130 (install 0.14.1 for FP8 fastpaths)
+- Benchmark cuDNN attention backend
+- Try SageAttention
+
+**NEXT (Capability — Orphaned, Needs Grooming):**
+- VACE-14B integration (ready to implement)
+- Context editing validation (speculative, needs spike)
+
+---
+
+## Current Bottleneck Understanding
 
 ```
-60a544a Add B300 optimization docs and incoming research materials
+Pipeline Total
+├── Transformer (denoise + recompute_kv): ~79%
+│   └── Within Transformer:
+│       ├── self_attn: 56% ─┐
+│       │   ├── kv_bias (FA4): 22% ← OPTIMIZED
+│       │   └── other_in_self: 74% ← NEW BOTTLENECK
+│       ├── cross_attn: 22%
+│       └── ffn: 22%
+└── VAE decode: ~20% (FIXED by cu130)
 ```
+
+**"other_in_self" contains:**
+- QKV projections (GEMMs)
+- RoPE application
+- Output projection
+- Cache updates
+- Memory movement / reshape
+
+**Relevant blogs for other_in_self:**
+- `torch-compile-and-diffusers.md` — regional compile, epilogue fusion
+- `accel-genai-pytorch-1.md` — GPU sync elimination, CUDA graphs
+
+But torch.compile is blocked, so torchao FP8 fastpaths may be more immediate.
 
 ---
 
 ## Quick Resume Commands
 
 ```bash
-# Check current status
-cat notes/FA4/b300/session-state.md | head -50
+# Best config for B300
+SCOPE_KV_BIAS_BACKEND=fa4 \
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 --iters 6 --skip 2 \
+  --quantization fp8_e4m3fn --kv-cache-attention-bias 0.3 --cudnn-benchmark
 
-# View blog reference
-cat notes/FA4/b300/blackwell-docs.md | grep -A 100 "## 6) Blackwell Optimization"
-
-# Run B300 benchmark
-./scripts/run_daydream_b300.sh
-
-# Profile with attention breakdown
-PROFILE_ATTENTION=1 ./scripts/run_daydream_b300.sh
+# With attention profiling
+PROFILE_ATTENTION=1 [above command]
 ```
 
 ---
 
-## Next Steps (When Resuming)
+## Open Questions for Next Session
 
-1. **Get transformer-internal breakdown** - Profile what's inside `generator()` (attention vs linear vs other)
-2. **If attention dominates** - Evaluate ThunderKittens or cuDNN attention kernels
-3. **If linear dominates** - Consider NVFP4 for GEMMs (NVIDIA competition running ~2 weeks)
-4. **Test `.item()` elimination** - The GPU sync pattern identified in KV cache code
+1. Should we create `capability-roadmap.md` separate from `optimization-vision.md`?
+2. Update vision doc to mark Option D (recompute) as OFF LIMITS?
+3. Priority: torchao fix vs cuDNN benchmark vs capability features?
+4. Context editing spike — is it worth validating now or defer?

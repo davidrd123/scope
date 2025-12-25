@@ -62,7 +62,12 @@ def is_blackwell_gpu():
 
 flash_attn_4_varlen_func = None
 FLASH_ATTN_4_AVAILABLE = False
-if os.getenv("DISABLE_FLASH_ATTENTION_4", "0") == "0":
+# NOTE: When `SCOPE_KV_BIAS_BACKEND=fa4` we hot-swap `flash_attn.cute` to a vendored
+# score_mod-capable CuTe implementation. Mixing that with the wheel's FA4 varlen path
+# can lead to runtime DSL codegen errors (e.g. TileSchedulerArguments mismatch).
+# Prefer the stable FA2 path for non-bias attention in that configuration.
+_force_disable_fa4 = os.getenv("SCOPE_KV_BIAS_BACKEND", "").lower() == "fa4"
+if os.getenv("DISABLE_FLASH_ATTENTION_4", "0") == "0" and not _force_disable_fa4:
     if _flash_attn is not None:
         try:
             from flash_attn.cute import flash_attn_varlen_func as flash_attn_4_varlen_func
