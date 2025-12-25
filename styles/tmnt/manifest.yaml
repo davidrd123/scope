@@ -1,0 +1,72 @@
+# TMNT Mutant Mayhem Style Manifest
+# Graffiti sketchbook animation style
+
+name: tmnt
+description: TMNT Mutant Mayhem graffiti sketchbook style
+
+# LoRA configuration
+lora_path: tmnt_21_step9500.safetensors
+lora_default_scale: 0.85
+
+# Trigger words (always included in prompt)
+trigger_words:
+  - Graffiti Sketchbook Animation
+
+# Material vocabulary
+material_vocab:
+  skin: "rough textured skin with visible brushstrokes"
+  metal: "scratched metal with CROSS-HATCHING"
+  fabric: "fabric with ROUGH PAINT-SWATCH TEXTURES"
+  default: "graffiti-textured"
+
+# Motion vocabulary
+motion_vocab:
+  idle: "holds a sketchy grounded pose"
+  walk: "moves with loose, urban swagger"
+  run: "sprints with dynamic SCRIBBLED motion lines"
+  fight: "strikes with exaggerated graffiti impact"
+  sneak: "creeps low with heavy shadows"
+
+# Camera vocabulary
+camera_vocab:
+  close_up: "medium close-up with SCRIBBLED LINEWORK"
+  medium: "medium shot"
+  wide: "low-angle wide shot"
+  low_angle: "dramatic low angle"
+  tracking: "dynamic tracking shot"
+
+# Lighting vocabulary
+lighting_vocab:
+  dramatic: "harsh amber streetlight with deep CROSS-HATCHING shadows"
+  flat: "even fluorescent lighting"
+  night: "cool blue AMBIENT HUE"
+  neon: "harsh neon glow with rim lighting"
+
+# Emotion vocabulary
+emotion_vocab:
+  happy: "with exaggerated grin"
+  angry: "with fierce scowl"
+  determined: "with focused intensity"
+  shocked: "with wide-eyed surprise"
+  cool: "with laid-back confidence"
+  neutral: ""
+
+# Beat/pacing modifiers
+beat_vocab:
+  setup: "establishing wide, urban atmosphere"
+  escalation: "building tension, tighter framing"
+  climax: "peak action, dynamic impact"
+  payoff: "reaction beat, comedic timing"
+  reset: "wide shot, return to normal"
+
+# Prompt constraints
+default_negative: "photorealistic, smooth, clean lines, 3D render"
+max_prompt_tokens: 77
+
+# Priority order
+priority_order:
+  - trigger
+  - action
+  - material
+  - camera
+  - mood

@@ -1,0 +1,52 @@
+# Hidari Style Manifest
+# 14B model variant
+
+name: hidari
+description: Hidari animation style (14B)
+
+# LoRA configuration
+lora_path: hidari_v3_14b_step8250.safetensors
+lora_default_scale: 0.85
+
+# Trigger words
+trigger_words:
+  - Hidari Animation
+
+# Motion vocabulary
+motion_vocab:
+  idle: "holds a poised stance"
+  walk: "moves with fluid grace"
+  run: "flows with swift motion"
+  fight: "strikes with precise form"
+
+# Camera vocabulary
+camera_vocab:
+  close_up: "intimate close-up"
+  medium: "balanced medium shot"
+  wide: "expansive wide shot"
+  low_angle: "dramatic low angle"
+
+# Lighting vocabulary
+lighting_vocab:
+  dramatic: "dramatic chiaroscuro"
+  flat: "soft even lighting"
+  night: "atmospheric night"
+  golden: "warm golden hour"
+
+# Emotion vocabulary
+emotion_vocab:
+  happy: "with serene smile"
+  angry: "with intense focus"
+  sad: "with melancholic gaze"
+  neutral: ""
+
+# Beat vocabulary
+beat_vocab:
+  setup: "establishing calm"
+  escalation: "building intensity"
+  climax: "peak moment"
+  payoff: "emotional landing"
+  reset: "return to stillness"
+
+default_negative: "low quality, blurry, noise"
+max_prompt_tokens: 77

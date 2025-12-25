@@ -19,6 +19,10 @@ class FakeFrameProcessor:
         self.parameters: dict = {"prompts": [{"text": "test prompt", "weight": 1.0}]}
         self._latest_frame = torch.zeros((1, 1, 3), dtype=torch.uint8)
         self.updates: list[dict] = []
+        # Style layer fields (Phase 6a)
+        self.world_state = None
+        self.style_manifest = None
+        self._compiled_prompt = None
 
     def update_parameters(self, parameters: dict) -> bool:
         self.updates.append(dict(parameters))

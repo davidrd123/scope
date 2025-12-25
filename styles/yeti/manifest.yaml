@@ -1,0 +1,52 @@
+# Yeti Style Manifest
+# 14B model variant
+
+name: yeti
+description: Yeti animation style (14B)
+
+# LoRA configuration
+lora_path: yeti_10bucket_v3_14b_8500steps.safetensors
+lora_default_scale: 0.85
+
+# Trigger words
+trigger_words:
+  - Yeti Animation
+
+# Motion vocabulary
+motion_vocab:
+  idle: "stands in a calm pose"
+  walk: "lumbers forward"
+  run: "charges with heavy momentum"
+  roar: "bellows with primal fury"
+
+# Camera vocabulary
+camera_vocab:
+  close_up: "extreme close-up"
+  medium: "medium shot"
+  wide: "sweeping wide shot"
+  low_angle: "imposing low angle"
+
+# Lighting vocabulary
+lighting_vocab:
+  dramatic: "dramatic rim lighting"
+  flat: "even lighting"
+  night: "moonlit atmosphere"
+  snow: "cold blue snow glow"
+
+# Emotion vocabulary
+emotion_vocab:
+  happy: "with gentle expression"
+  angry: "with fierce snarl"
+  curious: "with tilted head"
+  neutral: ""
+
+# Beat vocabulary
+beat_vocab:
+  setup: "establishing atmosphere"
+  escalation: "building tension"
+  climax: "peak intensity"
+  payoff: "resolution beat"
+  reset: "return to calm"
+
+default_negative: "low quality, blurry"
+max_prompt_tokens: 77

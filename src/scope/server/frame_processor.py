@@ -6,9 +6,18 @@ import time
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import torch
+
+from scope.realtime import (
+    CompiledPrompt,
+    StyleManifest,
+    StyleRegistry,
+    TemplateCompiler,
+    WorldState,
+)
 
 try:
     from aiortc.mediastreams import VideoFrame
@@ -73,6 +82,12 @@ class Snapshot:
     parameters: dict[str, Any] = field(default_factory=dict)
     paused: bool = False
     video_mode: bool = False
+
+    # Style layer state (minimal, deterministic)
+    world_state_json: str | None = None  # JSON string for thread-safe restore
+    active_style_name: str | None = None
+    style_manifest_hash: str | None = None
+    compiled_prompt_text: str | None = None  # For debugging
 
     # Compatibility metadata (for future validation)
     pipeline_id: str | None = None
@@ -149,6 +164,14 @@ class FrameProcessor:
         self.control_bus = ControlBus()
         self.chunk_index = 0
 
+        # Style layer: WorldState + StyleManifest + TemplateCompiler
+        self.world_state: WorldState = WorldState()
+        self.style_manifest: StyleManifest | None = None
+        self.style_registry: StyleRegistry = StyleRegistry()
+        self.prompt_compiler: TemplateCompiler = TemplateCompiler()
+        self._compiled_prompt: CompiledPrompt | None = None
+        self._style_manifest_hash: str | None = None  # For edge-triggering LoRA
+
         # Step mode: allow generating N chunks even while paused.
         # Stored on the worker thread for deterministic semantics.
         self._pending_steps = 0
@@ -194,6 +217,18 @@ class FrameProcessor:
         if "spout_receiver" in self.parameters:
             spout_config = self.parameters.pop("spout_receiver")
             self._update_spout_receiver(spout_config)
+
+        # Load style manifests from styles/ directory
+        styles_dir = Path("styles")
+        if styles_dir.exists():
+            try:
+                self.style_registry.load_from_directory(styles_dir)
+                logger.info(
+                    f"Loaded {len(self.style_registry.list_styles())} styles: "
+                    f"{self.style_registry.list_styles()}"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to load styles from {styles_dir}: {e}")
 
         self.worker_thread = threading.Thread(target=self.worker_loop, daemon=True)
         self.worker_thread.start()
@@ -825,6 +860,83 @@ class FrameProcessor:
                 step_count = max(1, step_val)
             self._pending_steps += step_count
 
+        # Track if explicit prompts were set this chunk (for precedence)
+        explicit_prompts_set = "prompts" in merged_updates
+
+        # Handle world state update (full replace, thread-safe via model_validate)
+        if "_rcp_world_state" in merged_updates:
+            world_data = merged_updates.pop("_rcp_world_state")
+            try:
+                self.world_state = WorldState.model_validate(world_data)
+                logger.debug(f"WorldState updated: action={self.world_state.action}")
+
+                # Recompile if style active and no explicit prompts
+                if self.style_manifest and not explicit_prompts_set:
+                    compiled = self.prompt_compiler.compile(
+                        self.world_state, self.style_manifest
+                    )
+                    self._compiled_prompt = compiled
+                    # Inject compiled prompts into merged_updates for event processing
+                    merged_updates["prompts"] = [p.to_dict() for p in compiled.prompts]
+                    logger.debug(f"Auto-compiled prompt: {compiled.prompt[:80]}...")
+                    # Note: LoRA NOT re-sent here (only on style change)
+            except Exception as e:
+                logger.warning(f"Failed to validate WorldState: {e}")
+
+        # Handle style change
+        if "_rcp_set_style" in merged_updates:
+            style_name = merged_updates.pop("_rcp_set_style")
+            new_style = self.style_registry.get(style_name)
+            if new_style:
+                new_hash = str(hash(new_style.model_dump_json()))
+                style_changed = new_hash != self._style_manifest_hash
+
+                self.style_manifest = new_style
+                self._style_manifest_hash = new_hash
+                logger.info(f"Active style set to: {style_name}")
+
+                # Recompile with new style
+                compiled = self.prompt_compiler.compile(
+                    self.world_state, self.style_manifest
+                )
+                self._compiled_prompt = compiled
+
+                if not explicit_prompts_set:
+                    merged_updates["prompts"] = [p.to_dict() for p in compiled.prompts]
+
+                # LoRA only on style change (edge-trigger)
+                # Zero out all other LoRAs, activate the new one
+                if style_changed:
+                    lora_updates = []
+                    active_lora_path = new_style.lora_path
+
+                    # Zero out all other styles' LoRAs
+                    for other_style in self.style_registry.list_styles():
+                        other_manifest = self.style_registry.get(other_style)
+                        if other_manifest and other_manifest.lora_path:
+                            if other_manifest.lora_path == active_lora_path:
+                                # Active style: use its scale
+                                lora_updates.append(
+                                    {
+                                        "path": active_lora_path,
+                                        "scale": new_style.lora_default_scale,
+                                    }
+                                )
+                            else:
+                                # Inactive style: zero it out
+                                lora_updates.append(
+                                    {"path": other_manifest.lora_path, "scale": 0.0}
+                                )
+
+                    if lora_updates:
+                        merged_updates["lora_scales"] = lora_updates
+                        logger.info(
+                            f"LoRA switch: {active_lora_path} @ {new_style.lora_default_scale}, "
+                            f"zeroed {len(lora_updates) - 1} others"
+                        )
+            else:
+                logger.warning(f"Style not found in registry: {style_name}")
+
         step_requested = self._pending_steps > 0
 
         # ========================================================================
@@ -1202,6 +1314,13 @@ class FrameProcessor:
             parameters=copy.deepcopy(self.parameters),
             paused=self.paused,
             video_mode=self._video_mode,
+            # Style layer state
+            world_state_json=self.world_state.model_dump_json(),
+            active_style_name=self.style_manifest.name if self.style_manifest else None,
+            style_manifest_hash=self._style_manifest_hash,
+            compiled_prompt_text=(
+                self._compiled_prompt.prompt if self._compiled_prompt else None
+            ),
             pipeline_id=pipeline_id,
             resolution=resolution,
         )
@@ -1291,6 +1410,18 @@ class FrameProcessor:
         self.paused = snapshot.paused
         self._video_mode = snapshot.video_mode
         self.chunk_index = snapshot.chunk_index
+
+        # Restore style layer state (thread-safe via model_validate_json)
+        if snapshot.world_state_json:
+            self.world_state = WorldState.model_validate_json(snapshot.world_state_json)
+        if snapshot.active_style_name:
+            self.style_manifest = self.style_registry.get(snapshot.active_style_name)
+            self._style_manifest_hash = snapshot.style_manifest_hash
+        # Recompile after restore
+        if self.world_state and self.style_manifest:
+            self._compiled_prompt = self.prompt_compiler.compile(
+                self.world_state, self.style_manifest
+            )
 
         # Clear output_queue to prevent stale pre-restore frames
         self.flush_output_queue()

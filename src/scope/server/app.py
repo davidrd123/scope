@@ -771,6 +771,11 @@ class RealtimeStateResponse(BaseModel):
     prompt: str | None = None
     session_id: str
 
+    # Style layer state
+    world_state: dict | None = None
+    active_style: str | None = None
+    compiled_prompt: str | None = None
+
 
 class RealtimeControlResponse(BaseModel):
     """Response for control operations."""
@@ -783,6 +788,34 @@ class PromptRequest(BaseModel):
     """Request to set prompt."""
 
     prompt: str
+
+
+class WorldStateRequest(BaseModel):
+    """Request to set world state (full replace)."""
+
+    world_state: dict
+
+
+class SetStyleRequest(BaseModel):
+    """Request to set active style."""
+
+    name: str
+
+
+class StyleInfo(BaseModel):
+    """Summary info about a style."""
+
+    name: str
+    description: str
+    lora_path: str | None = None
+    trigger_words: list[str] = []
+
+
+class StyleListResponse(BaseModel):
+    """List of available styles."""
+
+    styles: list[StyleInfo]
+    active_style: str | None = None
 
 
 @app.get("/api/v1/realtime/state", response_model=RealtimeStateResponse)
@@ -816,6 +849,12 @@ async def get_realtime_state(
             chunk_index=fp.chunk_index,
             prompt=prompt_text,
             session_id=session.id,
+            # Style layer state
+            world_state=fp.world_state.model_dump() if fp.world_state else None,
+            active_style=fp.style_manifest.name if fp.style_manifest else None,
+            compiled_prompt=(
+                fp._compiled_prompt.prompt if fp._compiled_prompt else None
+            ),
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
@@ -964,6 +1003,101 @@ async def get_latest_frame(
         raise
     except Exception as e:
         logger.error(f"Error getting latest frame: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+# =============================================================================
+# Style Layer API - WorldState, Style, and Prompt Compilation
+# =============================================================================
+
+
+@app.put("/api/v1/realtime/world", response_model=RealtimeControlResponse)
+async def set_world_state(
+    request: WorldStateRequest,
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Replace WorldState (full replace, not patch)."""
+    try:
+        session = get_active_session(webrtc_manager)
+        if not apply_control_message(session, {"_rcp_world_state": request.world_state}):
+            raise HTTPException(503, "Failed to apply world state")
+        fp = session.video_track.frame_processor
+        return RealtimeControlResponse(
+            status="world_state_updated",
+            chunk_index=fp.chunk_index if fp else None,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error setting world state: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.put("/api/v1/realtime/style", response_model=RealtimeControlResponse)
+async def set_active_style(
+    request: SetStyleRequest,
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Set active style by name."""
+    try:
+        session = get_active_session(webrtc_manager)
+        if not apply_control_message(session, {"_rcp_set_style": request.name}):
+            raise HTTPException(503, "Failed to apply style change")
+        fp = session.video_track.frame_processor
+        return RealtimeControlResponse(
+            status="style_set",
+            chunk_index=fp.chunk_index if fp else None,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error setting style: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.get("/api/v1/realtime/style/list", response_model=StyleListResponse)
+async def list_styles(
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """List available styles from the registry."""
+    try:
+        session = get_active_session(webrtc_manager)
+        vt = session.video_track
+        if vt is None:
+            raise HTTPException(400, "No video track")
+
+        vt.initialize_output_processing()
+        fp = vt.frame_processor
+        if fp is None:
+            raise HTTPException(400, "FrameProcessor not ready")
+
+        styles = []
+        for style_name in fp.style_registry.list_styles():
+            manifest = fp.style_registry.get(style_name)
+            if manifest:
+                styles.append(
+                    StyleInfo(
+                        name=manifest.name,
+                        description=manifest.description,
+                        lora_path=manifest.lora_path,
+                        trigger_words=manifest.trigger_words,
+                    )
+                )
+
+        return StyleListResponse(
+            styles=styles,
+            active_style=fp.style_manifest.name if fp.style_manifest else None,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing styles: {e}")
         raise HTTPException(500, str(e)) from e
 
 

@@ -136,6 +136,85 @@ def frame(ctx, out):
             output({"chunk_index": r.json().get("chunk_index")}, ctx)
 
 
+# --- World State ---
+
+
+@cli.command()
+@click.argument("json_data", required=False)
+@click.option("--get", "get_only", is_flag=True, help="Only get current world state")
+@click.pass_context
+def world(ctx, json_data, get_only):
+    """Set or get WorldState.
+
+    Examples:
+        video-cli world                              # Get current world state
+        video-cli world '{"action":"run"}'           # Set world state
+    """
+    with get_client(ctx) as client:
+        if get_only or json_data is None:
+            r = client.get("/api/v1/realtime/state")
+            handle_error(r)
+            data = r.json()
+            output({"world_state": data.get("world_state")}, ctx)
+        else:
+            try:
+                world_state = json.loads(json_data)
+            except json.JSONDecodeError as e:
+                click.echo(json.dumps({"error": f"Invalid JSON: {e}"}), err=True)
+                sys.exit(1)
+            r = client.put("/api/v1/realtime/world", json={"world_state": world_state})
+            handle_error(r)
+            output(r.json(), ctx)
+
+
+# --- Style ---
+
+
+@cli.group()
+@click.pass_context
+def style(ctx):
+    """Manage active style."""
+    pass
+
+
+@style.command("list")
+@click.pass_context
+def style_list(ctx):
+    """List available styles."""
+    with get_client(ctx) as client:
+        r = client.get("/api/v1/realtime/style/list")
+        handle_error(r)
+        output(r.json(), ctx)
+
+
+@style.command("set")
+@click.argument("name")
+@click.pass_context
+def style_set(ctx, name):
+    """Set active style by name."""
+    with get_client(ctx) as client:
+        r = client.put("/api/v1/realtime/style", json={"name": name})
+        handle_error(r)
+        output(r.json(), ctx)
+
+
+@style.command("get")
+@click.pass_context
+def style_get(ctx):
+    """Get currently active style."""
+    with get_client(ctx) as client:
+        r = client.get("/api/v1/realtime/state")
+        handle_error(r)
+        data = r.json()
+        output(
+            {
+                "active_style": data.get("active_style"),
+                "compiled_prompt": data.get("compiled_prompt"),
+            },
+            ctx,
+        )
+
+
 # --- Snapshots (placeholder - uses existing WebRTC API indirectly) ---
 
 

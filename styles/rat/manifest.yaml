@@ -1,0 +1,73 @@
+# RAT Style Manifest - Rooster & Terry clay animation
+# Minimal MVP manifest for Phase 6a
+
+name: rat
+description: Rooster & Terry clay-puppet animation style
+
+# LoRA configuration
+lora_path: rat_21_step5500.safetensors
+lora_default_scale: 0.85
+
+# Trigger words (always included in prompt)
+trigger_words:
+  - Clay-Plastic Pose-to-Pose Animation
+
+# Material vocabulary (clay-puppet specific)
+material_vocab:
+  clay: "sculpted clay puppet with visible fingerprints"
+  plastic: "glossy plastic toy figure"
+  fabric: "felt fabric costume"
+  default: "clay-puppet"
+
+# Motion vocabulary (pose-to-pose timing)
+motion_vocab:
+  idle: "holds a strong key pose"
+  walk: "moves in sharp POSE-TO-POSE transition"
+  run: "snaps into motion with POSE-TO-POSE timing"
+  enter_menacing: "enters frame with SNAPPY stop-motion timing"
+  fall: "drops with EXAGGERATED squash and stretch"
+
+# Camera vocabulary
+camera_vocab:
+  close_up: "GROTESQUE EXTREME CLOSE-UP"
+  medium: "medium shot"
+  wide: "wide establishing shot"
+  low_angle: "heroic low angle"
+  tracking: "smooth puppet theater tracking"
+
+# Lighting vocabulary
+lighting_vocab:
+  dramatic: "theatrical spotlight with deep shadows"
+  flat: "even studio lighting"
+  night: "cool blue night lighting"
+  golden_hour: "warm amber glow"
+
+# Emotion vocabulary (character expressions)
+emotion_vocab:
+  happy: "with jubilant glee"
+  sad: "with droopy melancholic expression"
+  angry: "with fierce, scrappy expression"
+  frustrated: "with exasperated eye roll"
+  shocked: "frozen in shocked REACTION HOLD"
+  determined: "with steely determined gaze"
+  neutral: ""
+
+# Beat/pacing modifiers
+beat_vocab:
+  setup: "establishing wide, calm anticipation"
+  escalation: "building tension, tighter framing"
+  climax: "peak action, dramatic pose"
+  payoff: "reaction HOLD, comedic timing"
+  reset: "wide shot, return to normal"
+
+# Prompt constraints
+default_negative: "photorealistic, motion blur, text, watermark"
+max_prompt_tokens: 77
+
+# Priority order for token budget
+priority_order:
+  - trigger
+  - action
+  - material
+  - camera
+  - mood
