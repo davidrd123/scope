@@ -1,6 +1,8 @@
 # Context Editing - Code Reference
 
-Extracted from `incoming/project_knowledge.md` and `incoming/context_editing_and_console_spec.md`.
+Extracted from:
+- `notes/research/2025-12-24/incoming/project_knowledge.md`
+- `notes/research/2025-12-24/incoming/context_editing_and_console_spec.md`
 
 ---
 

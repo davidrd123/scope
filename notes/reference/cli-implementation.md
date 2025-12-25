@@ -1,6 +1,6 @@
 # CLI Implementation - Code Reference
 
-Extracted from `incoming/interface_specifications.md`.
+Extracted from `notes/research/2025-12-24/incoming/interface_specifications.md`.
 
 ---
 

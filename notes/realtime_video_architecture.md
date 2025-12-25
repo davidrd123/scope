@@ -768,6 +768,18 @@ Recommended deterministic application order at each boundary:
 5. Prompt/transition (`SET_PROMPT`) (direct override; may include `transition`)
 6. Runtime params (`SET_DENOISE_STEPS`, `SET_SEED`, `SET_LORA_SCALES`, …)
 
+#### Context Editing (Anchor Frame)
+
+Second axis of control: change what the model **sees** (not just what we **say**) by editing the anchor in the decoded buffer.
+
+- **Edit surface**: `pipeline.state["decoded_frame_buffer"][:, :1]` (first decoded RGB frame)
+- **Propagation mechanism**: KV-cache recompute re-encodes the decoded anchor frame back to latents, so future frames inherit the edit
+- **Operational constraint**: treat edits as chunk-boundary operations; apply while paused, then `step` to observe the effect
+
+References:
+- Spec: `notes/research/2025-12-24/incoming/context_editing_and_console_spec.md`
+- Extracted runbook/snippets: `notes/reference/context-editing-code.md`
+
 ### 6. GeneratorDriver
 
 The tick loop that owns the pipeline and applies control events.
