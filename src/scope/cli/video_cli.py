@@ -347,11 +347,13 @@ def playlist_apply(ctx):
 @playlist.command("nav")
 @click.pass_context
 def playlist_nav(ctx):
-    """Interactive navigation mode.
+    """Interactive navigation mode with autoplay.
 
     Controls:
         →, n, l, SPACE  Next prompt
-        ←, p, h         Previous prompt
+        ←, p, h         Previous prompt (stops autoplay)
+        o               Toggle autoplay (default 5s interval)
+        +/-             Adjust autoplay speed (1-30s)
         g               Go to index (prompts for number)
         a               Apply current prompt
         r               Refresh display
@@ -359,38 +361,40 @@ def playlist_nav(ctx):
 
     Changes are auto-applied by default.
     """
+    import os
     import select
     import termios
+    import time
     import tty
 
-    def get_char():
-        """Read a single character from stdin."""
+    def get_char_nonblocking(timeout=0.2):
+        """Read a char with timeout. Returns None if no input."""
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
         try:
             tty.setraw(fd)
-            # Handle arrow keys (escape sequences)
-            ch = sys.stdin.read(1)
-            if ch == "\x1b":  # Escape character
-                # Wait a bit longer for arrow key sequences
-                # Arrow keys send: ESC [ A/B/C/D
-                if select.select([sys.stdin], [], [], 0.3)[0]:
-                    ch2 = sys.stdin.read(1)
-                    if ch2 == "[":
-                        if select.select([sys.stdin], [], [], 0.1)[0]:
-                            ch3 = sys.stdin.read(1)
-                            ch = ch + ch2 + ch3
+            if select.select([fd], [], [], timeout)[0]:
+                ch = os.read(fd, 1).decode("utf-8", errors="ignore")
+                if ch == "\x1b":
+                    extra = ""
+                    for _ in range(5):
+                        if select.select([fd], [], [], 0.05)[0]:
+                            byte = os.read(fd, 1).decode("utf-8", errors="ignore")
+                            extra += byte
+                            if len(extra) >= 2 and extra[0] == "[" and extra[-1] in "ABCD":
+                                break
                         else:
-                            ch = ch + ch2
-                    else:
-                        ch = ch + ch2
-            return ch
+                            break
+                    ch = ch + extra
+                return ch
+            return None
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-    def display_preview(client):
+    def display_preview(client, autoplay=False, interval=5.0):
         """Fetch and display preview."""
         import shutil
+
         term_width = shutil.get_terminal_size().columns
 
         r = client.get("/api/v1/realtime/playlist/preview", params={"context": 3})
@@ -402,10 +406,13 @@ def playlist_nav(ctx):
             return None
 
         click.echo("\n" + "=" * term_width)
-        click.echo(f"  Playlist: {data.get('total', 0)} prompts")
+        status = f"  Playlist: {data.get('total', 0)} prompts"
+        if autoplay:
+            status += f"  [▶ AUTO {interval}s]"
+        click.echo(status)
         click.echo("=" * term_width)
 
-        # Calculate prompt display width: total - marker(2) - bracket+idx(6) - space(1)
+        # Calculate prompt display width
         prompt_width = term_width - 10
 
         for item in data.get("prompts", []):
@@ -413,74 +420,121 @@ def playlist_nav(ctx):
             idx = item.get("index", 0)
             prompt = item.get("prompt", "")[:prompt_width]
             if item.get("current"):
-                click.echo(click.style(f"{marker}[{idx:3d}] {prompt}", fg="green", bold=True))
+                click.echo(
+                    click.style(f"{marker}[{idx:3d}] {prompt}", fg="green", bold=True)
+                )
             else:
                 click.echo(f"{marker}[{idx:3d}] {prompt}")
 
         click.echo("=" * term_width)
-        click.echo("  ←/→ navigate | a apply | g goto | q quit")
+        click.echo("  ←/→ nav | o auto | +/- speed | g goto | q quit")
         click.echo("=" * term_width + "\n")
         return data
 
     click.echo("\nPlaylist Navigation Mode")
     click.echo("Press q or ESC to quit\n")
 
+    # Autoplay state
+    autoplay = False
+    autoplay_interval = 5.0
+    last_advance = time.time()
+
     with get_client(ctx) as client:
-        if display_preview(client) is None:
+        if display_preview(client, autoplay, autoplay_interval) is None:
             return
 
         while True:
             try:
-                ch = get_char()
+                ch = get_char_nonblocking(timeout=0.2)
 
-                # Quit (only bare ESC, not arrow key sequences)
-                if ch in ("q", "Q", "\x03") or ch == "\x1b":  # q, Ctrl+C, bare ESC
-                    click.echo("\nExiting navigation mode.\n")
-                    break
+                if ch is not None:
+                    # Quit
+                    if ch in ("q", "Q", "\x03"):
+                        click.echo("\nExiting navigation mode.\n")
+                        break
+                    elif ch == "\x1b" and len(ch) == 1:
+                        click.echo("\nExiting navigation mode.\n")
+                        break
 
-                # Next
-                elif ch in ("\x1b[C", "n", "l", " "):  # Right arrow, n, l, space
-                    r = client.post("/api/v1/realtime/playlist/next", params={"apply": True})
-                    if r.status_code == 200:
-                        display_preview(client)
+                    # Toggle autoplay
+                    elif ch == "o":
+                        autoplay = not autoplay
+                        last_advance = time.time()
+                        display_preview(client, autoplay, autoplay_interval)
 
-                # Previous
-                elif ch in ("\x1b[D", "p", "h"):  # Left arrow, p, h
-                    r = client.post("/api/v1/realtime/playlist/prev", params={"apply": True})
-                    if r.status_code == 200:
-                        display_preview(client)
+                    # Adjust speed
+                    elif ch in ("+", "=", "]"):
+                        autoplay_interval = max(1.0, autoplay_interval - 1.0)
+                        click.echo(f"  Interval: {autoplay_interval}s")
+                    elif ch in ("-", "_", "["):
+                        autoplay_interval = min(30.0, autoplay_interval + 1.0)
+                        click.echo(f"  Interval: {autoplay_interval}s")
 
-                # Goto
-                elif ch == "g":
-                    click.echo("\nGoto index: ", nl=False)
-                    # Temporarily restore terminal for input
-                    fd = sys.stdin.fileno()
-                    old_settings = termios.tcgetattr(fd)
-                    termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-                    try:
-                        idx_str = input()
-                        idx = int(idx_str)
+                    # Next
+                    elif ch in ("\x1b[C", "n", "l", " "):
                         r = client.post(
-                            "/api/v1/realtime/playlist/goto",
-                            json={"index": idx},
-                            params={"apply": True},
+                            "/api/v1/realtime/playlist/next", params={"apply": True}
                         )
                         if r.status_code == 200:
-                            display_preview(client)
-                    except ValueError:
-                        click.echo("Invalid index")
-                    except EOFError:
-                        pass
+                            display_preview(client, autoplay, autoplay_interval)
+                        last_advance = time.time()
 
-                # Apply
-                elif ch == "a":
-                    r = client.post("/api/v1/realtime/playlist/apply")
+                    # Previous (stops autoplay)
+                    elif ch in ("\x1b[D", "p", "h"):
+                        r = client.post(
+                            "/api/v1/realtime/playlist/prev", params={"apply": True}
+                        )
+                        if r.status_code == 200:
+                            display_preview(client, autoplay, autoplay_interval)
+                        last_advance = time.time()
+                        if autoplay:
+                            autoplay = False
+                            click.echo("  ⏸ Autoplay stopped")
+
+                    # Goto
+                    elif ch == "g":
+                        click.echo("\nGoto index: ", nl=False)
+                        fd = sys.stdin.fileno()
+                        old_settings = termios.tcgetattr(fd)
+                        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+                        try:
+                            idx_str = input()
+                            idx = int(idx_str)
+                            r = client.post(
+                                "/api/v1/realtime/playlist/goto",
+                                json={"index": idx},
+                                params={"apply": True},
+                            )
+                            if r.status_code == 200:
+                                display_preview(client, autoplay, autoplay_interval)
+                            last_advance = time.time()
+                        except ValueError:
+                            click.echo("Invalid index")
+                        except EOFError:
+                            pass
+
+                    # Apply
+                    elif ch == "a":
+                        r = client.post("/api/v1/realtime/playlist/apply")
+                        if r.status_code == 200:
+                            click.echo("  ✓ Prompt applied")
+
+                    # Refresh
+                    elif ch == "r":
+                        display_preview(client, autoplay, autoplay_interval)
+
+                # Autoplay advance
+                if autoplay and (time.time() - last_advance) >= autoplay_interval:
+                    r = client.post(
+                        "/api/v1/realtime/playlist/next", params={"apply": True}
+                    )
                     if r.status_code == 200:
-                        click.echo("  ✓ Prompt applied")
-
-                # Refresh
-                elif ch == "r":
-                    display_preview(client)
+                        data = r.json()
+                        if not data.get("has_next", False):
+                            autoplay = False
+                            click.echo("  ⏹ End of playlist")
+                        display_preview(client, autoplay, autoplay_interval)
+                    last_advance = time.time()
 
             except KeyboardInterrupt:
                 click.echo("\nExiting navigation mode.\n")
