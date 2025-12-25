@@ -351,8 +351,9 @@ def playlist_nav(ctx):
 
     Controls:
         →, n, l, SPACE  Next prompt
-        ←, p, h         Previous prompt (stops autoplay)
+        ←, p            Previous prompt (stops autoplay)
         o               Toggle autoplay (default 5s interval)
+        H               Toggle hard cut mode (reset cache on each transition)
         +/-             Adjust autoplay speed (1-30s)
         g               Go to index (prompts for number)
         a               Apply current prompt
@@ -360,6 +361,7 @@ def playlist_nav(ctx):
         q, ESC          Quit
 
     Changes are auto-applied by default.
+    Hard cut mode resets the KV cache on each prompt change for clean scene transitions.
     """
     import os
     import select
@@ -391,7 +393,7 @@ def playlist_nav(ctx):
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-    def display_preview(client, autoplay=False, interval=5.0):
+    def display_preview(client, autoplay=False, interval=5.0, hard_cut=False):
         """Fetch and display preview."""
         import shutil
 
@@ -409,6 +411,8 @@ def playlist_nav(ctx):
         status = f"  Playlist: {data.get('total', 0)} prompts"
         if autoplay:
             status += f"  [▶ AUTO {interval}s]"
+        if hard_cut:
+            status += "  [✂ HARD CUT]"
         click.echo(status)
         click.echo("=" * term_width)
 
@@ -427,7 +431,7 @@ def playlist_nav(ctx):
                 click.echo(f"{marker}[{idx:3d}] {prompt}")
 
         click.echo("=" * term_width)
-        click.echo("  ←/→ nav | o auto | +/- speed | g goto | q quit")
+        click.echo("  ←/→ nav | o auto | H hard cut | +/- speed | g goto | q quit")
         click.echo("=" * term_width + "\n")
         return data
 
@@ -439,8 +443,11 @@ def playlist_nav(ctx):
     autoplay_interval = 5.0
     last_advance = time.time()
 
+    # Hard cut state - when enabled, all transitions reset the KV cache
+    hard_cut = False
+
     with get_client(ctx) as client:
-        if display_preview(client, autoplay, autoplay_interval) is None:
+        if display_preview(client, autoplay, autoplay_interval, hard_cut) is None:
             return
 
         while True:
@@ -460,7 +467,14 @@ def playlist_nav(ctx):
                     elif ch == "o":
                         autoplay = not autoplay
                         last_advance = time.time()
-                        display_preview(client, autoplay, autoplay_interval)
+                        display_preview(client, autoplay, autoplay_interval, hard_cut)
+
+                    # Toggle hard cut mode
+                    elif ch == "H":
+                        hard_cut = not hard_cut
+                        status = "ON - transitions will reset cache" if hard_cut else "OFF"
+                        click.echo(f"  ✂ Hard cut: {status}")
+                        display_preview(client, autoplay, autoplay_interval, hard_cut)
 
                     # Adjust speed
                     elif ch in ("+", "=", "]"):
@@ -473,19 +487,21 @@ def playlist_nav(ctx):
                     # Next
                     elif ch in ("\x1b[C", "n", "l", " "):
                         r = client.post(
-                            "/api/v1/realtime/playlist/next", params={"apply": True}
+                            "/api/v1/realtime/playlist/next",
+                            params={"apply": True, "hard_cut": hard_cut},
                         )
                         if r.status_code == 200:
-                            display_preview(client, autoplay, autoplay_interval)
+                            display_preview(client, autoplay, autoplay_interval, hard_cut)
                         last_advance = time.time()
 
                     # Previous (stops autoplay)
-                    elif ch in ("\x1b[D", "p", "h"):
+                    elif ch in ("\x1b[D", "p"):
                         r = client.post(
-                            "/api/v1/realtime/playlist/prev", params={"apply": True}
+                            "/api/v1/realtime/playlist/prev",
+                            params={"apply": True, "hard_cut": hard_cut},
                         )
                         if r.status_code == 200:
-                            display_preview(client, autoplay, autoplay_interval)
+                            display_preview(client, autoplay, autoplay_interval, hard_cut)
                         last_advance = time.time()
                         if autoplay:
                             autoplay = False
@@ -503,37 +519,44 @@ def playlist_nav(ctx):
                             r = client.post(
                                 "/api/v1/realtime/playlist/goto",
                                 json={"index": idx},
-                                params={"apply": True},
+                                params={"apply": True, "hard_cut": hard_cut},
                             )
                             if r.status_code == 200:
-                                display_preview(client, autoplay, autoplay_interval)
+                                display_preview(client, autoplay, autoplay_interval, hard_cut)
                             last_advance = time.time()
                         except ValueError:
                             click.echo("Invalid index")
                         except EOFError:
                             pass
 
-                    # Apply
+                    # Apply (with hard cut if enabled)
                     elif ch == "a":
-                        r = client.post("/api/v1/realtime/playlist/apply")
+                        r = client.post(
+                            "/api/v1/realtime/playlist/apply",
+                            params={"hard_cut": hard_cut},
+                        )
                         if r.status_code == 200:
-                            click.echo("  ✓ Prompt applied")
+                            msg = "✓ Prompt applied"
+                            if hard_cut:
+                                msg += " (hard cut)"
+                            click.echo(f"  {msg}")
 
                     # Refresh
                     elif ch == "r":
-                        display_preview(client, autoplay, autoplay_interval)
+                        display_preview(client, autoplay, autoplay_interval, hard_cut)
 
                 # Autoplay advance
                 if autoplay and (time.time() - last_advance) >= autoplay_interval:
                     r = client.post(
-                        "/api/v1/realtime/playlist/next", params={"apply": True}
+                        "/api/v1/realtime/playlist/next",
+                        params={"apply": True, "hard_cut": hard_cut},
                     )
                     if r.status_code == 200:
                         data = r.json()
                         if not data.get("has_next", False):
                             autoplay = False
                             click.echo("  ⏹ End of playlist")
-                        display_preview(client, autoplay, autoplay_interval)
+                        display_preview(client, autoplay, autoplay_interval, hard_cut)
                     last_advance = time.time()
 
             except KeyboardInterrupt:
