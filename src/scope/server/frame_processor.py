@@ -1053,7 +1053,9 @@ class FrameProcessor:
 
         # Clear output buffer queue when reset_cache is requested to prevent old frames
         if reset_cache:
-            logger.info("Clearing output buffer queue due to reset_cache request")
+            logger.info(
+                "HARD CUT: reset_cache=True received, will pass init_cache=True to pipeline"
+            )
             self.flush_output_queue()
 
         requirements = None
