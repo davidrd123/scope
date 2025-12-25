@@ -110,11 +110,13 @@ class SingleTileLPTScheduler:
     @staticmethod
     def create(args):
         # Estimate how many (head × batch) KV "units" fit in L2
-        size_one_kv_head = seqlen_k * (headdim + headdim_v) * element_size
-        size_l2 = 50 * 1024 * 1024  # heuristic constant (bytes)
+        size_one_kv_head = args.seqlen_k * (args.headdim + args.headdim_v) * args.element_size
+        size_one_head = size_one_kv_head
+        size_l2 = 50 * 1024 * 1024  # heuristic constant (bytes); code comment says "40 MB" but value is 50 MB
 
-        # Round swizzle to power of 2
-        swizzle = 1 << log2_floor(size_l2 // size_one_head)
+        # Round swizzle to a power of 2 (with a safe 1-head fallback)
+        log2_floor = lambda n: 31 - clz(n)
+        swizzle = 1 if size_l2 < size_one_head else (1 << log2_floor(size_l2 // size_one_head))
 ```
 
 Notes:
@@ -196,10 +198,10 @@ The scheduler groups work to maximize L2 reuse:
 
 ```python
 # tile_scheduler.py lines 273-283
-size_l2 = 50 * 1024 * 1024  # 50 MB budget for K & V
+size_l2 = 50 * 1024 * 1024  # heuristic constant (value is 50 MB)
 
 # How many KV head-units can fit in L2?
-swizzle = 1 << log2_floor(size_l2 // size_one_head)
+swizzle = 1 if size_l2 < size_one_head else (1 << log2_floor(size_l2 // size_one_head))
 ```
 
 **Swizzle** is the size of a "section" in units of `(head × batch)` work items (often abbreviated `hb` in the scheduler code). A section is picked so the KV working-set for those `hb` items is likely to fit in L2.
@@ -255,7 +257,8 @@ KV staging is a ring buffer of `kv_stage` slots:
 
 ### Pipeline State (`index`, `phase`)
 
-The SM100 kernel uses `cutlass.pipeline` state objects that expose the same core API: `.index`, `.phase`, `.advance()`, `.clone()`. The file `flash_attn/cute/pipeline.py` contains a small reference implementation (`PipelineStateSimple`) that shows the encoding:
+The SM100 kernel uses `cutlass.pipeline` state objects that expose the same core API: `.index`, `.phase`, `.advance()`, `.clone()`.
+The file `vendored/flash_attn_cute_score_mod/flash_attn/cute/pipeline.py` contains a small reference implementation (`PipelineStateSimple`) that shows the *idea* of the encoding:
 
 ```python
 # pipeline.py lines 49-118
@@ -293,6 +296,8 @@ def make_pipeline_state(type: PipelineUserType, stages: int):
 ```
 
 The phase offset ensures producers wait for consumers to finish before reusing a slot.
+
+**Important nuance:** the SM100 kernel typically calls `cutlass.pipeline.make_pipeline_state(...)` (not the `make_pipeline_state(...)` in `flash_attn.cute.pipeline`). `PipelineStateSimple` is useful as a mental model because it matches the observable behavior (`index = phase_index % stages`, `phase = phase_index // stages`), but don’t assume that exact class is used in the compiled kernel.
 
 ---
 
@@ -423,7 +428,7 @@ Each warp type independently tracks its position through the tiles, synchronized
 
 ```python
 # tile_scheduler.py line 283
-swizzle = 1 << log2_floor(size_l2 // size_one_head)
+swizzle = 1 if size_l2 < size_one_head else (1 << log2_floor(size_l2 // size_one_head))
 ```
 
 In practice the scheduler uses `FastDivmod` for div/mod operations; choosing a power-of-2 `swizzle` makes those operations cheaper (often lowering to shifts/bit ops).

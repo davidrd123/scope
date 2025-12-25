@@ -3,6 +3,12 @@
 > **Goal:** Map out what we have and what we need to reach Level 5 (fused operations) and Level 6 (Blackwell-specific features like TMA, warp specialization).
 > **Updated:** 2025-12-25
 
+**What this is:** a curated reading list + pointers for “Level 5/6” exploration.  
+**What this is not:** the current performance truth (use `notes/FA4/b300/session-state.md`) or the measurement protocol (use `notes/FA4/b300/investigation-runbook.md`).  
+When you try something, capture it as a 1-card experiment in `notes/FA4/b300/experiments.md`.
+
+**Portability note:** avoid hardcoding `.venv/...` paths. Prefer repo-local sources (e.g. `vendored/flash_attn_cute_score_mod/`) or locate installed packages via Python.
+
 ---
 
 ## What We Already Have
@@ -14,21 +20,21 @@
 | **ThunderKittens Blackwell blog** | `notes/research/2025-12-24/incoming/perf/blogs/thunderkittens-blackwell.md` | Level 6: TMA, CTA pairs, warp specialization in attention |
 | **Warp Specialization blog** | `notes/research/2025-12-24/incoming/perf/blogs/warp-specialization.md` | Level 6: Triton's built-in warp spec (`num_consumer_groups`) |
 | **tcgen05 for dummies** | `notes/research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md` | Level 6: Low-level Blackwell tensor core programming |
-| **FA4/CUTE source** | `.venv/lib/python3.12/site-packages/flash_attn/cute/` | Level 5: The code we're already using |
-| **FA RoPE implementation** | `.venv/lib/python3.12/site-packages/flash_attn/layers/rotary.py` | Level 5: Reference for fused RoPE |
+| **FA4/CUTE source (vendored)** | `vendored/flash_attn_cute_score_mod/flash_attn/cute/` | Level 5/6: the FA4/CuTe code we’re actually editing/using for KV-bias |
+| **FlashAttention RoPE implementation (installed)** | `flash_attn/layers/rotary.py` | Level 5: reference for rotary interfaces / tables (locate via Python) |
 
 ### Key FA4/CUTE Files to Study
 
 ```
-flash_attn/cute/
-├── flash_fwd_sm100.py      # 98KB - Blackwell forward pass (STUDY THIS)
-├── flash_fwd.py            # 92KB - General forward pass
-├── blackwell_helpers.py    # 30KB - SM100-specific helpers
-├── interface.py            # 24KB - The API entry point
-├── mma_sm100_desc.py       # 11KB - MMA descriptors for SM100
-├── softmax.py              # 12KB - Online softmax implementation
-├── tile_scheduler.py       # 26KB - How tiles are scheduled
-└── pipeline.py             # 7KB  - Pipeline stages
+vendored/flash_attn_cute_score_mod/flash_attn/cute/
+├── flash_fwd_sm100.py      # SM100 (B200) forward pass; closest Blackwell reference (B300 is SM103)
+├── flash_fwd.py            # General forward pass
+├── blackwell_helpers.py    # SM100 helpers (useful conceptually; not guaranteed identical on SM103)
+├── interface.py            # API entry point (score_mod plumbing lives here)
+├── mma_sm100_desc.py       # MMA descriptors for SM100
+├── softmax.py              # Online softmax implementation
+├── tile_scheduler.py       # Tile scheduling / swizzling
+└── pipeline.py             # Pipeline staging
 ```
 
 ---
@@ -37,28 +43,30 @@ flash_attn/cute/
 
 ### The Opportunity
 
-Current flow (3 separate kernels):
+**Important framing:** FA/FA4 already fuse the *core attention math* (QKᵀ → online softmax → P×V) into one kernel.  
+When we talk about “Level 5 fusion” here, we mostly mean pulling **RoPE + attention-adjacent glue** (casts/copies/layout fixes) closer to (or inside) that kernel so we reduce launches and global-memory round-trips.
+
+Current flow (conceptually, multiple kernels + global-memory round-trips):
 ```
-RoPE(Q) → 0.38ms → global memory
-RoPE(K) → 0.38ms → global memory
-Load Q,K → Attention → 0.54ms
-─────────────────────────────────
-Total: 1.30ms, 3 kernel launches
+QKV projection (GEMM)
+RoPE(Q/K) (separate step today)
+Attention (KV-bias path uses FA4 score_mod)
+Layout/cast/copy glue (often shows as `aten::copy_` / `aten::to`)
 ```
 
-Fused flow (1 kernel):
+Fused flow (aspirational):
 ```
 Load Q,K → RoPE in registers → Attention → Store
-─────────────────────────────────────────────────
-Target: ~0.60-0.70ms, 1 kernel launch
 ```
+
+**Reality check:** in recent B300 cu130 drilldowns, `rope_apply` is relatively small compared to the remaining self-attn overhead (QKV projection + “other_in_self”). So RoPE+attn fusion is a great *learning* target, but may not be a standalone FPS lever.
 
 ### Resources for Level 5
 
 #### 1. FA's RoPE Implementation
 ```python
-# .venv/lib/python3.12/site-packages/flash_attn/layers/rotary.py
-# This is what FA already does for RoPE - study the interface
+# flash_attn/layers/rotary.py
+# This is what FlashAttention does for rotary embeddings - study the interface
 ```
 
 **What to look for:**
@@ -69,7 +77,9 @@ Target: ~0.60-0.70ms, 1 kernel launch
 #### 2. FA4/CUTE score_mod Mechanism
 ```python
 # You're already using this for KV-bias!
-# The question: can score_mod also do Q/K modification before attention?
+# Important: score_mod modifies attention *scores* after the QK dot-product.
+# It cannot implement RoPE (RoPE modifies Q/K vectors before the dot-product).
+# If we fuse RoPE, it’s via a Q/K load/prologue hook (or a new q_mod/k_mod-style callback).
 ```
 
 **Key insight from ThunderKittens blog:**
@@ -79,7 +89,8 @@ This suggests the pipeline has distinct phases where you could inject RoPE.
 
 #### 3. CUTE Prologue/Epilogue
 ```python
-# flash_attn/cute/flash_fwd.py and flash_fwd_sm100.py
+# vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd.py
+# vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py
 # Look for: how tiles are loaded before attention
 # The "prologue" is where you'd inject RoPE
 ```
@@ -92,10 +103,10 @@ This suggests the pipeline has distinct phases where you could inject RoPE.
 ### Concrete Steps for Level 5
 
 1. **Read `flash_attn/layers/rotary.py`** - Understand FA's RoPE interface
-2. **Read `flash_attn/cute/interface.py`** - Look for prelogue/callback hooks
-3. **Read `flash_attn/cute/flash_fwd_sm100.py`** - Find where Q/K are loaded
-4. **Prototype:** Try applying RoPE inside `score_mod` (even if semantically wrong) to see if the mechanism works
-5. **Fork flash_attn/cute** - Add a `q_mod`/`k_mod` callback similar to `score_mod`
+2. **Read `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py`** - Look for prologue/callback hooks and how aux tensors are passed
+3. **Read `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py`** - Find where Q/K are loaded
+4. **Prototype (safe):** use `score_mod` to validate callback plumbing (e.g. apply a tiny constant bias) and confirm it changes outputs as expected
+5. **Prototype (real fusion):** fork FA4/CuTe and add an explicit Q/K preprocessing hook (conceptually `q_mod`/`k_mod`) that runs during load/prologue
 
 ### External Resources for Level 5
 
@@ -137,8 +148,8 @@ From tcgen05 blog:
 - Manual address calculation
 
 **Files to study:**
-- `flash_attn/cute/flash_fwd_sm100.py` - Already uses TMA
-- `gau-nerst-tcgen05.md` - Tutorial on TMA setup
+- `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py` - Study how the kernel uses Blackwell-ish mechanisms
+- `notes/research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md` - Tutorial on TMA setup
 
 #### 2. 5th Gen Tensor Cores (tcgen05)
 From tcgen05 blog:
@@ -147,8 +158,8 @@ From tcgen05 blog:
 **Implication:** Tile sizes matter more on Blackwell. 64×64 runs at 1/4 the rate of 128×128.
 
 **Files to study:**
-- `flash_attn/cute/mma_sm100_desc.py` - MMA descriptors
-- `flash_attn/cute/blackwell_helpers.py` - SM100 helpers
+- `vendored/flash_attn_cute_score_mod/flash_attn/cute/mma_sm100_desc.py` - MMA descriptors
+- `vendored/flash_attn_cute_score_mod/flash_attn/cute/blackwell_helpers.py` - SM100 helpers
 
 #### 3. Warp Specialization in Triton
 From warp-specialization blog:
@@ -168,6 +179,7 @@ From warp-specialization blog:
 **What to check:**
 - Does our Triton version support this?
 - Can we add it to our existing Triton kernels?
+- On SM103, some Triton/Inductor tcgen05 paths can hard-abort; treat warp-spec experiments as “learning first,” with an escape hatch back to stable configs (`notes/FA4/b300/session-state.md`).
 
 #### 4. CTA Pairs
 From ThunderKittens blog:
@@ -183,7 +195,7 @@ This is more advanced - likely Level 7 territory.
    ```
    Need 3.2+ for warp specialization
 
-2. **Read `flash_fwd_sm100.py` carefully:**
+2. **Read `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py` carefully:**
    - How does it use TMA?
    - How does it structure the warp groups?
    - What's the pipeline depth?
@@ -220,12 +232,12 @@ This is more advanced - likely Level 7 territory.
 ```
 Week 1:
 ├── Read flash_attn/layers/rotary.py
-├── Read flash_attn/cute/interface.py (focus on score_mod)
-├── Trace how Q/K are loaded in flash_fwd_sm100.py
-└── Prototype: RoPE inside score_mod (even if wrong)
+├── Read vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py (focus on score_mod)
+├── Trace how Q/K are loaded in vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py
+└── Prototype: use score_mod to validate plumbing (e.g. tiny constant bias) and confirm it changes outputs
 
 Week 2:
-├── Fork flash_attn/cute locally
+├── Fork vendored/flash_attn_cute_score_mod locally
 ├── Add q_mod/k_mod callbacks
 ├── Benchmark fused vs separate
 └── Validate correctness
@@ -295,7 +307,7 @@ This is the "dataflow machine" model they describe.
 
 | Resource | Action |
 |----------|--------|
-| `flash_attn/cute/*.py` | Study the interface for adding Q/K preprocessing |
+| `vendored/flash_attn_cute_score_mod/flash_attn/cute/*.py` | Study the interface for adding Q/K preprocessing |
 | `flash_attn/layers/rotary.py` | Understand FA's RoPE implementation |
 | Your existing `score_mod` code | Starting point for fused ops |
 

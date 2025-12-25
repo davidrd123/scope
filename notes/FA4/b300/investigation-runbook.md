@@ -4,6 +4,8 @@
 
 **Key insight:** On the repo-default (cu128) stack, B300 is decode/cuDNN-bound (~8.8 FPS). On an SM103-native (cu130) stack, decode improves dramatically and denoise/transformer becomes the bottleneck.
 
+**Log rule:** every time you run a test or try a tweak, capture it as a card in `notes/FA4/b300/experiments.md` (hypothesis → command → result → lesson). The runbook stays stable; the experiments log can be messy.
+
 ---
 
 ## Ground Truth (Already Measured on B300)

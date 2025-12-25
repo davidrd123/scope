@@ -26,17 +26,25 @@ Each explainer should:
 | 6 | **Tile Scheduling and Pipelining** | `tile_scheduler.py`, `pipeline.py` | ✅ DONE |
 | 7 | **Online Softmax** | `softmax.py` | ✅ DONE |
 
-### Phase 2 (In Progress): Missing Pieces / “Make It Usable”
+### Phase 2 (Complete): Missing Pieces / “Make It Usable”
 
 This phase fills in the “gaps” that matter when you’re debugging real kernels in the wild or trying to extend FA4 for our workload (KV-bias, streaming, SM103).
 
 | # | Topic | Source Files | Status |
 |---|-------|--------------|--------|
 | 8 | **Masking and `mask_mod`** | `mask.py`, `mask_definitions.py` | ✅ DONE |
-| 9 | **Paged KV (when TMA KV is off)** | `paged_kv.py`, `flash_fwd_sm100.py` | 📝 TODO |
-| 10 | **Backward Pass (SM100)** | `flash_bwd_sm100.py`, `softmax.py` | 📝 TODO |
-| 11 | **Split-K and Segment-Combine** | `interface.py` + forward combine/reduction paths | 📝 TODO |
-| 12 | **SM103 Notes (B300): What Carries Over** | our backend selection + FA4/CuTe constraints | 📝 TODO |
+| 9 | **Paged KV (when TMA KV is off)** | `paged_kv.py`, `flash_fwd_sm100.py` | ✅ DONE |
+| 10 | **Backward Pass (SM100)** | `flash_bwd_sm100.py`, `softmax.py` | ✅ DONE |
+| 11 | **Split-K and Segment-Combine** | `interface.py` + forward combine/reduction paths | ✅ DONE |
+| 12 | **SM103 Notes (B300): What Carries Over** | our backend selection + FA4/CuTe constraints | ✅ DONE |
+
+### Phase 3 (In Progress): Bootstrapping Further Optimization
+
+This phase is less “kernel anatomy” and more “how to turn the anatomy into speedups”: profiling discipline, Amdahl-driven prioritization, backend/fallback hygiene (especially on SM103), and a concrete roadmap for next levers (GEMMs, copies, compile, Level 5/6 R&D).
+
+| # | Topic | Source Files | Status |
+|---|-------|--------------|--------|
+| 13 | **Bootstrapping Further Optimization (Playbook)** | `notes/FA4/*` + pipeline codepaths | ✅ DONE |
 
 ### Explainers Index
 
@@ -54,6 +62,7 @@ This phase fills in the “gaps” that matter when you’re debugging real kern
 | 10 | Backward Pass (SM100) | [10-backward-sm100.md](10-backward-sm100.md) |
 | 11 | Split-K and Segment-Combine | [11-splitk-and-segment-combine.md](11-splitk-and-segment-combine.md) |
 | 12 | SM103 Notes (B300) | [12-sm103-notes.md](12-sm103-notes.md) |
+| 13 | Bootstrapping Further Optimization | [13-optimization-bootstrapping.md](13-optimization-bootstrapping.md) |
 
 ---
 

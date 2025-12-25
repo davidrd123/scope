@@ -1,5 +1,12 @@
 # B300 Session State - 2025-12-24 (Updated)
 
+## Navigation
+
+- **How to reproduce / measure:** `notes/FA4/b300/investigation-runbook.md`
+- **Where to record “one-change” trials:** `notes/FA4/b300/experiments.md`
+- **Roadmap / next levers:** `notes/FA4/b300/optimization-vision.md`
+- **Level 5/6 reading list:** `notes/FA4/b300/level5-level6-resources.md`
+
 ## Current Status
 
 **Baseline (repo default stack): B300 is ~8.8 FPS at `320x576` (reference resolution) and the number is stable across iterations.**

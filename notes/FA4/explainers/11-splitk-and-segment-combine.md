@@ -1,115 +1,195 @@
-# Split-K and Segment-Combine in FA (and why `score_mod` helps)
+# Split-K and Segment-Combine (Two Places You’ll See It in This Repo)
 
-> **Explainer #11** — Why some attention backends “split” the KV dimension (Split-K), what “segment combine” is, and how this relates to our KV-bias workload (Flash vs FA4 score_mod).
+> **Explainer #11** — “Segment combine” shows up twice in our stack:
+> 1) as a **library optimization** (Split-KV inside FA4/CuTe), and
+> 2) as a **functional trick** (our KV-bias “flash” backend splits KV into segments and combines them).
 > **Updated:** 2025-12-25
 
 ---
 
 ## Overview
 
-In an ideal world, attention is one fused kernel:
+Attention is “one equation”:
 
 ```
 O = softmax(QK^T) V
 ```
 
-In practice, implementations sometimes break this into “segments” along the KV axis (N blocks) and combine partial results.
+But there are two different reasons you might compute it in *pieces* and then **combine** the pieces:
 
-This explainer is meant to connect:
+1. **Split-KV for parallelism (library optimization)**  
+   One attention call, but KV blocks are partitioned across `num_splits` CTAs, producing `(out_partial, lse_partial)` that a **combine kernel** merges.
 
-- The conceptual reason Split-K exists (parallelism / occupancy / cache behavior)
-- What “segment combine” means at the math level
-- Why our KV-bias pattern can make certain backends pay more combine overhead
-- Why FA4/CuTe `score_mod` is attractive: it lets us express KV-bias **inside** the main kernel, avoiding some extra combine glue
+2. **Segment-combine for KV-bias (functional workaround)**  
+   Our KV-bias rule (“add `log_bias` for a KV index range”) can be implemented by running attention on multiple **disjoint KV segments** and then combining the results using the same log-sum-exp math.
 
----
+The unifying idea is: **softmax is non-linear**, so “combine” must be done via **LSE** (log-sum-exp), not by naive summation.
 
-## Split-K: The idea
-
-Instead of one program computing a full `(M_block × N_total)` attention accumulation, you can:
-
-1. Split the KV range into `S` segments
-2. Compute partial outputs for each segment independently
-3. Combine them into the final output
-
-This can improve throughput when:
-
-- N is large and you want more parallel CTAs.
-- Some tiles are imbalanced (causal patterns, varlen).
-- You want better L2 reuse patterns by restricting each CTA’s working set.
+Key files:
+- FA4 Split-KV dispatch + combine: `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py`
+- Split partitioning: `vendored/flash_attn_cute_score_mod/flash_attn/cute/block_info.py`
+- Combine kernel implementation: `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_combine.py`
+- Our KV-bias segment-combine backend: `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
 
 ---
 
-## Segment combine: what gets combined?
+## The Concept: Combining Softmax Results via LSE
 
-Softmax makes combining non-trivial.
+Suppose the KV axis is split into disjoint segments `s ∈ {0..S-1}`.
+For a given query row, segment `s` computes:
 
-For a query row `i`, define a segment `s` producing:
+- `O_s = softmax(logits_s) V_s` (softmax **within** segment `s`)
+- `LSE_s = log(Σ_j exp(logits_s[j]))` (a scalar per query row, float32)
 
-- `m_s = max_j S_ij over j in segment s`
-- `l_s = sum_j exp(S_ij - m_s) over j in segment s`
-- `o_s = sum_j exp(S_ij - m_s) * V_j over j in segment s`  (unnormalized output numerator)
-
-To combine segments, you need the global max:
+Then the full attention over the union of segments is:
 
 ```
-m = max_s m_s
+LSE = log( Σ_s exp(LSE_s) )
+w_s = exp(LSE_s - LSE)
+O   = Σ_s w_s * O_s
 ```
 
-Then:
+This is what “segment combine” means in practice:
+- Use **logaddexp** to combine normalizers.
+- Use **exp(LSE_s - LSE)** as weights for the already-normalized `O_s`.
 
-```
-l = sum_s l_s * exp(m_s - m)
-o = sum_s o_s * exp(m_s - m)
-O = o / l
-```
-
-That is “segment combine”: rescale each segment’s partial sums by `exp(m_s - m)` and then normalize.
-
-This looks a lot like online softmax (explainer #7), but at the granularity of “segments” rather than “tiles inside one CTA”.
+This is the “one-row” version of online softmax (see Explainer #7), but performed at the granularity of “segments”.
 
 ---
 
-## Where this shows up in our workload
+## Part A: Split-KV inside FA4/CuTe (Library Optimization)
 
-Our streaming KV-bias attention has two backend-dependent stories:
+### 1) How split-KV is enabled
 
-- **Flash path**: implements KV-bias via a more indirect route (segment-ish handling / combine glue), which can make “KV-bias compute” a larger fraction of self-attention time.
-- **FA4 score_mod path**: applies bias inside the core kernel, so the bias logic does not require extra segment combine work.
+FA4’s Python entrypoint takes a `num_splits` argument:
+- `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py::_flash_attn_fwd(...)`
 
-We’ve observed this empirically in profiling: the “KV-bias slice” is smaller when the bias is expressed via FA4 `score_mod` than when it’s expressed via Flash segment-combine style logic.
+It chooses Split-KV when `num_splits > 1`:
 
-This doc is the missing conceptual bridge that explains *why* those profiles look different.
+- It allocates:
+  - `out_partial`: shape `(num_splits, B, Lq, H, Dv)`, dtype `float32`
+  - `lse_partial`: shape `(num_splits, B, H, Lq)`, dtype `float32`
+- It launches the SM100 forward kernel with `is_split_kv=True`, so each CTA works on a `split_idx`.
+- Then it calls `_flash_attn_fwd_combine(out_partial, lse_partial.transpose(-1, -2), out, ...)`.
+
+The transpose is not “math”; it’s layout plumbing:
+- The forward kernel naturally writes LSE as `[B, H, Lq]`.
+- The combine kernel expects `[B, Lq, H]` (and similarly for the `num_splits`-prefixed version), so the interface passes a transposed view.
+
+### 2) How KV blocks are partitioned per split
+
+The partitioning is computed by `BlockInfo.get_n_block_min_max(...)`:
+- `vendored/flash_attn_cute_score_mod/flash_attn/cute/block_info.py`
+
+When `is_split_kv=True`, it divides the per-tile `n_block` range into `num_splits` contiguous chunks:
+
+```
+num_n_blocks_per_split = ceil((n_block_max - n_block_min) / num_splits)
+n_block_min = n_block_min + split_idx * num_n_blocks_per_split
+n_block_max = min(n_block_min + num_n_blocks_per_split, n_block_max)
+```
+
+So every `(m_block, head, batch)` tile is replicated `num_splits` times, and each split processes a slice of KV blocks.
+
+### 3) What the SM100 forward kernel produces per split
+
+Inside `FlashAttentionForwardSm100`:
+- `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py`
+
+The tile scheduler includes `split_idx` in the tile index, and the load path uses:
+
+- `n_block_min, n_block_max = block_info.get_n_block_min_max(seqlen, m_block, split_idx, num_splits)`
+
+Each split computes a **valid** softmax over only its KV-block subset, and it stores:
+
+- `out_partial[split_idx, ...]` = `O_s` (the segment-normalized output)
+- `lse_partial[split_idx, ...]` = `LSE_s` (natural log LSE for the segment; float32; `-inf` if the split is empty)
+
+### 4) How the combine kernel merges splits
+
+The actual combine kernel is `FlashAttentionForwardCombine`:
+- `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_combine.py`
+- wrapped by `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py::_flash_attn_fwd_combine(...)`
+
+The combine kernel does, per `(m_block, head, batch)`:
+
+1. Load all `lse_partial[s]` for each row into shared memory.
+2. Compute `lse_max = max_s lse_partial[s]`.
+3. Compute `lse_sum = log(Σ_s exp(lse_partial[s] - lse_max)) + lse_max` and optionally store it to the final `lse`.
+4. Compute normalized weights `w_s = exp(lse_partial[s] - lse_sum)` and store them back into shared memory.
+5. Stream `out_partial[s]` for each split and accumulate:
+   ```
+   out = Σ_s w_s * out_partial[s]
+   ```
+
+This is the exact same combine math as the “concept” section above; the kernel just uses `exp2` + `LOG2_E` internally for speed.
+
+**Why Split-KV isn’t “free”:**
+- The forward kernel must write `out_partial` + `lse_partial` to global memory.
+- The combine kernel reads those partials back and writes the final `out` (and possibly `lse`).
+- You only want Split-KV when the extra parallelism outweighs that extra memory traffic + extra kernel launch.
 
 ---
 
-## What this explainer should eventually include (Phase 2 work)
+## Part B: Segment-Combine in Our KV-Bias “Flash” Backend (Functional Workaround)
 
-To make this explainer “complete”, we should pin down:
+Our KV-bias rule is:
 
-1. Which exact FlashAttention code path we use for “flash backend” in our repo when KV-bias is enabled.
-2. Where the segment/split happens (API flags / internal dispatch).
-3. Where the combine kernel runs and what tensors it reads/writes.
-4. Why that combine overhead grows (or becomes more visible) for our shapes.
+> add `log_bias` to logits where `kv_idx` is in `[frame_seqlen, current_block_start)`
 
-The most useful deliverable would be:
+When we don’t have a `score_mod`-capable kernel, we implement this by splitting KV into **three disjoint segments** and combining them:
+- `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py::_kv_bias_flash_combine(...)`
 
-- A minimal pseudo-callgraph: “front door → forward kernel → (optional) combine kernel”
-- A tensor lifecycle diagram of what gets written to global memory in the split/segment path
+Segments:
+1. `[0, frame_end)` — unbiased
+2. `[frame_end, block_start)` — biased by `log_bias`
+3. `[block_start, lk)` — unbiased
+
+For each segment we compute `(out_seg, lse_seg)` via `_flash_attn_with_lse(...)` (either FA4 `_flash_attn_fwd(return_lse=True)` or the FA2 varlen kernel as fallback).
+
+Then we apply the bias *at the segment level* by shifting the segment’s LSE:
+
+```
+if seg_log_w != 0:
+    lse_seg = lse_seg + seg_log_w
+```
+
+This works because adding a constant `c` to **all** logits in a segment multiplies the segment’s exp-sum by `exp(c)`,
+so the segment LSE shifts by `+c`.
+
+Finally we merge segments using:
+- `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py::_merge_out_lse(...)`
+
+which is literally:
+
+```
+lse_new = logaddexp(lse_a, lse_b)
+w_a = exp(lse_a - lse_new)
+w_b = exp(lse_b - lse_new)
+out_new = w_a * out_a + w_b * out_b
+```
+
+This is “segment combine” in its simplest (two-segment) form, repeated for up to three segments.
+
+**Why it costs more:** it’s multiple attention calls + extra elementwise combine work, which is exactly the overhead that `score_mod` avoids.
 
 ---
 
-## Questions & Opportunities
+## Why FA4 `score_mod` Helps (In One Sentence)
 
-1. Can we keep the bias logic entirely within the main kernel across all GPUs (SM90/SM100/SM103)?
-2. For SM103 specifically, what are the safe fallbacks when `score_mod` isn’t available?
-3. Is it ever worth using split-K for our exact streaming pattern, or is it always overhead?
+With `SCOPE_KV_BIAS_BACKEND=fa4`, we express the KV-bias as an in-kernel `score_mod`, so we compute the *correct logits* in a single attention call — no KV segmentation, no extra attention calls, no logaddexp combine.
+
+See:
+- `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` (`score_mod_kv_bias`, backend selection)
+- Explainer #3: `notes/FA4/explainers/03-score-mod.md`
 
 ---
 
 ## References
 
-- Explainer #3: `notes/FA4/explainers/03-score-mod.md`
-- Explainer #7: `notes/FA4/explainers/07-online-softmax.md`
-- `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py` (dispatch surface)
-
+- Split-KV dispatch + combine call: `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py`
+- Split partitioning: `vendored/flash_attn_cute_score_mod/flash_attn/cute/block_info.py`
+- SM100 forward kernel split handling (`split_idx`, per-split LSE write): `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py`
+- Combine kernel algorithm (`lse_max`, weights, O accumulation): `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_combine.py`
+- KV-bias segment-combine backend: `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
+- Related: Explainer #7 `notes/FA4/explainers/07-online-softmax.md`

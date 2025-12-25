@@ -112,6 +112,12 @@ producer_phase = 1
 consumer_phase = 0
 ```
 
+**Code reality (SM100):** you’ll see both styles in `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py`:
+- Q uses an explicit parity bit (`q_producer_phase = Int32(1)`), because Q is double-buffered with a small dedicated barrier pair.
+- KV uses a pipeline state object (`cutlass.pipeline.make_pipeline_state(...)`) that exposes `.index` and `.phase` for the multi-stage ring buffer.
+
+The important mental model is the same: a per-stage ring buffer + a phase/epoch value so “full/empty” barriers can safely wrap around.
+
 ---
 
 ## FA4/CUTE TMA Setup

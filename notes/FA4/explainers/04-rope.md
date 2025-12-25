@@ -83,7 +83,7 @@ The absolute positions `i` and `j` cancel; only the relative position `i-j` matt
 
 ## FA's Implementation
 
-FlashAttention has a clean two-layer implementation:
+FlashAttention packages commonly have a two-layer RoPE implementation:
 
 ### Layer 1: Python Interface (`flash_attn/layers/rotary.py`)
 
@@ -119,7 +119,7 @@ qkv = apply_rotary_emb_qkv_(qkv, cos, sin)  # inplace
 kv = apply_rotary_emb_kv_(kv, cos, sin)  # inplace
 ```
 
-### Layer 2: Triton Kernel (`flash_attn/ops/triton/rotary.py`)
+### Layer 2: Kernel Implementation (often `flash_attn/ops/triton/rotary.py`)
 
 The actual GPU kernel. Key parts:
 
@@ -395,8 +395,8 @@ This naturally leads to:
 
 | File | Description |
 |------|-------------|
-| `flash-attention.bak/flash_attn/layers/rotary.py` | Python interface, RotaryEmbedding class |
-| `flash-attention.bak/flash_attn/ops/triton/rotary.py` | Triton kernel implementation |
+| `flash_attn/layers/rotary.py` | Python interface (`RotaryEmbedding`, `apply_rotary_emb*`). Path depends on your installed `flash_attn`; locate via `python -c "import flash_attn.layers.rotary as r; print(r.__file__)"`. |
+| `flash_attn/ops/triton/rotary.py` | Triton kernel in many `flash_attn` versions; locate via `python -c "import flash_attn.ops.triton.rotary as r; print(r.__file__)"`. |
 | `vendored/rope/` | Reference implementations from vLLM, transformers |
 
 ### Papers

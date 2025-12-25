@@ -1,5 +1,10 @@
 # B200 bringup log (FA4 + flex_attention)
 
+Navigation
+- Current “what to run today”: `notes/FA4/b200/session-state.md`
+- Log one-change trials: `notes/FA4/b200/experiments.md`
+- Overall map: `notes/FA4/optimization-map.md`
+
 Context
 - Goal: get krea-realtime-video to run on Blackwell (B200) while validating FA4/CUTE attention path.
 - Prior failure on B300 was `ptxas fatal: Value 'sm_103a' is not defined for option 'gpu-name'` from Triton in flex_attention.

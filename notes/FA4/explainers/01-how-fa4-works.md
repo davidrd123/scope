@@ -7,13 +7,15 @@
 
 ## Overview
 
-FlashAttention 4 (FA4) is a CUDA kernel for computing attention efficiently on NVIDIA GPUs. The implementation in `flash_attn/cute/` uses NVIDIA's CuTe-DSL (a Python-based DSL for writing CUDA kernels) and supports three GPU architectures:
+FlashAttention 4 (FA4) is a CUDA kernel for computing attention efficiently on NVIDIA GPUs. The implementation in `flash_attn/cute/` uses NVIDIA's CuTe-DSL (a Python-based DSL for writing CUDA kernels) and supports three GPU architecture families:
 
 | Architecture | Class | GPU Generation |
 |--------------|-------|----------------|
 | SM80 | `FlashAttentionForwardSm80` | Ampere (A100) |
 | SM90 | `FlashAttentionForwardSm90` | Hopper (H100) |
-| SM100 | `FlashAttentionForwardSm100` | Blackwell (B200) |
+| SM10x | `FlashAttentionForwardSm100` | Blackwell (B200/B300) |
+
+**Blackwell note (important for this repo):** the FA4 interface dispatch uses only the **major** compute capability (`torch.cuda.get_device_capability()[0]`). That means SM103 (B300) takes the same “SM10x” dispatch as SM100 (B200) and runs the `FlashAttentionForwardSm100` codepath (with any SM103-specific toolchain/patch constraints handled elsewhere in the stack).
 
 **The core insight:** Attention is memory-bound. FA4 achieves speed by:
 1. **Tiling** - Never materialize the full attention matrix
@@ -25,12 +27,12 @@ FlashAttention 4 (FA4) is a CUDA kernel for computing attention efficiently on N
 
 ## The Architecture
 
-### Entry Point: `interface.py`
+### Entry Point: `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py`
 
 The public API routes through `_flash_attn_fwd()`:
 
 ```python
-# interface.py:102-133
+# interface.py:... (see vendored path above)
 def _flash_attn_fwd(
     q, k, v,
     cu_seqlens_q=None, cu_seqlens_k=None,  # Variable length support
@@ -42,13 +44,13 @@ def _flash_attn_fwd(
 )
 ```
 
-The dispatcher selects the architecture-specific kernel:
+The dispatcher selects the architecture-specific kernel (based on the **major** compute capability):
 
 ```python
-# interface.py:430-476
-if compute_capability == 9:  # Hopper
+# interface.py:... (major-only dispatch)
+if compute_capability == 9:  # SM90 (Hopper)
     fa_fwd = FlashAttentionForwardSm90(...)
-elif compute_capability == 10:  # Blackwell
+elif compute_capability == 10:  # SM10x (Blackwell: SM100/SM103/...)
     fa_fwd = FlashAttentionForwardSm100(...)
 ```
 
@@ -297,16 +299,16 @@ Different workloads have different characteristics:
 
 | File | Purpose |
 |------|---------|
-| `interface.py` | Public API, architecture dispatch |
-| `flash_fwd.py` | SM80/SM90 forward kernels |
-| `flash_fwd_sm100.py` | SM100 (Blackwell) forward kernel |
-| `softmax.py` | Online softmax implementation |
-| `tile_scheduler.py` | Tile scheduling strategies |
-| `pipeline.py` | Pipeline state management |
-| `blackwell_helpers.py` | SM100-specific MMA helpers |
-| `mma_sm100_desc.py` | SM100 descriptor encoding |
-| `copy_utils.py` | TMA and memory copy utilities |
-| `mask.py` | Attention masking (causal, local) |
+| `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py` | Public API, architecture dispatch |
+| `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd.py` | SM80/SM90 forward kernels |
+| `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py` | SM100 (Blackwell) forward kernel |
+| `vendored/flash_attn_cute_score_mod/flash_attn/cute/softmax.py` | Online softmax implementation |
+| `vendored/flash_attn_cute_score_mod/flash_attn/cute/tile_scheduler.py` | Tile scheduling strategies |
+| `vendored/flash_attn_cute_score_mod/flash_attn/cute/pipeline.py` | Pipeline and mbarrier helpers |
+| `vendored/flash_attn_cute_score_mod/flash_attn/cute/blackwell_helpers.py` | SM100-specific MMA helpers |
+| `vendored/flash_attn_cute_score_mod/flash_attn/cute/mma_sm100_desc.py` | SM100 descriptor encoding |
+| `vendored/flash_attn_cute_score_mod/flash_attn/cute/copy_utils.py` | TMA and memory copy utilities |
+| `vendored/flash_attn_cute_score_mod/flash_attn/cute/mask.py` | Attention masking (causal, local) |
 
 ---
 

@@ -1,0 +1,126 @@
+# B300 Experiments Log (Small, Reproducible)
+
+**Purpose:** Capture “one-change” experiments as tiny cards so we can learn fast *without* losing the thread.
+
+**Why a single file?** It avoids repo clutter (no explosion of one-off files). If this grows too large, we can later split into `notes/FA4/b300/experiments/YYYY-MM-DD-<slug>.md` and add an index.
+
+---
+
+## Canonical benchmark settings (for comparable perf numbers)
+
+- **Resolution:** `320x576`
+- **Denoising steps:** `4`
+- **KV-cache attention bias:** `0.3`
+- **Quality-preserving:** avoid accuracy shortcuts (e.g. don’t use KV recompute skipping for “real” results)
+
+Suggested measurement harness:
+- `scripts/profile_krea_pipeline_blocks.py` (end-to-end FPS; optional block JSON)
+- `scripts/profile_b300_denoise_drilldown.sh` (deeper split; writes JSON under `outputs/`)
+
+---
+
+## Experiment Card Template (copy/paste)
+
+### YYYY-MM-DD — <short title>
+
+**Question:**  
+<What are we trying to learn?>
+
+**Hypothesis:**  
+<What do we expect to happen, and why?>
+
+**Change (one thing):**  
+<Single config tweak / code change / backend swap>
+
+**Benchmark config:**  
+- GPU: <B300>  
+- Env: <cu130 / repo-default>  
+- torch / cuda: <e.g. 2.9.0+cu130 / 13.0>  
+- Settings: `320x576`, steps=`4`, bias=`0.3`  
+- Notes: <compile on/off, quantization, backend vars>
+
+**Command(s):**
+```bash
+<exact command(s) used>
+```
+
+**Baseline:**  
+<FPS + any relevant breakdown you’re comparing against>
+
+**Result:**  
+<FPS delta + anything surprising in the breakdown>
+
+**Decision:**  
+<Keep / revert / follow-up / not worth it>
+
+**Artifacts:**  
+- `outputs/<...>.log`  
+- `outputs/<...>.json`
+
+**Lessons (write like you’re teaching “future you”):**  
+- <What did we learn about the system / tooling / GPU behavior?>
+- <What would you try next, and why?>
+
+---
+
+## Experiments
+
+### 2025-12-25 — KV-bias backend: `flash` → `fa4`
+
+**Question:**  
+Does FA4/CuTe `score_mod` KV-bias outperform FlashAttention’s segment-combine KV-bias in our end-to-end benchmark?
+
+**Hypothesis:**  
+Yes. Segment-combine adds extra work/launches; `score_mod` should keep KV-bias inside the main attention kernel and reduce overhead.
+
+**Change (one thing):**  
+Switch `SCOPE_KV_BIAS_BACKEND=flash` → `SCOPE_KV_BIAS_BACKEND=fa4` (keep everything else identical).
+
+**Benchmark config:**  
+- GPU: B300 (SM103)  
+- Env: cu130 decode env (`.venv-b300-cu130-decode`)  
+- torch / cuda: `2.9.0+cu130` / `13.0`  
+- Settings: `320x576`, steps=`4`, bias=`0.3`, quantization=`none`  
+
+**Command(s):**
+```bash
+SCOPE_KV_BIAS_BACKEND=flash \
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 6 --skip 2 \
+  --quantization none \
+  --kv-cache-attention-bias 0.3 \
+  --cudnn-benchmark
+
+SCOPE_KV_BIAS_BACKEND=fa4 \
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 6 --skip 2 \
+  --quantization none \
+  --kv-cache-attention-bias 0.3 \
+  --cudnn-benchmark
+```
+
+**Baseline:**  
+`SCOPE_KV_BIAS_BACKEND=flash` ≈ **14.9 FPS**
+
+**Result:**  
+`SCOPE_KV_BIAS_BACKEND=fa4` ≈ **16.7 FPS**
+
+**Decision:**  
+Keep FA4 `score_mod` as the preferred KV-bias backend on B300 when the cu130 stack is available.
+
+**Artifacts:**  
+- `outputs/b300_cu130_ops_profile_flash.json`  
+- `outputs/b300_cu130_ops_profile_fa4.json`  
+- `outputs/b300_cu130_none_bias0.3_drilldown_perf.log`  
+
+**Lessons (write like you’re teaching “future you”):**  
+- The KV-bias microkernel can be meaningfully faster with `score_mod`, but end-to-end wins are still bounded by the remaining `self_attn` work (`other_in_self`) + GEMMs + copies.  
+- Once decode is fixed (cu130), attention backend selection becomes “worth doing,” but it’s not the only lever; profiling still matters.

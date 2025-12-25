@@ -3,6 +3,14 @@
 > **Context:** The hierarchy of GPU optimization work, mapped to the B300 journey.
 > **Updated:** 2025-12-25
 
+**Learning-first note:** This is intentionally a *learning ladder*, not just a perf plan. It’s totally fine to bounce between rungs as long as we keep writing down (1) what we tried, (2) what we measured, and (3) what we learned.
+Use `notes/FA4/b300/experiments.md` as the default place to capture those “one-change” experiment cards.
+
+**Ground truth sources (when numbers disagree):**
+- `notes/FA4/b300/session-state.md` (current reproducible best-known configs + caveats)
+- `notes/FA4/b300/investigation-runbook.md` (how we measure and decide)
+- Recent drilldown artifacts under `outputs/` (e.g. `outputs/b300_*_drilldown_*.log/json`)
+
 ---
 
 ## The Ladder
@@ -14,7 +22,7 @@
 - Call FlashAttention, hope it works
 - Accept whatever FPS you get
 
-**Example:** "I used FlashAttention and got 8.8 FPS on B300"
+**Example:** "I ran the default stack on B300 and got ~8.8 FPS at `320x576`."
 
 ---
 
@@ -27,9 +35,9 @@
 
 **What we did:**
 - Added `PROFILE_PIPELINE_BLOCKS`, `PROFILE_ATTENTION` infrastructure
-- Discovered block breakdown: denoise 62%, decode 25%, recompute 12%
-- Found attention was only 27% of self-attention time
-- Identified QKV + RoPE as bigger than expected
+- Established that (a) the repo-default stack is decode/cuDNN-bound on B300, and (b) on a cu130 stack, decode improves and the transformer becomes the bottleneck
+- Measured block-level shares (representative cu130 runs are usually “denoise dominates; decode second; recompute is non-trivial” — exact % varies by config and whether profilers are enabled)
+- Measured that the **KV-bias kernel is only a slice of self-attn time**, and its share depends on backend (rule of thumb: `flash` segment-combine can be ~35–40% of `self_attn`, while `fa4` score_mod often drops it closer to ~20–30%); the remainder is dominated by QKV projection + other attention work + glue ops
 
 **Example:** "Profiling showed VAE decode was 760ms on cu129 - that's the bottleneck"
 
@@ -44,80 +52,76 @@
 
 **What we did:**
 - Wrote Triton Kernel B for KV-bias attention
-- Beat flex_attention by 10.7% (1.02ms vs 1.14ms)
+- In some microbenchmarks, beat flex_attention (useful learning milestone)
 - Learned Triton autotuning (BLOCK_M, BLOCK_N, warps, stages)
+- Learned the hard lesson that **microbench wins can evaporate end-to-end** if the backend is forced into a fallback path (on SM103 + current Triton, the “triton KV-bias backend” can be catastrophically slow)
 
 **Example:** "My Triton kernel handles the KV-bias pattern correctly and beats PyTorch's flex_attention"
 
 ---
 
-### Level 4: Beat the Libraries
-*"My specialized kernel beats FlashAttention on this workload"*
+### Level 4: Bend the Libraries
+*"I extended a fast library to fit a weird pattern"*
 
-- Custom kernels that outperform established libraries
-- Exploit problem structure they can't assume
-- Understand why the library isn't optimal for your case
+- Understand library constraints (supported masks, varlen, score mods, hardware arch support)
+- Use the “fast path” primitives (FlashAttention/FA4/CuTe) but adapt them to our requirements (KV-bias + streaming + caching)
+- Build pragmatic guardrails (version detection, backend selection, fallbacks) so the system is usable, not just “fast in one script”
 
 **What we did:**
-- Integrated FA4/CUTE with score_mod for KV-bias
-- 1.89x faster than our own Triton kernel (0.54ms vs 1.02ms)
-- Diagnosed SM103 runtime issues (cu130 requirement)
-- Found Triton's SM103 fallback was catastrophic (scalar kernel → 1 FPS)
+- Integrated **FA4/CUTE `score_mod`** for the KV-bias path so we don’t pay segment-combine overhead
+- On recent B300 cu130 runs, KV-bias dropped from ~`0.9ms/call` (flash segment-combine) to ~`0.4ms/call` (FA4 score_mod)
+- Diagnosed that the biggest “B300 mystery” wasn’t attention at all — it was the runtime stack (cuDNN/conv3d decode behavior) and backend selection hazards on SM103
 
-**Example:** "FA4 with custom score_mod beats both our Triton kernel and standard FlashAttention because we exploit the KV-bias structure"
+**Example:** "I used FA4’s fast kernel, but customized it to directly support KV-bias, and then verified it actually moves end-to-end numbers."
 
 ---
 
 ## ✅ YOU ARE HERE: Between Level 4 and 5
 
 Current state:
-- B300: **19.0 FPS** (cu130 + FA4 + compile) vs starting point of **8.8 FPS**
-- Closed the gap with B200 (20 FPS)
-- Solved the "white whale" mystery (runtime stack + backend selection)
+- B300: **~15 FPS** in typical cu130 end-to-end runs, with **best-case ~19 FPS** in the benchmark when `--compile` is viable (config-dependent)
+- Solved the “white whale” mystery: the original ~8.8 FPS wasn’t an attention backend cap; it was dominated by runtime stack + decode/cuDNN behavior and SM103 backend pitfalls
 - Have documented, reproducible optimizations
 
 What's missing for Level 5:
-- Kernels are still separate (RoPE, Attention, Projections)
+- RoPE is still separate from attention, and attention-adjacent glue (casts/copies/layout fixes) is still sizable
 - Not exploiting Blackwell-specific features (TMA, warp specialization)
 - torch.compile integration is partial (some modes abort on SM103)
 
 ---
 
-### Level 5: Fused Operations
-*"One kernel does what used to be four"*
+### Level 5: Fuse Adjacent Work (RoPE + Attention Glue)
+*"Fewer launches and less memory traffic"*
 
-Instead of:
+**Important framing:** FlashAttention / FA4 already fuse the *core attention math* (QKᵀ → online softmax → P×V) into a single kernel.  
+When we say “Level 5 fusion” here, we mostly mean fusing **the extra per-step work around attention** (RoPE, layout/cast/copy glue, small elementwise ops) so we reduce kernel launches and global-memory round-trips *inside the transformer block*.
+
+Current shape (conceptual; there are often extra glue kernels in between):
 ```
-RoPE kernel        → 0.38ms
-QKV projection     → X ms (GEMM)
-Attention kernel   → 0.54ms
-Output projection  → Y ms (GEMM)
-────────────────────────────
-4 kernel launches, 4 memory round-trips
+QKV projection (GEMM)
+RoPE(Q/K) (separate kernel today)      → ~0.11ms/call (B300 cu130 drilldown example)
+Attention (already fused math)         → KV-bias portion ~0.41ms/call (FA4 score_mod example)
+Layout/cast/copy glue                  → often shows up as `aten::copy_` / `aten::to`
+Output projection (GEMM)
 ```
 
-Fused:
+Level 5 target (realistic near-term fusion goals):
 ```
-Load Q,K,V once
-  → RoPE in registers (no store/load)
-  → Attention in SRAM
-  → Output projection fused
-────────────────────────────
-1 kernel launch, 1 memory round-trip
+RoPE applied during Q/K load/prologue (no separate RoPE kernel)
+Attention outputs produced in the most downstream-friendly layout/dtype we can manage
+Fewer intermediate stores/loads and fewer “glue” kernels
 ```
 
 **Why it matters:** Memory bandwidth is often the bottleneck, not compute. Each kernel launch reads from and writes to global memory. Fusion eliminates intermediate round-trips.
 
-**Concrete opportunity for B300:**
-- RoPE is currently 0.38ms × 2 (Q and K) = 0.76ms
-- If fused into attention, that's ~0.76ms saved per forward pass
-- At 4 denoise steps + 1 recompute = 5 passes = **~3.8ms saved per frame**
-- That's potentially **+2-3 FPS** on top of current 19 FPS
+**Reality check (important):** on recent B300 cu130 profiles, **RoPE is already relatively small** (example: ~`0.11ms/call`). So “fuse RoPE into attention” is a great *learning* project, but it may not be a huge FPS lever by itself. The bigger remaining chunk is typically the “other_in_self” part of self-attn (QKV projection + non-bias attention work + glue ops).
+
+**Also important:** “Fuse output projection into attention” is a different class of work (fused MHA / fused linear layers) and is *not* the default shape of FA/FA4 kernels. Treat that as a stretch topic, not the first Level 5 milestone here.
 
 **How to get there:**
-- FA4/CUTE supports custom prologue/epilogue
-- Inject RoPE computation into the attention kernel's data loading phase
-- Requires understanding CUTE's tile iterators and register layout
+- FA4/CUTE supports customization hooks (prologue/load/epilogue style patterns)
+- If we fuse RoPE, it’s by rotating **Q/K vectors during load/prologue** (before the dot-product), not by score_mod (score_mod changes scores, RoPE changes vectors)
+- Expect lots of “try/measure/learn” iterations; the output of each iteration should be a small lesson + a reproducible benchmark
 
 ---
 
@@ -189,14 +193,14 @@ This is FlashAttention-level contribution:
 
 ### Immediate (Level 4→5): Fuse RoPE + Attention
 
-**Effort:** Medium (days, not weeks)
-**Impact:** +2-3 FPS estimated
+**Effort:** Medium-to-high (this can turn into real R&D depending on how deep we go)
+**Impact:** Unknown; likely modest unless we also reduce memory traffic / conversions / projections
 
 Steps:
-1. Understand CUTE's prologue mechanism
-2. Implement RoPE as a score_mod prologue (apply before softmax)
-3. Or: Implement as a custom Q/K loading hook
-4. Benchmark, validate correctness
+1. Pick a *single* representative benchmark (canonical `320x576`, bias `0.3`, cu130 env) and record the baseline
+2. Identify the “why” for fusion (e.g. reduce kernel launches, reduce `aten::copy_`, remove redundant transposes)
+3. Prototype a minimal fusion target (e.g. “RoPE during Q/K load”) and validate correctness first
+4. Benchmark, then write down the lesson (what moved, what didn’t, what got harder)
 
 ### Medium-term (Level 5→6): TMA/Warp Specialization
 
@@ -223,22 +227,15 @@ Ideas:
 
 ## Reference: Current B300 Performance Stack
 
-```
-Layer                          Time        Status
-─────────────────────────────────────────────────
-VAE Decode                     ~194ms      ✅ Fixed (cu130)
-Denoise (4 steps)              ~528ms      Partially optimized
-├── Self-Attention             ~56%
-│   ├── KV-bias kernel         ~22%        ✅ FA4 score_mod
-│   ├── QKV projection         ~21%        Stock GEMM
-│   └── RoPE                   ~15%        ✅ Triton fused
-├── Cross-Attention            ~22%        Stock
-└── FFN                        ~22%        Stock
-Recompute KV-Cache             ~102ms      Stock
-Text Conditioning              ~9ms        Stock
-─────────────────────────────────────────────────
-Total per frame (3 frames)     ~850ms      → ~19 FPS (compile)
-```
+Representative recent cu130 drilldown signal (for intuition; always re-measure):
+
+- Block-level time is dominated by `denoise`, then `decode`, then `recompute_kv_cache` (see `outputs/b300_cu130_*_drilldown_blocks_profile.json`)
+- Inside the transformer (example `outputs/b300_cu130_none_bias0.3_drilldown_perf.log`):
+  - `self_attn` is the largest bucket
+  - KV-bias share depends on backend (roughly ~35–40% of `self_attn` on `flash`, ~20–30% on `fa4`); **the remaining “other_in_self” is still the majority**
+  - `rope_apply` is present but relatively small in recent runs
+
+Takeaway: after the cu130 decode fix + FA4 KV-bias, the next wins are more likely to come from reducing the remaining self-attn overhead (QKV projection / non-bias attention / data movement) and expanding safe `torch.compile` coverage, rather than “RoPE fusion alone.”
 
 ---
 
@@ -249,10 +246,10 @@ Total per frame (3 frames)     ~850ms      → ~19 FPS (compile)
 | 1 | Use the tools | ✅ Done |
 | 2 | Profile and understand | ✅ Done |
 | 3 | Write custom kernels | ✅ Done (Triton) |
-| 4 | Beat the libraries | ✅ Done (FA4/CUTE) |
-| 5 | Fused operations | 🎯 **Next target** |
+| 4 | Bend the libraries | ✅ Done (FA4/CUTE) |
+| 5 | Fused operations | 🎯 Next target (as learning) |
 | 6 | Architecture-specific | Future |
 | 7 | Novel algorithms | Research |
 | 8 | Production at scale | N/A |
 
-You're at **Level 4.5** - you've beaten the libraries on your specific workload, diagnosed platform issues, and have a working optimized system. The path to Level 5 (fused RoPE + Attention) is visible and achievable.
+You're at **Level 4.5**: you’ve diagnosed platform issues, have a working optimized stack, and have enough instrumentation to safely explore deeper optimizations. Level 5 (fusion) is doable as a learning project, but the right mindset is “small experiments + clean measurements + write down lessons,” not “guaranteed FPS.”

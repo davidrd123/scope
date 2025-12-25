@@ -6,9 +6,11 @@ This directory tracks the journey of optimizing attention kernels for the Krea R
 
 | If you want to... | Start here |
 |-------------------|------------|
+| Get the map (timeline + “what goes where”) | `optimization-map.md` |
 | Get the shareable overview | `docs/kernel-optimization-guide.md` |
 | Understand the full journey | `kernel-dev-log.md` |
 | Continue from last session | `SESSION-HANDOFF-*.md` (latest date) |
+| See B200 current state | `b200/session-state.md` |
 | Investigate B300 8.8 FPS issue | `b300/investigation-runbook.md` |
 | See B300 optimization roadmap | `b300/optimization-vision.md` |
 | Set up a B300 machine | `b300/setup-guide.md` |
@@ -20,21 +22,29 @@ This directory tracks the journey of optimizing attention kernels for the Krea R
 ```
 notes/FA4/
 ├── README.md                      # This file
+├── optimization-map.md            # Timeline + truth sources + workspace map
 ├── kernel-dev-log.md              # Main chronicle of all work
 ├── SESSION-HANDOFF-*.md           # Session handoff docs
 ├── docs/                          # Shareable deep dives
 │   └── kernel-optimization-guide.md
+├── explainers/                    # FA4/CuTe learning track (read code → write explainer)
+│   └── README.md
 │
 ├── b300/                          # B300 (SM103) specific
 │   ├── investigation-runbook.md   # Systematic debugging guide
 │   ├── investigation.md           # Investigation notes
 │   ├── fa4-patches.md             # CUTLASS DSL patches for SM103
+│   ├── experiments.md             # “One-change” experiment cards
+│   ├── level5-level6-resources.md # Reading list for deeper kernel work
+│   ├── optimization-ladder.md      # Learning ladder framing (corrected + measurement-driven)
 │   ├── optimization-vision.md     # Strategic optimization roadmap
 │   ├── setup-guide.md             # Environment setup
 │   └── session-state.md           # Stashed session state
 │
 ├── b200/                          # B200 (SM100) specific
-│   └── bringup-log.md             # Initial bring-up notes
+│   ├── session-state.md           # Current “what to run today”
+│   ├── experiments.md             # “One-change” experiment cards
+│   └── bringup-log.md             # Historical bring-up notes
 │
 ├── rope/                          # RoPE optimization work
 │   ├── optimization.md            # Overview and strategy

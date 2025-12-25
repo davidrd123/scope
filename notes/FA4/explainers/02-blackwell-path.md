@@ -234,22 +234,22 @@ FA4 typically uses SWIZZLE_128B for efficient bank-conflict-free access.
 
 ### Why Only One Thread Issues MMA
 
-In this implementation, each `tcgen05.mma` is guarded by **one elected thread**:
+In the SM100 implementation, each `tcgen05.mma` is effectively a **warp-group / CTA-group** operation, and only **one lane** should issue the instruction.
+If multiple lanes issued it, you’d effectively “re-issue” the same MMA and corrupt the accumulator (or at best waste cycles).
 
 ```python
-# blackwell_helpers.py lines 150-174
-with cute.arch.elect_one():
-    llvm.inline_asm(
-        None,
-        [...],
-        "{\n\t"
-        ".reg .pred leader_thread;\n\t"
-        "elect.sync _|leader_thread, -1;\n\t"
-        ...
-        f"@leader_thread tcgen05.mma.cta_group::1.kind::f16 [$0], smem_desc_a, smem_desc_b, idesc, p;\n\t"
-        "}\n",
-        ...
-    )
+# blackwell_helpers.py (see gemm_ptx_loop / gemm_ptx_partial)
+llvm.inline_asm(
+    None,
+    [...],
+    "{\n\t"
+    ".reg .pred leader_thread;\n\t"
+    "elect.sync _|leader_thread, -1;\n\t"
+    ...
+    "@leader_thread tcgen05.mma.cta_group::1.kind::f16 [$0], smem_desc_a, smem_desc_b, idesc, p;\n\t"
+    "}\n",
+    ...
+)
 ```
 
 The `elect.sync` instruction:
@@ -257,13 +257,13 @@ The `elect.sync` instruction:
 2. Sets `leader_thread` predicate
 3. Only leader executes the MMA
 
-**Why?** The hardware broadcasts the operation to tensor cores internally. Multiple threads issuing the same MMA would be redundant (and wrong).
+**Why?** This is the standard “single issuer” pattern for warp-group MMA-style instructions: one lane issues, the warp-group executes.
 
 ### The Loop Pattern
 
 ```python
-# blackwell_helpers.py lines 277-317
-# Unrolled K loop with elect_one
+# blackwell_helpers.py (gemm_ptx_loop)
+# Unrolled K loop with descriptor pointer updates between MMAs
 llvm.inline_asm(
     None,
     [...],

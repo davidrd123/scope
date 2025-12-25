@@ -183,7 +183,7 @@ return cute.where(lt(kv_idx, block_start), biased, tSrS_ssa)
 
 ### 2. The Vendored Path Problem
 
-The standard `flash_attn` wheel from PyPI **doesn't have score_mod support**. You need either:
+Many `flash_attn` wheels **don’t expose score_mod support** (or expose a version that differs from what we need). In this repo we assume you will use either:
 1. A vendored version with score_mod patches
 2. A local build from source
 
@@ -239,7 +239,7 @@ fa4 (score_mod)     ← Fastest (1.89x)
     ↓ (if fails)
 flash (segment-combine) ← Safe on SM103
     ↓ (if fails)
-triton (Kernel B)   ← Portable fallback
+triton (Kernel B)   ← Fallback on SM80/90/100; **avoid on SM103** unless you’ve verified it’s on a fast path
     ↓ (if fails)
 flex_attention      ← Last resort
 ```
@@ -253,6 +253,8 @@ if not _fa4_bias_tripped:
         _fa4_bias_tripped = True  # Never try again this session
         logger.warning("FA4 failed; falling back...")
 ```
+
+**SM103 (B300) note:** in our current environment/toolchain, the Triton KV-bias backend can fall onto a catastrophically slow scalar path. For B300, “safe fallback” usually means `flash` (segment-combine), not Triton. (See `notes/FA4/b300/session-state.md` for the practical backend guidance.)
 
 ---
 
