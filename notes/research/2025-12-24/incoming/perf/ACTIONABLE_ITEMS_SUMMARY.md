@@ -1,8 +1,28 @@
 # Actionable Items Extracted from Perf Chat Logs
 
 > **Generated:** 2025-12-24
-> **Source files:** 3 ChatGPT conversation exports
+> **Source files:** 3 ChatGPT conversation exports (see `chat/` subfolder)
 > **Purpose:** Consolidated list of performance recommendations to verify against codebase
+
+## Lifecycle: incoming → actionable → verified → docs
+
+```
+notes/research/.../incoming/perf/
+├── chat/           # Raw captures (archival, speculative)
+├── blogs/          # Saved blog posts (reference material)
+└── ACTIONABLE_ITEMS_SUMMARY.md   # THIS FILE: Testing TODO list
+
+notes/FA4/b300/
+└── blackwell-docs.md   # Only VERIFIED learnings graduate here
+```
+
+**Status meanings in this file:**
+- ✅ Done = Tested and verified, should be in blackwell-docs.md
+- ⚠️ Partial = Partially tested, needs more work
+- ❓ Need to verify = Not yet tested (speculative)
+- ❌ Blocked = Cannot test due to external issue
+
+**When to graduate items:** Once an item is ✅ verified, add the finding to `notes/FA4/b300/blackwell-docs.md` and optionally mark it here as "graduated".
 
 ---
 

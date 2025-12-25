@@ -386,6 +386,10 @@ In this environment, you may not have permission to reset the GPU from inside th
 - Restart the NVIDIA driver stack / services.
 - Reboot the box.
 
+Also note: CUDA Toolkit 12.9 is the first toolkit version that explicitly adds compiler targets for `sm_103` (B300), so older toolchains (e.g. CUDA 12.8 `ptxas`) may fail to assemble SM103 code even if the runtime/driver is new enough.
+
+NVIDIA also calls out a Linux kernel KASLR+HMM/UVM initialization issue (can cause CUDA init failures) with suggested workarounds like disabling KASLR (`nokaslr`) or disabling HMM for UVM (`options nvidia_uvm uvm_disable_hmm=1`) in the CUDA Toolkit 13.1 release notes.
+
 ## Test 2: Live GPU Monitoring (H2, H3)
 
 Run in a separate terminal while inference is running.

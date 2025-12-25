@@ -10,6 +10,8 @@
 
 This is a ~70% improvement over the repo-default baseline.
 
+External doc brief (for RepoPrompt / web research): `notes/FA4/b300/blackwell-docs.md`
+
 Repro (isolated env; does not touch shared `.venv`):
 
 ```bash
