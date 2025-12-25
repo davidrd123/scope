@@ -1,5 +1,14 @@
-# NVFP4 on NVIDIA Blackwell (SM100)  
+# NVFP4 on NVIDIA Blackwell (SM100)
 Practical adoption guide for coding agents
+
+> **Status:** Speculative / Reference Material
+> **Relevance to B300 work:** Low (current bottleneck is conv3d, not GEMMs)
+> **When this becomes relevant:**
+> - After VAE decode bottleneck is solved and GEMMs become limiting
+> - For KV cache compression to reduce memory bandwidth
+> - NVIDIA FP4 GEMM competition (running ~2 weeks from 2025-12-25)
+>
+> **Key insight:** NVFP4 does NOT help FA4 score_mod (confirmed in TL;DR below)
 
 This document is meant to be dropped into the repo as a living reference for evaluating and adopting NVFP4 (NVIDIA microscaled FP4) in our Blackwell-targeted inference stack.
 

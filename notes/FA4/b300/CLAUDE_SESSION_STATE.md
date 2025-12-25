@@ -1,4 +1,4 @@
-# Claude Session State — B300 Investigation (2025-12-24)
+# Claude Session State — B300 Investigation (2025-12-25)
 
 > **Purpose:** Handoff document for context compaction. Resume from here.
 
@@ -9,44 +9,51 @@
 **B300 @ 320×576:** ~14.8–15.0 FPS (up from 8.8 baseline = +70%)
 
 **Branch:** `feature/stream-recording`
-**Latest commit:** `1a462a2` (pushed)
+**Latest commit:** `60a544a` (pushed) - Add B300 optimization docs and incoming research materials
 
 ---
 
 ## What Was Accomplished This Session
 
-### 1. B300 Performance Investigation Complete
-- Identified root cause: **cuDNN lacking SM103 kernels** in cu128/cu129 stack
-- VAE decode (conv3d) was bottleneck, not attention
-- cu130 stack provides 4x decode speedup (760ms → 194ms)
+### 1. Blog Analysis and Documentation
+- Reviewed 16 blog posts in `notes/research/2025-12-24/incoming/perf/blogs/`
+- Added Section 6 to `blackwell-docs.md`: Quick reference to all blogs with key insights
+- Added Section 7 to `blackwell-docs.md`: Codebase correlation analysis
 
-### 2. Environment Tooling Created
-```bash
-./scripts/setup_b300_cu130_env.sh    # One-time setup
-./scripts/b300_env_fix_cu130.sh      # Fix after uv sync clobbers
-./scripts/run_daydream_b300.sh       # Run with correct env vars
+### 2. Key Findings from Codebase Correlation
+
+| Category | Status | Notes |
+|----------|--------|-------|
+| Tensor core 128×128 | ✓ Aligned | head_dim=128 for both 14B and 1.3B |
+| flex_attention max-autotune | ✓ Aligned | Uses max-autotune-no-cudagraphs |
+| non_blocking transfers | ✓ Aligned | attention.py uses non_blocking=True |
+| GPU sync elimination | ⚠️ Opportunity | `.item()` calls in KV cache hot path |
+| Regional compilation | ❓ Not implemented | Could reduce cold start |
+
+### 3. Research Organization
+- Moved 3 ChatGPT exports to `incoming/perf/chat/`
+- Added lifecycle framing to `ACTIONABLE_ITEMS_SUMMARY.md`:
+  - `incoming/` = raw, speculative
+  - `ACTIONABLE_ITEMS_SUMMARY.md` = testing TODO list
+  - `blackwell-docs.md` = verified, graduated learnings
+- Added status note to `NVFP4.md` (speculative, relevant for NVIDIA FP4 GEMM competition)
+
+### 4. Current Bottleneck Analysis (cu130 stack)
+
+```
+Total: ~6076 ms (6 calls)
+├── denoise: 3951 ms (65%) ← TRANSFORMER, needs deeper breakdown
+│   └── generator: 3946 ms (99.9% of denoise)
+│       └── call_model_kv_cache: 4635 ms
+│           ├── Attention (self+cross)? → UNKNOWN
+│           ├── Linear/MLP GEMMs?       → UNKNOWN
+│           └── Norms, RoPE?            → UNKNOWN
+├── decode: 1242 ms (20%) ← VAE conv3d, FIXED by cu130
+├── recompute_kv_cache: 842 ms (14%)
+└── text_conditioning: 35 ms (0.6%)
 ```
 
-### 3. Profiling Infrastructure Added
-- `scripts/profile_b300_denoise_drilldown.sh`
-- CUDA event profilers in denoise.py, generator.py, wan.py
-- Block-level timing: denoise 62%, decode 25%, recompute_kv 12%
-
-### 4. Documentation Updated
-- `notes/FA4/b300/session-state.md` — 15 FPS result
-- `notes/FA4/b300/investigation-runbook.md` — full findings
-- `notes/research/2025-12-24/incoming/perf/ACTIONABLE_ITEMS_SUMMARY.md` — LLM recommendations cross-checked
-
-### 5. Commits Pushed Today
-```
-1a462a2 Add perf research chat exports with disclaimers and actionable summary
-717bf50 Add B300 benchmark artifacts and research notes
-d9ea647 Add B300 denoise drilldown profiling and benchmark artifacts
-3cd10c6 Add style layer scaffolding (Days 5-7)
-55a01c1 Add snapshot/restore and step mode to realtime control plane
-e0dff46 Add B300 profiling infrastructure and update docs with 15 FPS result
-d8284d9 Add B300/cu130 support: env scripts, VAE profiling, flash backend fallback
-```
+**Key insight:** After cu130 fixed decode (760ms→194ms), denoise/transformer is now the #1 bottleneck at 65%. The blogs focusing on attention optimization ARE relevant now, but we need a deeper profile to know if it's attention or linear GEMMs.
 
 ---
 
@@ -54,31 +61,30 @@ d8284d9 Add B300/cu130 support: env scripts, VAE profiling, flash backend fallba
 
 | File | Purpose |
 |------|---------|
+| `notes/FA4/b300/blackwell-docs.md` | External docs + blog refs + codebase correlation (Sections 6-7 are new) |
 | `notes/FA4/b300/session-state.md` | Current B300 status + repro commands |
-| `notes/FA4/b300/investigation-runbook.md` | Full investigation methodology |
-| `.venv-b300-cu130-decode/` | Isolated cu130 env (torch 2.9 + flash-attn) |
-| `scripts/run_daydream_b300.sh` | Runs daydream with B300 env vars |
+| `notes/research/2025-12-24/incoming/perf/ACTIONABLE_ITEMS_SUMMARY.md` | Testing TODO list with lifecycle framing |
+| `notes/research/2025-12-24/incoming/perf/blogs/` | 16 saved blog posts |
+| `notes/research/2025-12-24/incoming/perf/chat/` | 3 ChatGPT exports (moved here) |
+| `outputs/b300_cu130_fp8_bias03_drilldown_*.json` | Profiling artifacts |
 
 ---
 
-## Remaining Work (Not Urgent)
+## Pending Investigation
 
-1. **RoPE chunk padding** — `triton_rope_fused.py` still has C*_PAD; chat suggested fixing this but attention isn't the bottleneck
-2. **Nsight profiling** — blocked by CUPTI errors on this box
-3. **Gap to 20 FPS** — denoise is now 62% of time; may need further cu130 stack optimization
+**Need to answer:** What's inside the 3951ms `generator()` call?
+- Is it attention (self+cross)? → ThunderKittens, FlexAttention blogs apply
+- Is it linear/MLP GEMMs? → NVFP4 applies
+- Is it RoPE/norms? → Triton fusion applies
+
+**How to get this:** Run with `PROFILE_ATTENTION=1` or add op-level timing to generator.
 
 ---
 
-## Environment Notes
+## Commits Pushed This Session
 
-```bash
-# B300 requires these env vars
-export TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
-export DISABLE_FLEX_ATTENTION_COMPILE=1  # torch 2.9 + SM103
-export WANVAE_STREAM_DECODE_MODE=chunk
-
-# Run with cu130 env
-./scripts/run_daydream_b300.sh
+```
+60a544a Add B300 optimization docs and incoming research materials
 ```
 
 ---
@@ -89,9 +95,21 @@ export WANVAE_STREAM_DECODE_MODE=chunk
 # Check current status
 cat notes/FA4/b300/session-state.md | head -50
 
+# View blog reference
+cat notes/FA4/b300/blackwell-docs.md | grep -A 100 "## 6) Blackwell Optimization"
+
 # Run B300 benchmark
 ./scripts/run_daydream_b300.sh
 
-# View recent commits
-git log --oneline -10
+# Profile with attention breakdown
+PROFILE_ATTENTION=1 ./scripts/run_daydream_b300.sh
 ```
+
+---
+
+## Next Steps (When Resuming)
+
+1. **Get transformer-internal breakdown** - Profile what's inside `generator()` (attention vs linear vs other)
+2. **If attention dominates** - Evaluate ThunderKittens or cuDNN attention kernels
+3. **If linear dominates** - Consider NVFP4 for GEMMs (NVIDIA competition running ~2 weeks)
+4. **Test `.item()` elimination** - The GPU sync pattern identified in KV cache code
