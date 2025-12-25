@@ -9,21 +9,22 @@
 ## Ecosystem Map
 
 ```
-                    ┌─────────────────────────────────┐
-                    │     Daydream Scope (upstream)   │
-                    │  - Krea 14B (T2V)               │
-                    │  - LongLive 1.3B (V2V)          │
-                    │  - StreamDiffusionV2 (V2V)      │
-                    │  - WebRTC + REST API            │
-                    └───────────────┬─────────────────┘
-                                    │
-         ┌──────────────────────────┼──────────────────────────┐
-         │                          │                          │
-         ▼                          ▼                          ▼
-┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
-│   Our Fork      │      │   Frost Bytes   │      │   Dreamwalker   │
-│   (this repo)   │      │   (UE5 VJ)      │      │ (Unity Mobile)  │
-└─────────────────┘      └─────────────────┘      └─────────────────┘
+                         ┌─────────────────────────────────┐
+                         │     Daydream Scope (upstream)   │
+                         │  - Krea 14B (T2V)               │
+                         │  - LongLive 1.3B (V2V)          │
+                         │  - StreamDiffusionV2 (V2V)      │
+                         │  - WebRTC + REST API            │
+                         └───────────────┬─────────────────┘
+                                         │
+    ┌────────────────┬───────────────────┼───────────────────┬────────────────┐
+    │                │                   │                   │                │
+    ▼                ▼                   ▼                   ▼                ▼
+┌────────┐    ┌────────────┐    ┌─────────────┐    ┌─────────────┐    ┌────────────┐
+│Our Fork│    │Frost Bytes │    │ Dreamwalker │    │ Narrative AI│    │  (others)  │
+│(14B+   │    │(UE5 VJ,    │    │ (Unity      │    │ (Unity+     │    │            │
+│ LoRAs) │    │ Tidal OSC) │    │  Mobile)    │    │  Claude LLM)│    │            │
+└────────┘    └────────────┘    └─────────────┘    └─────────────┘    └────────────┘
 ```
 
 ---
@@ -99,6 +100,67 @@ Android Camera → Unity WebRTC Client
 - Reference Unity WebRTC implementation
 - Mobile-friendly API patterns
 - VACE API surface validation
+
+---
+
+### Open-World Narrative AI (Unity + Claude Storyteller)
+
+**Creator:** (Daydream program participant)
+**Status:** Planning phase
+**Plan:** `notes/research/2025-12-24/other-ppls-projects/DREAMWALKER_PROJECT_PLAN.md`
+
+**What it does:**
+- Interactive storytelling where player walks through physical space
+- Camera feed transformed in real-time via Scope VACE
+- Claude API as "Storyteller LLM" driving narrative + prompts
+- Multi-participant: Player, NPCs (with whisper prompts), Dungeon Master
+- Reference images generated via ComfyUI on Runpod
+
+**Architecture:**
+```
+Player Camera → Preprocessing (GPU 2) → Scope VACE (GPU 1) → Unity Host
+                Depth + Pose              longlive/reward-forcing
+                                                    ↓
+                                          ┌────────┴────────┐
+                                          ↓        ↓        ↓
+                                       Player    NPC      Twitch
+
+Claude Storyteller ────► prompts, ref images, narration (TTS)
+                         player choices, NPC whispers
+```
+
+**Tech stack:**
+- **Scope pipelines:** longlive, reward-forcing (1.3B V2V with VACE)
+- **Preprocessing:** Depth Anything V2 + MediaPipe (pose) → composite control frame
+- **LLM:** Claude API with vision + structured outputs
+- **Audio:** ElevenLabs TTS (narrator + NPC whispers)
+- **Image gen:** ComfyUI on Runpod for composite reference images
+- **Distribution:** Spout (local), Unity WebRTC (remote Android), OBS→Twitch
+
+**Key innovations:**
+- Composite reference images (NPC avatar + quest item + scene style → single VACE ref)
+- Preprocessing pipeline creates depth+pose control signals for VACE
+- NPC "in view" button triggers avatar inclusion in generation
+- Prefetch queue for predictive image generation
+- Structured LLM outputs drive all systems (prompt, TTS, choices, images)
+
+**Hardware requirements:**
+- GPU 1: RTX 3090/4090 (24GB) for Scope
+- GPU 2: RTX 3080+ (12GB) for preprocessing
+- Runpod: ComfyUI for reference image generation
+
+**Implementation phases:**
+1. Core pipeline (Spout: Preprocessing → Scope → Unity)
+2. Storyteller integration (Claude + TTS + choices)
+3. Multi-participant (WebRTC to Android, NPC whispers, DM controls)
+4. Image generation (ComfyUI composites, prefetch)
+5. Polish (Twitch, quests, 6DoF tracking)
+
+**Relevance to us:**
+- Uses 1.3B V2V pipelines (we're focused on 14B T2V)
+- Preprocessing pattern (depth+pose) could apply to future VACE-14B work
+- Claude structured outputs for prompt control - similar to our Style Layer
+- Multi-stage pipeline inspiration for our GPU 1 → GPU 2 vision
 
 ---
 
