@@ -790,6 +790,12 @@ class PromptRequest(BaseModel):
     prompt: str
 
 
+class HardCutRequest(BaseModel):
+    """Request to perform a hard cut (cache reset) with optional new prompt."""
+
+    prompt: str | None = None  # Optional prompt to apply after cache reset
+
+
 class WorldStateRequest(BaseModel):
     """Request to set world state (full replace)."""
 
@@ -1013,6 +1019,44 @@ async def step_realtime(
         raise HTTPException(400, str(e)) from e
     except Exception as e:
         logger.error(f"Error stepping realtime: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.post("/api/v1/realtime/hard-cut", response_model=RealtimeControlResponse)
+async def hard_cut(
+    request: HardCutRequest | None = None,
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Perform a hard cut (reset KV cache) with optional new prompt.
+
+    A hard cut resets the generation context, allowing a clean scene transition
+    instead of morphing from the current frame. Use this for:
+    - Scene changes in sequences/playlists
+    - Breaking out of error accumulation
+    - Starting fresh with a new prompt
+    """
+    try:
+        session = get_active_session(webrtc_manager)
+
+        # Build control message with reset_cache
+        msg: dict = {"reset_cache": True}
+
+        # Optionally include new prompt
+        if request and request.prompt:
+            msg["prompts"] = [{"text": request.prompt, "weight": 1.0}]
+
+        if not apply_control_message(session, msg):
+            raise HTTPException(503, "Failed to apply hard cut")
+
+        fp = session.video_track.frame_processor
+        return RealtimeControlResponse(
+            status="hard_cut_applied",
+            chunk_index=fp.chunk_index if fp else None,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        logger.error(f"Error performing hard cut: {e}")
         raise HTTPException(500, str(e)) from e
 
 
