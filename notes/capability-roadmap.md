@@ -293,25 +293,25 @@ All three features are independent of each other. Style Layer is in progress; VA
 ### Hard Cut Toggle for Playlist Navigation
 
 **Requested:** 2025-12-25
-**Status:** Not started
+**Status:** REST endpoint done, playlist integration pending
 
 **What:** Add a "hard cut" mode to playlist navigation that resets the KV cache when switching prompts, causing a clean scene transition instead of morphing the current scene.
 
 **Current behavior:** When navigating to a new prompt, the scene smoothly mutates from the current visual to match the new prompt (because the KV cache maintains continuity).
 
-**Desired behavior:** Option to do a "hard cut" where:
-1. Disable "Manage Cache"
-2. Reset the cache
-3. Re-enable "Manage Cache"
-4. Apply the new prompt
+**Desired behavior:** Option to do a "hard cut" where the cache is reset, starting fresh with the new prompt instead of morphing.
 
-This would start fresh with the new prompt instead of morphing.
+**Completed:**
+- [x] `POST /api/v1/realtime/hard-cut` endpoint (2025-12-25)
+  - Resets KV cache for clean scene transition
+  - Optional `prompt` parameter to set new prompt after reset
+  - Returns `{"status": "hard_cut_applied", "chunk_index": N}`
 
-**Implementation ideas:**
-- Add `--hard-cut` flag to `video-cli playlist next/prev/goto`
-- Add `hard_cut` param to REST endpoints
-- In interactive nav mode, maybe `H` key for hard-cut next vs regular next
-- Could also be a toggle: once enabled, all navigation does hard cuts
+**Remaining:**
+- [ ] Add `--hard-cut` flag to `video-cli playlist next/prev/goto`
+- [ ] In interactive nav mode, `H` key for hard-cut next vs regular next
+- [ ] TUI director key binding
+- [ ] Sequence format support (hard cut markers in YAML/JSON)
 
 **GUI reference:** The "Manage Cache" toggle and "Reset Cache" button already exist in the web UI.
 
