@@ -1,8 +1,9 @@
 # VACE-14B Integration Plan
 
 **Created**: 2024-12-24
+**Last Updated**: 2025-12-25
 **Status**: Ready to implement
-**Goal**: Add VACE (reference image conditioning) support to Krea 14B pipeline
+**Goal**: Add VACE (reference image conditioning + V2V conditioning) support to the Krea 14B pipeline
 
 ---
 
@@ -10,9 +11,11 @@
 
 VACE-14B weights exist upstream and are downloadable. This is **engineering + wiring work**, not blocked on missing weights. The main tasks are:
 1. Add artifact for VACE-14B module download
-2. Wire `VACEEnabledPipeline` mixin into Krea pipeline
-3. Add `VaceEncodingBlock` to modular blocks
-4. Handle VAE path resolution (currently downloads to 1.3B folder only)
+2. Teach `pipeline_manager.py` to select the **14B** VACE module for Krea (it’s hardcoded to 1.3B today)
+3. Add `vace_enabled` to `KreaRealtimeVideoLoadParams` (default should likely be **False** for VRAM)
+4. Wire `VACEEnabledPipeline` mixin into Krea (VACE before projection fusing + LoRA)
+5. Add `VaceEncodingBlock` to Krea modular blocks
+6. Decide (and document) KV-cache recompute + quantization policy for VACE-14B
 
 ---
 
@@ -22,7 +25,7 @@ VACE-14B weights exist upstream and are downloadable. This is **engineering + wi
 
 | Pipeline | Base Model | VACE Support | Notes |
 |----------|------------|--------------|-------|
-| **Krea Realtime** | Wan2.1-T2V-14B | **No** | CausVid distillation, T2V only |
+| **Krea Realtime** | Wan2.1-T2V-14B | **No** | CausVid distillation; supports text+video modes; VACE missing |
 | **LongLive** | Wan2.1-T2V-1.3B | Yes | Has VACE wired |
 | **StreamDiffusionV2** | Wan2.1-T2V-1.3B | Yes | Has VACE wired |
 | **Reward Forcing** | Wan2.1-T2V-1.3B | Yes | Has VACE wired |
@@ -58,6 +61,26 @@ Krea is the **only 14B pipeline** in the codebase, and it's the only one without
 
 ---
 
+## 1.4 Repo Semantics You Must Internalize (Krea-specific)
+
+These are the “gotchas” that will bite you if you treat VACE as “just another model flag”.
+
+### VACE is a load-time toggle in this repo
+
+- `VACEEnabledPipeline._init_vace()` enables VACE when (and only when) `config.vace_path` is set.
+- The server routes incoming frames based on `pipeline.vace_enabled` (not on request parameters).
+- Practically: enabling/disabling VACE requires **reloading** the pipeline.
+
+Key server code path: `src/scope/server/frame_processor.py` routes:
+- `video_input → video` when VACE is disabled
+- `video_input → vace_input_frames` when VACE is enabled
+
+### VACE-enabled “video mode” is not the same as normal V2V
+
+- `AutoPrepareLatentsBlock` switches to V2V latents only when the input is named `video`.
+- When VACE is enabled, the server routes frames to `vace_input_frames`, so Krea stays on the **text/T2V latent path** and uses video frames only as conditioning.
+- The server explicitly does **not** support combining normal V2V and VACE V2V editing simultaneously.
+
 ## 2. Implementation Steps
 
 ### Step 1: Add VACE-14B Artifact
@@ -81,7 +104,35 @@ VACE_14B_ARTIFACT = HuggingfaceRepoArtifact(
 ],
 ```
 
-### Step 2: Add VACEEnabledPipeline Mixin to Krea
+### Step 2: Update the Server Load API (vace_enabled for Krea)
+
+**File**: `src/scope/server/schema.py`
+
+Add `vace_enabled: bool` to `KreaRealtimeVideoLoadParams`.
+
+**Recommendation:** default `False` for Krea, because VACE-14B adds major VRAM + runtime overhead.
+
+Why this is required:
+- `pipeline_manager.py` needs a load-time signal to decide whether to set `config["vace_path"]`.
+- `_init_vace()` reads `config.vace_path` at pipeline init and sets `pipeline.vace_enabled`.
+- The server routes frames based on `pipeline.vace_enabled`.
+
+### Step 3: Update pipeline_manager.py (select 14B VACE module + wire Krea)
+
+**File**: `src/scope/server/pipeline_manager.py`
+
+Two required changes:
+
+1) **Select the correct VACE checkpoint for the model size**
+- `_get_vace_checkpoint_path()` is hardcoded to the 1.3B module today.
+- Krea must use the 14B module: `WanVideo_comfy/Wan2_1-VACE_module_14B_bf16.safetensors`.
+
+2) **Actually call `_configure_vace()` for Krea**, guarded by `load_params["vace_enabled"]`
+- LongLive/StreamDiffusion/RewardForcing already do this; Krea does not.
+
+Note: `_configure_vace()` currently also looks for `ref_images` and `vace_context_scale` in `load_params`. Those fields are not part of the server schema today; treat as optional follow-up (add to schema or remove).
+
+### Step 4: Add VACEEnabledPipeline mixin to Krea
 
 **File**: `src/scope/core/pipelines/krea_realtime_video/pipeline.py`
 
@@ -92,118 +143,98 @@ class KreaRealtimeVideoPipeline(Pipeline, LoRAEnabledPipeline, VACEEnabledPipeli
     ...
 ```
 
-### Step 3: Wire VACE in __init__
+### Step 5: Wire VACE in `__init__` (ordering + fusing + LoRA)
 
 **File**: `src/scope/core/pipelines/krea_realtime_video/pipeline.py`
 
-**Current code (lines 75-91):**
+**Current code (roughly):**
 ```python
-generator = WanDiffusionWrapper(...)          # Line 75-82
-for block in generator.model.blocks:          # Line 85-86
-    block.self_attn.fuse_projections()
-generator.model = self._init_loras(...)       # Line 89
-if quantization == Quantization.FP8_E4M3FN:   # Line 91+
-```
-
-**Modified order (VACE before fusing, fusing handles both block types):**
-```python
-# 1. Create generator (unchanged)
 generator = WanDiffusionWrapper(...)
-
-# 2. VACE wrapping BEFORE fusing (creates new blocks that inherit fuse_projections)
-generator.model = self._init_vace(config, generator.model, device, dtype)
-
-# 3. Fuse projections on ALL blocks (regular AND VACE)
 for block in generator.model.blocks:
     block.self_attn.fuse_projections()
-if hasattr(generator.model, 'vace_blocks') and generator.model.vace_blocks:
+generator.model = self._init_loras(...)
+... quantize / move to device ...
+```
+
+**Required ordering for VACE:**
+```python
+generator = WanDiffusionWrapper(...)
+
+# VACE must be applied before fusing and before LoRA.
+generator.model = self._init_vace(config, generator.model, device, dtype)
+
+# Fuse projections after VACE wraps/replaces blocks.
+for block in generator.model.blocks:
+    block.self_attn.fuse_projections()
+if hasattr(generator.model, "vace_blocks"):
     for block in generator.model.vace_blocks:
         block.self_attn.fuse_projections()
 
-# 4. LoRA init (unchanged)
+# LoRA must be outermost wrapper.
 generator.model = self._init_loras(config, generator.model)
-
-# 5. Quantization (unchanged)
-if quantization == Quantization.FP8_E4M3FN:
-    ...
 ```
 
-**Why this order:**
-- VACE creates new blocks via factory pattern (inherits from Krea's block class)
-- New blocks start with separate Q, K, V (unfused)
-- Fusing must happen AFTER VACE wrapping to fuse the new blocks
-- LoRA must be last (wraps outermost)
+Quantization note (Krea defaults to FP8):
+- `_init_vace()` moves VACE modules to `device`/`dtype` before loading weights.
+- On memory-constrained GPUs, loading VACE bf16 weights on GPU *before* FP8 quantization may OOM.
+- If you hit this, consider loading VACE on CPU first (or adjusting `_init_vace()` to delay `.to(device)` until after quantization).
 
-**Verified from:**
-- `mixin.py:58-64`: `_init_vace(config, model, device, dtype)` signature
-- `attention_blocks.py:24,125`: Factory inherits from pipeline's block class
-- `longlive/pipeline.py:87-89`: Shows VACE before LoRA pattern
+Also required: add LongLive-style state hygiene so `vace_ref_images` doesn’t persist across chunks when not provided.
 
-### Step 3b: Add Config Schema Fields
+### Step 6 (Optional, for parity): Add Config Schema Fields
 
-**File**: `src/scope/core/pipelines/schema.py` (lines 322-369)
+**File**: `src/scope/core/pipelines/schema.py`
 
-Add VACE fields to `KreaRealtimeVideoConfig` (matching LongLive pattern from lines 221-231):
+LongLive/StreamDiffusion/RewardForcing include `ref_images` + `vace_context_scale` on their config classes; Krea does not. Adding these improves parity and schema metadata, but is not strictly required for “VACE-14B loads and runs”.
 
-```python
-class KreaRealtimeVideoConfig(BasePipelineConfig):
-    # ... existing fields ...
+Important: runtime VACE uses `vace_ref_images` (pipeline inputs), not `ref_images` (config). Decide whether you want to map `ref_images → vace_ref_images` as a convenience.
 
-    # VACE (optional reference image conditioning) - NEW
-    ref_images: list[str] | None = Field(
-        default=None,
-        description="List of reference image paths for VACE conditioning",
-    )
-    vace_context_scale: float = Field(
-        default=1.0,
-        ge=0.0,
-        le=2.0,
-        description="Scaling factor for VACE hint injection (0.0 to 2.0)",
-    )
-```
-
-**Note**: `vace_path` and `vace_in_dim` are lower-level and read from `model.yaml` or passed via `base_model_kwargs`, not the user-facing config schema.
-
-### Step 4: Add VaceEncodingBlock to Modular Blocks
+### Step 7: Add VaceEncodingBlock to Krea modular blocks
 
 **File**: `src/scope/core/pipelines/krea_realtime_video/modular_blocks.py`
 
-```python
-from ..wan2_1.vace.blocks import VaceEncodingBlock
+Insert `VaceEncodingBlock` so that `vace_context` exists before `denoise`.
 
-# Add before denoise block in the blocks list:
-("vace_encoding", VaceEncodingBlock),
-```
+Recommended placement for flexibility: after `auto_prepare_latents` and before `recompute_kv_cache` / `denoise`.
 
-### Step 5: Update pipeline_manager.py
+### Step 8 (Decision): KV-cache recompute semantics for VACE
 
-**File**: `src/scope/server/pipeline_manager.py`
+**File**: `src/scope/core/pipelines/krea_realtime_video/blocks/recompute_kv_cache.py`
 
-Add VACE configuration for Krea pipeline (similar to how LongLive does it).
+Krea’s recompute block currently calls the generator without `vace_context` / `vace_context_scale`. Decide whether that is correct for your use-cases:
 
----
+- **Option A (simplest): keep it as-is.** This matches other cache recache paths and avoids extra complexity.
+- **Option B: pass `vace_context` during recompute** (requires ensuring `vace_encoding` runs before recompute and deciding what `vace_context` should be during cache init).
+
+This decision can affect both quality and performance; document whichever choice you make.
 
 ## 3. Known Pitfalls
 
 ### 3.1 VAE Path Mismatch
 
-**Problem**: `pipeline_artifacts.py` downloads `Wan2.1_VAE.pth` only to the 1.3B folder, but `WanVAEWrapper(model_name="Wan2.1-T2V-14B")` looks in the 14B folder by default.
+This used to be a pitfall, but **Krea already sets `vae_path` explicitly** in `src/scope/server/pipeline_manager.py` (points at the 1.3B VAE artifact).
 
-**Solutions** (pick one):
-1. Add `Wan2.1_VAE.pth` to 14B artifact list (downloads twice, wastes space)
-2. Set `vae_path` explicitly to the 1.3B VAE file in Krea config
-3. Symlink 1.3B VAE to 14B folder
-4. Modify `WanVAEWrapper` to fall back to shared location
-
-**Recommended**: Option 2 (explicit `vae_path`) - cleanest, no duplicate downloads.
+Don’t remove that path unless you also update artifacts and verify `WanVAEWrapper`’s default lookup behavior.
 
 ### 3.2 Projection Fusing After VACE
 
-VACE wrapping replaces attention blocks with `VACECrossAttention`. If Krea uses projection fusing (for FA4/CUTE), this may need to be re-run after VACE initialization.
+Krea uses projection fusing for attention (`block.self_attn.fuse_projections()`).
 
-**Check**: Look at how projection fusing is done in Krea `__init__` and ensure it happens after `_init_vace()`.
+VACE wrapping replaces attention blocks, so fusing must happen **after** `_init_vace()` and must cover both:
+- `generator.model.blocks`
+- `generator.model.vace_blocks` (when present)
 
-### 3.3 Distilled Checkpoint Compatibility
+### 3.3 Server Routing Changes Semantics
+
+When VACE is enabled, server “video mode” input frames are routed to `vace_input_frames` (conditioning), not `video` (V2V latents). This is intentional but easy to miss.
+
+### 3.4 Quantization Policy (FP8 by default on Krea)
+
+Krea defaults to FP8 quantization at load time. VACE-14B adds large bf16 weights; decide whether you want:
+- VACE blocks to also be quantized (memory/stability tradeoffs), or
+- VACE blocks to remain bf16 while the base model is quantized (mixed-dtype + VRAM tradeoffs).
+
+### 3.5 Distilled Checkpoint Compatibility
 
 Open question: Does the Krea distilled checkpoint (`krea-realtime-video-14b.safetensors`) preserve the same block structure that our VACE wrapper expects?
 
@@ -218,12 +249,16 @@ Open question: Does the Krea distilled checkpoint (`krea-realtime-video-14b.safe
 Before declaring VACE-14B working:
 
 - [ ] VACE-14B artifact downloads successfully
+- [ ] `pipeline_manager.py` selects the 14B VACE module for Krea (not the 1.3B module)
+- [ ] Loading Krea with VACE enabled sets `pipeline.vace_enabled == True`
+- [ ] In server “video mode”, frames route to `vace_input_frames` when VACE is enabled
 - [ ] VACE module keys match our filter (`vace_blocks.*`, `vace_patch_embedding.*`)
 - [ ] Number of VACE blocks = 20 (for 40 layers, every other layer [0,2,4,...,38])
 - [ ] Shape check: `vace_patch_embedding.weight` is `(5120, 96, 1, 2, 2)`
 - [ ] Projection fusing still works after VACE block replacement
 - [ ] VAE loads without path errors
 - [ ] Minimal R2V generation produces reasonable output
+- [ ] `vace_ref_images` is “one-shot” (doesn’t silently persist across chunks)
 - [ ] Memory footprint acceptable (14B + VACE + FP8)
 
 ---
@@ -233,10 +268,12 @@ Before declaring VACE-14B working:
 | File | Change |
 |------|--------|
 | `src/scope/server/pipeline_artifacts.py` | Add VACE-14B artifact |
-| `src/scope/core/pipelines/krea_realtime_video/pipeline.py` | Add mixin, VACE wiring, guarded fusing |
-| `src/scope/core/pipelines/krea_realtime_video/modular_blocks.py` | Add VaceEncodingBlock |
-| `src/scope/core/pipelines/schema.py` | Add `ref_images`, `vace_context_scale` to KreaRealtimeVideoConfig |
-| `src/scope/core/pipelines/krea_realtime_video/model.yaml` | Add `vace_path` pointing to 14B module |
+| `src/scope/server/pipeline_manager.py` | Select 14B module + call `_configure_vace()` for Krea when enabled |
+| `src/scope/server/schema.py` | Add `vace_enabled` to `KreaRealtimeVideoLoadParams` (recommend default `False`) |
+| `src/scope/core/pipelines/krea_realtime_video/pipeline.py` | Add mixin, call `_init_vace()` before fuse/LoRA, fuse `vace_blocks`, clear `vace_ref_images` |
+| `src/scope/core/pipelines/krea_realtime_video/modular_blocks.py` | Insert `VaceEncodingBlock` |
+| `src/scope/core/pipelines/schema.py` | (Optional) Add `ref_images` / `vace_context_scale` to `KreaRealtimeVideoConfig` |
+| `src/scope/core/pipelines/krea_realtime_video/blocks/recompute_kv_cache.py` | (Decision) If recompute should pass VACE context |
 
 ---
 
@@ -299,8 +336,8 @@ The mixin is already implemented and tested with 1.3B pipelines. For 14B, the di
 
 ## 8. Next Actions
 
-1. **Verify VACE-14B module exists on HuggingFace** (download test)
-2. **Implement Step 1**: Add artifact
-3. **Implement Steps 2-4**: Wire mixin and blocks
-4. **Test**: Run Krea with VACE enabled, check for errors
-5. **Validate**: Generate sample R2V output
+1. Implement **Step 1** (artifact) and verify the 14B VACE module downloads.
+2. Implement **Step 2–3** (server schema + pipeline manager) so Krea can be loaded with VACE enabled (and default stays off).
+3. Implement **Step 4–5–7** (Krea pipeline + block graph) and verify `pipeline.vace_enabled` + basic R2V.
+4. Decide **Step 8** (KV recompute semantics) and the quantization policy; document the choice.
+5. Validate on target hardware: VRAM headroom + perf impact + qualitative output.

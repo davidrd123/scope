@@ -2,6 +2,10 @@
 
 Background research that informed the integration plan.
 
+For the current integration guide, see:
+- `notes/vace-14b-integration/README.md`
+- `notes/vace-14b-integration/plan.md`
+
 ## Files
 
 - `architecture-research.md` - Verified architecture specs, VACE availability, VAE details

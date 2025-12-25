@@ -4,6 +4,8 @@
 **Status**: Architecture + upstream model availability verified; integration work pending  
 **Purpose**: Document what we know from *this* codebase, confirm upstream facts, and keep a concrete “next actions” list.
 
+> Note: This file is background research. For the current repo wiring plan + server semantics, use `notes/vace-14b-integration/plan.md` and `notes/vace-14b-integration/README.md`.
+
 ---
 
 ## 0. What we verified (and what changed vs earlier notes)
@@ -224,4 +226,3 @@ PY
 
 **Next integration milestone:**
 - Add + wire **VACE 14B** downloads and a VACE-enabled 14B pipeline (or adapt Krea), then benchmark VRAM/speed/quality.
-

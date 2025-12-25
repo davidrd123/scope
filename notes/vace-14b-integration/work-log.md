@@ -2,6 +2,10 @@
 
 Chronological log of work on adding VACE support to Krea 14B pipeline.
 
+For current “do this next” instructions, start with:
+- `notes/vace-14b-integration/README.md`
+- `notes/vace-14b-integration/plan.md`
+
 ---
 
 ## 2024-12-24: Research & Planning
@@ -126,6 +130,33 @@ Planned work:
 5. Test and validate
 
 ---
+
+## 2025-12-25: Repo-wide Integration Audit (What’s Actually Missing)
+
+**Goal**: Verify the plan against current server + pipeline behavior and identify the real missing wiring points for Krea 14B.
+
+**Corrections / clarifications**:
+- Krea is **not** “T2V-only” in the repo; it supports text+video modes, but VACE is not wired.
+- The VAE “14B path mismatch” is **already mitigated** for Krea by explicitly setting `vae_path` in `src/scope/server/pipeline_manager.py`.
+
+**Key findings (must implement)**:
+1. **Server routing depends on `pipeline.vace_enabled`**, not request params:
+   - `src/scope/server/frame_processor.py` routes incoming frames to `vace_input_frames` only when VACE was enabled at pipeline init.
+2. **Krea is missing the server-side toggle**:
+   - Add `vace_enabled` to `src/scope/server/schema.py:KreaRealtimeVideoLoadParams` (likely default `False`).
+   - Call `_configure_vace()` in Krea branch of `src/scope/server/pipeline_manager.py` when enabled.
+3. **VACE checkpoint path selection is hardcoded to 1.3B**:
+   - `src/scope/server/pipeline_manager.py:_get_vace_checkpoint_path()` must select the 14B module for Krea.
+4. **Krea pipeline wiring is incomplete**:
+   - `src/scope/core/pipelines/krea_realtime_video/pipeline.py` must inherit `VACEEnabledPipeline` and call `_init_vace()` before projection fusing + LoRA.
+   - Must fuse projections on `vace_blocks` as well (when present).
+   - Must clear `vace_ref_images` in `_generate()` when not provided (one-shot semantics).
+5. **Krea block graph is missing VACE encoding**:
+   - Insert `VaceEncodingBlock` into `src/scope/core/pipelines/krea_realtime_video/modular_blocks.py` before `denoise`.
+
+**Major decision points (document before coding)**:
+- Quantization policy: should VACE-14B blocks also be FP8 quantized (memory) or kept bf16 (quality/stability)?
+- KV-cache recompute semantics: `RecomputeKVCacheBlock` currently calls generator without `vace_context`; decide whether that’s acceptable for your VACE use-cases.
 
 <!-- Template for new entries:
 

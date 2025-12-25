@@ -21,7 +21,7 @@
 
 ## What is VACE?
 
-**VACE** = "Video Anything with Controllable Editing" (sometimes parsed as "Visual Adaptive Conditioning Enhancement")
+**VACE** (in this repo) = "Video All-In-One Creation and Editing"
 
 It's a technique for conditioning video generation on:
 - **Reference images** ("generate video that looks like this image") — style, character consistency
