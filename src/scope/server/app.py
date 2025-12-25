@@ -848,6 +848,51 @@ class PromptJiggleResponse(BaseModel):
     jiggled_prompt: str | None = None
 
 
+# =============================================================================
+# Prompt Playlist Schemas
+# =============================================================================
+
+
+class PlaylistLoadRequest(BaseModel):
+    """Request to load a prompt playlist from a file."""
+
+    file_path: str
+    old_trigger: str | None = None  # Trigger phrase to replace
+    new_trigger: str | None = None  # Replacement trigger phrase
+
+
+class PlaylistGotoRequest(BaseModel):
+    """Request to go to a specific playlist index."""
+
+    index: int
+
+
+class PlaylistResponse(BaseModel):
+    """Response with current playlist state."""
+
+    status: str
+    source_file: str | None = None
+    current_index: int = 0
+    total: int = 0
+    current_prompt: str | None = None
+    has_next: bool = False
+    has_prev: bool = False
+    trigger_swap: list[str] | None = None
+    prompt_applied: bool = False
+
+
+class PlaylistPreviewResponse(BaseModel):
+    """Response with playlist preview window."""
+
+    prompts: list[dict]
+    current_index: int
+    total: int
+
+
+# Global playlist instance (per-server, not per-session for simplicity)
+_prompt_playlist: "PromptPlaylist | None" = None
+
+
 @app.get("/api/v1/realtime/state", response_model=RealtimeStateResponse)
 async def get_realtime_state(
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
@@ -1253,6 +1298,201 @@ async def jiggle_prompt(
     except Exception as e:
         logger.error(f"Error jiggling prompt: {e}")
         raise HTTPException(500, str(e)) from e
+
+
+# =============================================================================
+# Prompt Playlist API
+# =============================================================================
+
+
+def _apply_playlist_prompt(
+    webrtc_manager: WebRTCManager, prompt: str
+) -> bool:
+    """Apply the current playlist prompt to the session."""
+    try:
+        session = get_active_session(webrtc_manager)
+        return apply_control_message(
+            session, {"prompts": [{"text": prompt, "weight": 1.0}]}
+        )
+    except Exception:
+        return False
+
+
+@app.post("/api/v1/realtime/playlist/load", response_model=PlaylistResponse)
+async def load_playlist(
+    request: PlaylistLoadRequest,
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Load a prompt playlist from a caption file.
+
+    Optionally swap trigger phrases (e.g., "1988 Cel Animation" -> "Rankin/Bass Animagic Stop-Motion").
+    """
+    global _prompt_playlist
+    try:
+        from scope.realtime.prompt_playlist import PromptPlaylist
+
+        trigger_swap = None
+        if request.old_trigger and request.new_trigger:
+            trigger_swap = (request.old_trigger, request.new_trigger)
+
+        _prompt_playlist = PromptPlaylist.from_file(
+            request.file_path,
+            trigger_swap=trigger_swap,
+        )
+
+        # Apply first prompt
+        applied = _apply_playlist_prompt(webrtc_manager, _prompt_playlist.current)
+
+        return PlaylistResponse(
+            status="loaded",
+            source_file=_prompt_playlist.source_file,
+            current_index=_prompt_playlist.current_index,
+            total=_prompt_playlist.total,
+            current_prompt=_prompt_playlist.current,
+            has_next=_prompt_playlist.has_next,
+            has_prev=_prompt_playlist.has_prev,
+            trigger_swap=list(trigger_swap) if trigger_swap else None,
+            prompt_applied=applied,
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        logger.error(f"Error loading playlist: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.get("/api/v1/realtime/playlist", response_model=PlaylistResponse)
+async def get_playlist():
+    """Get current playlist state."""
+    global _prompt_playlist
+    if _prompt_playlist is None:
+        return PlaylistResponse(status="no_playlist")
+
+    return PlaylistResponse(
+        status="ok",
+        source_file=_prompt_playlist.source_file,
+        current_index=_prompt_playlist.current_index,
+        total=_prompt_playlist.total,
+        current_prompt=_prompt_playlist.current,
+        has_next=_prompt_playlist.has_next,
+        has_prev=_prompt_playlist.has_prev,
+        trigger_swap=list(_prompt_playlist.trigger_swap) if _prompt_playlist.trigger_swap else None,
+        prompt_applied=False,
+    )
+
+
+@app.get("/api/v1/realtime/playlist/preview", response_model=PlaylistPreviewResponse)
+async def preview_playlist(context: int = Query(default=3, ge=1, le=10)):
+    """Get a preview window around current playlist position."""
+    global _prompt_playlist
+    if _prompt_playlist is None:
+        return PlaylistPreviewResponse(prompts=[], current_index=0, total=0)
+
+    preview = _prompt_playlist.preview(context=context)
+    return PlaylistPreviewResponse(**preview)
+
+
+@app.post("/api/v1/realtime/playlist/next", response_model=PlaylistResponse)
+async def playlist_next(
+    apply: bool = Query(default=True, description="Apply prompt after navigating"),
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Move to the next prompt in the playlist, optionally applying it."""
+    global _prompt_playlist
+    if _prompt_playlist is None:
+        raise HTTPException(400, "No playlist loaded")
+
+    prompt = _prompt_playlist.next()
+    applied = _apply_playlist_prompt(webrtc_manager, prompt) if apply else False
+
+    return PlaylistResponse(
+        status="next",
+        source_file=_prompt_playlist.source_file,
+        current_index=_prompt_playlist.current_index,
+        total=_prompt_playlist.total,
+        current_prompt=prompt,
+        has_next=_prompt_playlist.has_next,
+        has_prev=_prompt_playlist.has_prev,
+        trigger_swap=list(_prompt_playlist.trigger_swap) if _prompt_playlist.trigger_swap else None,
+        prompt_applied=applied,
+    )
+
+
+@app.post("/api/v1/realtime/playlist/prev", response_model=PlaylistResponse)
+async def playlist_prev(
+    apply: bool = Query(default=True, description="Apply prompt after navigating"),
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Move to the previous prompt in the playlist, optionally applying it."""
+    global _prompt_playlist
+    if _prompt_playlist is None:
+        raise HTTPException(400, "No playlist loaded")
+
+    prompt = _prompt_playlist.prev()
+    applied = _apply_playlist_prompt(webrtc_manager, prompt) if apply else False
+
+    return PlaylistResponse(
+        status="prev",
+        source_file=_prompt_playlist.source_file,
+        current_index=_prompt_playlist.current_index,
+        total=_prompt_playlist.total,
+        current_prompt=prompt,
+        has_next=_prompt_playlist.has_next,
+        has_prev=_prompt_playlist.has_prev,
+        trigger_swap=list(_prompt_playlist.trigger_swap) if _prompt_playlist.trigger_swap else None,
+        prompt_applied=applied,
+    )
+
+
+@app.post("/api/v1/realtime/playlist/goto", response_model=PlaylistResponse)
+async def playlist_goto(
+    request: PlaylistGotoRequest,
+    apply: bool = Query(default=True, description="Apply prompt after navigating"),
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Go to a specific index in the playlist, optionally applying it."""
+    global _prompt_playlist
+    if _prompt_playlist is None:
+        raise HTTPException(400, "No playlist loaded")
+
+    prompt = _prompt_playlist.goto(request.index)
+    applied = _apply_playlist_prompt(webrtc_manager, prompt) if apply else False
+
+    return PlaylistResponse(
+        status="goto",
+        source_file=_prompt_playlist.source_file,
+        current_index=_prompt_playlist.current_index,
+        total=_prompt_playlist.total,
+        current_prompt=prompt,
+        has_next=_prompt_playlist.has_next,
+        has_prev=_prompt_playlist.has_prev,
+        trigger_swap=list(_prompt_playlist.trigger_swap) if _prompt_playlist.trigger_swap else None,
+        prompt_applied=applied,
+    )
+
+
+@app.post("/api/v1/realtime/playlist/apply", response_model=PlaylistResponse)
+async def playlist_apply(
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Re-apply the current playlist prompt without changing position."""
+    global _prompt_playlist
+    if _prompt_playlist is None:
+        raise HTTPException(400, "No playlist loaded")
+
+    applied = _apply_playlist_prompt(webrtc_manager, _prompt_playlist.current)
+
+    return PlaylistResponse(
+        status="applied",
+        source_file=_prompt_playlist.source_file,
+        current_index=_prompt_playlist.current_index,
+        total=_prompt_playlist.total,
+        current_prompt=_prompt_playlist.current,
+        has_next=_prompt_playlist.has_next,
+        has_prev=_prompt_playlist.has_prev,
+        trigger_swap=list(_prompt_playlist.trigger_swap) if _prompt_playlist.trigger_swap else None,
+        prompt_applied=applied,
+    )
 
 
 @app.get("/api/v1/logs/current")

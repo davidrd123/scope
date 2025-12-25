@@ -49,6 +49,7 @@ from scope.realtime.prompt_compiler import (
     InstructionSheet,
     create_compiler,
 )
+from scope.realtime.prompt_playlist import PromptPlaylist
 
 __all__ = [
     # control_state
@@ -88,4 +89,6 @@ __all__ = [
     "CachedCompiler",
     "InstructionSheet",
     "create_compiler",
+    # prompt_playlist
+    "PromptPlaylist",
 ]
