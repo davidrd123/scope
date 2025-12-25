@@ -1350,14 +1350,21 @@ async def jiggle_prompt(
 
 
 def _apply_playlist_prompt(
-    webrtc_manager: WebRTCManager, prompt: str
+    webrtc_manager: WebRTCManager, prompt: str, hard_cut: bool = False
 ) -> bool:
-    """Apply the current playlist prompt to the session."""
+    """Apply the current playlist prompt to the session.
+
+    Args:
+        webrtc_manager: WebRTC manager instance
+        prompt: The prompt text to apply
+        hard_cut: If True, reset KV cache before applying prompt (clean scene transition)
+    """
     try:
         session = get_active_session(webrtc_manager)
-        return apply_control_message(
-            session, {"prompts": [{"text": prompt, "weight": 1.0}]}
-        )
+        msg: dict = {"prompts": [{"text": prompt, "weight": 1.0}]}
+        if hard_cut:
+            msg["reset_cache"] = True
+        return apply_control_message(session, msg)
     except Exception:
         return False
 
@@ -1439,18 +1446,23 @@ async def preview_playlist(context: int = Query(default=3, ge=1, le=10)):
 @app.post("/api/v1/realtime/playlist/next", response_model=PlaylistResponse)
 async def playlist_next(
     apply: bool = Query(default=True, description="Apply prompt after navigating"),
+    hard_cut: bool = Query(default=False, description="Reset KV cache for clean scene transition"),
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
-    """Move to the next prompt in the playlist, optionally applying it."""
+    """Move to the next prompt in the playlist, optionally applying it.
+
+    Use hard_cut=true to reset the KV cache, causing a clean scene transition
+    instead of morphing from the current frame.
+    """
     global _prompt_playlist
     if _prompt_playlist is None:
         raise HTTPException(400, "No playlist loaded")
 
     prompt = _prompt_playlist.next()
-    applied = _apply_playlist_prompt(webrtc_manager, prompt) if apply else False
+    applied = _apply_playlist_prompt(webrtc_manager, prompt, hard_cut=hard_cut) if apply else False
 
     return PlaylistResponse(
-        status="next",
+        status="hard_cut_next" if hard_cut else "next",
         source_file=_prompt_playlist.source_file,
         current_index=_prompt_playlist.current_index,
         total=_prompt_playlist.total,
@@ -1465,18 +1477,23 @@ async def playlist_next(
 @app.post("/api/v1/realtime/playlist/prev", response_model=PlaylistResponse)
 async def playlist_prev(
     apply: bool = Query(default=True, description="Apply prompt after navigating"),
+    hard_cut: bool = Query(default=False, description="Reset KV cache for clean scene transition"),
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
-    """Move to the previous prompt in the playlist, optionally applying it."""
+    """Move to the previous prompt in the playlist, optionally applying it.
+
+    Use hard_cut=true to reset the KV cache, causing a clean scene transition
+    instead of morphing from the current frame.
+    """
     global _prompt_playlist
     if _prompt_playlist is None:
         raise HTTPException(400, "No playlist loaded")
 
     prompt = _prompt_playlist.prev()
-    applied = _apply_playlist_prompt(webrtc_manager, prompt) if apply else False
+    applied = _apply_playlist_prompt(webrtc_manager, prompt, hard_cut=hard_cut) if apply else False
 
     return PlaylistResponse(
-        status="prev",
+        status="hard_cut_prev" if hard_cut else "prev",
         source_file=_prompt_playlist.source_file,
         current_index=_prompt_playlist.current_index,
         total=_prompt_playlist.total,
@@ -1492,18 +1509,23 @@ async def playlist_prev(
 async def playlist_goto(
     request: PlaylistGotoRequest,
     apply: bool = Query(default=True, description="Apply prompt after navigating"),
+    hard_cut: bool = Query(default=False, description="Reset KV cache for clean scene transition"),
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
-    """Go to a specific index in the playlist, optionally applying it."""
+    """Go to a specific index in the playlist, optionally applying it.
+
+    Use hard_cut=true to reset the KV cache, causing a clean scene transition
+    instead of morphing from the current frame.
+    """
     global _prompt_playlist
     if _prompt_playlist is None:
         raise HTTPException(400, "No playlist loaded")
 
     prompt = _prompt_playlist.goto(request.index)
-    applied = _apply_playlist_prompt(webrtc_manager, prompt) if apply else False
+    applied = _apply_playlist_prompt(webrtc_manager, prompt, hard_cut=hard_cut) if apply else False
 
     return PlaylistResponse(
-        status="goto",
+        status="hard_cut_goto" if hard_cut else "goto",
         source_file=_prompt_playlist.source_file,
         current_index=_prompt_playlist.current_index,
         total=_prompt_playlist.total,
@@ -1517,17 +1539,22 @@ async def playlist_goto(
 
 @app.post("/api/v1/realtime/playlist/apply", response_model=PlaylistResponse)
 async def playlist_apply(
+    hard_cut: bool = Query(default=False, description="Reset KV cache for clean scene transition"),
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
-    """Re-apply the current playlist prompt without changing position."""
+    """Re-apply the current playlist prompt without changing position.
+
+    Use hard_cut=true to reset the KV cache, causing a clean scene transition
+    instead of morphing from the current frame.
+    """
     global _prompt_playlist
     if _prompt_playlist is None:
         raise HTTPException(400, "No playlist loaded")
 
-    applied = _apply_playlist_prompt(webrtc_manager, _prompt_playlist.current)
+    applied = _apply_playlist_prompt(webrtc_manager, _prompt_playlist.current, hard_cut=hard_cut)
 
     return PlaylistResponse(
-        status="applied",
+        status="hard_cut_applied" if hard_cut else "applied",
         source_file=_prompt_playlist.source_file,
         current_index=_prompt_playlist.current_index,
         total=_prompt_playlist.total,
