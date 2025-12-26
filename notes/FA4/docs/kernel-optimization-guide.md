@@ -7,6 +7,7 @@ This guide documents the journey of optimizing the KREA Realtime Video Pipeline'
 - Bottleneck: self-attention was ~51% of the pipeline, but the KV-bias attention kernel was only ~27% of self-attn time (QKV + RoPE were another ~37%).
 - Biggest wins: FA4/CUTE `score_mod` for the KV-bias path (0.54ms vs 1.02ms Triton) plus RoPE cleanup/fusion (0.48ms → 0.38ms).
 - End-to-end: ~15 FPS → ~20 FPS on B200 and 8.8 FPS → 15 FPS on B300 (cu130), measured at `320x576` with quality-preserving settings.
+- SM103 note: avoid “silent fallback” benchmarking. On B300, some toolchain/backends can be *catastrophically* slow; prefer `fa4` when available, otherwise `flash`, and treat `triton` as an explicit experiment.
 
 ---
 
@@ -480,11 +481,13 @@ SCOPE_KV_BIAS_BACKEND=fa4 uv run daydream-scope
 # FlashAttention (SM103-safe fallback; no score_mod)
 SCOPE_KV_BIAS_BACKEND=flash uv run daydream-scope
 
-# Triton (portable fallback)
+# Triton (SM100-friendly; SM103: only if validated, can be catastrophically slow)
 SCOPE_KV_BIAS_BACKEND=triton uv run daydream-scope
 ```
 
 Note: `SCOPE_KV_BIAS_BACKEND` is read at import time; restart the python process when switching it.
+
+SM103 note: the `flash` segment-combine backend uses the stable FlashAttention varlen op by default on B300 (some cutlass-dsl builds ICE on the FA4 `return_lse` path). To explicitly experiment with FA4 LSE on SM103, set `SCOPE_FLASH_COMBINE_USE_FA4_LSE=1` (and restart if you want to clear any one-time “tripped” fallback state).
 
 ### Validation
 
