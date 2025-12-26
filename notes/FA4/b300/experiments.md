@@ -436,3 +436,40 @@ Keep. It’s not “the” bottleneck, but it removes a very visible eager-mode 
 **Lessons:**  
 - When stack-attributed `aten::copy_` points at a dtype cast in a hot per-layer op, try a fused primitive first (`rms_norm` / `layer_norm`) before chasing deeper kernel fusion.  
 - Using an env-var switch (`SCOPE_WAN_RMSNORM_IMPL`) makes A/B testing safer when we care about quality.
+
+### 2025-12-26 — WanVAE `CausalConv3d`: implicit spatial padding (avoid `F.pad` when cache is warm)
+
+**Status:** Done (tiny win / mostly “cleanup + learning”)
+
+**Question:**  
+Does explicit spatial `F.pad(...)` inside `CausalConv3d.forward` meaningfully contribute to decode overhead/copy+fill noise?
+
+**Hypothesis:**  
+If we let cuDNN handle **spatial padding implicitly** (via Conv3d’s `padding=(0, pad_h, pad_w)`), then once KV/feature caches are warm (so time pad is effectively 0), we can often avoid `F.pad(...)` entirely.
+
+**Change (one thing):**  
+In `src/scope/core/pipelines/wan2_1/vae/modules/vae.py`, `CausalConv3d` now supports:
+- `WANVAE_CONV3D_IMPLICIT_SPATIAL_PADDING=1` (default) → use implicit spatial padding and only pad time when needed
+- `WANVAE_CONV3D_IMPLICIT_SPATIAL_PADDING=0` → legacy “pad everything explicitly” path  
+Also added `implicit_spatial_padding=` kwarg for per-instance A/B in tests.
+
+**Correctness sanity check:**  
+Verified BF16 CUDA output matches **exactly** between explicit vs implicit padding modes (including with cache tensors of length 1 and 2).
+
+**Result (end-to-end blocks benchmark, B300 cu130, quantization none):**
+- Explicit (`WANVAE_CONV3D_IMPLICIT_SPATIAL_PADDING=0`): **20.08 FPS**
+- Implicit (`WANVAE_CONV3D_IMPLICIT_SPATIAL_PADDING=1`): **20.20 FPS** (~`+0.6%`, likely near noise)
+
+**Result (stack-aware op profiler, 1-iter):**
+- `aten::copy_` self CUDA: **19.25ms → 19.15ms**
+- `aten::copy_` calls: **10,572 → 10,542**
+
+**Artifacts:**  
+- Op profile explicit: `outputs/observe_b300_2025-12-26_qnone/ops_profile_qnone_fa4_bias0.3_nocompile_withstack_conv3dpad_explicit_s12.md`  
+- Op profile implicit: `outputs/observe_b300_2025-12-26_qnone/ops_profile_qnone_fa4_bias0.3_nocompile_withstack_conv3dpad_implicit_s12.md`
+
+**Decision:**  
+Keep (default-on). The win is small, but it’s correctness-preserving and makes the causal Conv3d implementation a bit more “cuDNN-native”.
+
+**Lessons:**  
+- A lot of the VAE decode cost is still in conv3d itself (not just padding glue), so bigger wins likely need **algorithmic** or **layout** changes (or cuDNN version fixes), not just removing `F.pad`.  

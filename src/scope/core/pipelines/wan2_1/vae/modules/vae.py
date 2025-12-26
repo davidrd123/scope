@@ -30,6 +30,9 @@ _wanvae_decode_inner_counts = defaultdict(int)
 _wanvae_decode_inner_meta: dict[str, object] = {}
 _WANVAE_STREAM_DECODE_MODE = os.getenv("WANVAE_STREAM_DECODE_MODE", "chunk").lower()
 _WANVAE_UPSAMPLE_FORCE_FP32 = os.getenv("WANVAE_UPSAMPLE_FORCE_FP32", "0") == "1"
+_WANVAE_CONV3D_IMPLICIT_SPATIAL_PADDING = (
+    os.getenv("WANVAE_CONV3D_IMPLICIT_SPATIAL_PADDING", "1") == "1"
+)
 
 
 def _should_profile_wanvae_decode_inner() -> bool:
@@ -152,24 +155,40 @@ class CausalConv3d(nn.Conv3d):
     """
 
     def __init__(self, *args, **kwargs):
+        implicit_spatial_padding = kwargs.pop("implicit_spatial_padding", None)
         super().__init__(*args, **kwargs)
-        self._padding = (
-            self.padding[2],
-            self.padding[2],
-            self.padding[1],
-            self.padding[1],
-            2 * self.padding[0],
-            0,
+        self._implicit_spatial_padding = (
+            _WANVAE_CONV3D_IMPLICIT_SPATIAL_PADDING
+            if implicit_spatial_padding is None
+            else bool(implicit_spatial_padding)
         )
-        self.padding = (0, 0, 0)
+
+        pad_t, pad_h, pad_w = self.padding
+        self._pad_h = pad_h
+        self._pad_w = pad_w
+        self._causal_time_pad = 2 * pad_t
+        if self._implicit_spatial_padding:
+            # Let cuDNN handle spatial padding implicitly; we only pad time explicitly
+            # for causal behavior (left-pad only).
+            self.padding = (0, pad_h, pad_w)
+        else:
+            # Legacy path: pad everything explicitly via F.pad.
+            self.padding = (0, 0, 0)
 
     def forward(self, x, cache_x=None):
-        padding = list(self._padding)
-        if cache_x is not None and self._padding[4] > 0:
+        time_pad = self._causal_time_pad
+        if cache_x is not None and time_pad > 0:
             cache_x = cache_x.to(x.device)
             x = torch.cat([cache_x, x], dim=2)
-            padding[4] -= cache_x.shape[2]
-        x = F.pad(x, padding)
+            time_pad = max(time_pad - cache_x.shape[2], 0)
+
+        if self._implicit_spatial_padding:
+            if time_pad > 0:
+                x = F.pad(x, (0, 0, 0, 0, time_pad, 0))
+        else:
+            padding = (self._pad_w, self._pad_w, self._pad_h, self._pad_h, time_pad, 0)
+            if any(padding):
+                x = F.pad(x, padding)
 
         return super().forward(x)
 
