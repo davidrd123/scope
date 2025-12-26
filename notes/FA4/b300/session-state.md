@@ -158,15 +158,27 @@ KV-bias backend A/B (B300, cu130, `320x576`, `kv_cache_attention_bias=0.3`, quan
 
 ### Quantization Note (B300)
 
-On B300, FP8 quantization via torchao is not automatically a win *unless* you're also using `torch.compile`. In direct A/B runs (same settings, FA4 backend):
-- No compile:
-  - `--quantization fp8_e4m3fn`: **~17.3 FPS**
-  - `--quantization none` (bf16 weights): **~19.7 FPS**
-- With compile:
-  - `--compile --quantization fp8_e4m3fn`: **~25.1 FPS** (requires PerTensor-only TorchAO `as_strided` monkeypatch; see above)
-  - `--compile --quantization none`: **~22.8 FPS**
+> **⚠️ WARNING (2025-12-26): FP8 produces garbage output on B300.**
+>
+> While benchmark scripts report FPS numbers, the actual server output with FP8 quantization is **gray distorted noise** — not usable video. This affects both `--compile-fp8` and FP8-only (no compile) modes.
+>
+> **Root cause (likely):** TorchAO cpp extensions are being skipped:
+> ```
+> Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 for torchao version 0.15.0+cu130
+> ```
+> This warning appears at import time and suggests FP8 kernels may be falling back to broken codepaths. See upstream: https://github.com/pytorch/ao/issues/2919
+>
+> **Recommendation:** Use `--quantization none` (BF16) on B300 until the TorchAO/torch 2.9 compatibility issue is resolved.
 
-Interpretation: without compile, FP8 introduces extra conversion/scaling overhead on this stack. With compile, FP8 can become a net win (at least on our current B300/cu130 setup). If you have ample VRAM (B300), BF16 is still the simplest dependency story.
+The FPS numbers below are from benchmark scripts and **do not reflect usable output quality**:
+- No compile:
+  - `--quantization fp8_e4m3fn`: **~17.3 FPS** (garbage output)
+  - `--quantization none` (bf16 weights): **~19.7 FPS** (works)
+- With compile:
+  - `--compile --quantization fp8_e4m3fn`: **~25.1 FPS** (garbage output; requires PerTensor-only TorchAO `as_strided` monkeypatch)
+  - `--compile --quantization none`: **~22.8 FPS** (works)
+
+Interpretation: FP8 is currently broken on B300/torch 2.9+cu130 due to TorchAO cpp extension incompatibility. Use BF16 (`--quantization none`) for working output.
 
 ### KV Cache Recompute Cadence (Perf Win, Quality Regression)
 
@@ -200,7 +212,7 @@ As of 2025-12-26:
 - **Quantization none:** `scripts/profile_krea_pipeline_blocks.py --compile` now works on B300 and improves throughput.
   - Example (B300, cu130 env, `320x576`, bias `0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`): **~19.7 FPS → ~22.8 FPS**
   - Tradeoff: longer warmup due to compilation (expect ~10–30s depending on cache state).
-- **FP8 (torchao):** runs under `--compile` with the PerTensor-only `aten.as_strided.default` monkeypatch (applied automatically by `KreaRealtimeVideoPipeline` unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`). Patch code: `src/scope/core/compat/torchao_float8_as_strided.py` (upstream issue: `notes/issues/torchao-as-strided-dispatch.md`).
+- **FP8 (torchao):** ⚠️ **BROKEN on B300** — produces garbage output (gray noise). The `as_strided` monkeypatch is applied but TorchAO cpp extensions are skipped due to torch 2.9+cu130 incompatibility, causing FP8 kernels to malfunction. Use `--quantization none` (BF16) instead. Patch code: `src/scope/core/compat/torchao_float8_as_strided.py` (upstream issue: `notes/issues/torchao-as-strided-dispatch.md`).
 
 Implementation note: we keep CuTe/FA4 calls **opaque** to Dynamo during compilation to avoid FakeTensor/DLPack failures; this enables compiling the surrounding transformer regions without trying to trace into CUTLASS DSL.
 
