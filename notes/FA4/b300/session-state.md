@@ -29,7 +29,12 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
 - **CUDAGraph “output overwritten” + correct step-marker / knob names**
   - Step marker API: `torch.compiler.cudagraph_mark_step_begin()` (docs): https://docs.pytorch.org/docs/stable/generated/torch.compiler.cudagraph_mark_step_begin.html
   - CUDAGraph Trees doc (error explanation + mitigation): https://docs.pytorch.org/docs/stable/torch.compiler_cudagraph_trees.html
+  - Upstream issue tracker: `pytorch/pytorch#158551` (see also `notes/issues/pytorch-cudagraph-output-overwritten.md`).
   - Inductor cudagraph master env var (v2.9.1): `TORCHINDUCTOR_CUDAGRAPHS=1` (see `torch/_inductor/config.py`): https://github.com/pytorch/pytorch/blob/v2.9.1/torch/_inductor/config.py
+
+- **Triton/Inductor SM103 tcgen05 LLVM abort (“tcgen05.wait.st”)**
+  - This can hard-abort the process during compilation on B300/SM103 for some Triton/TensorCore codegen paths.
+  - Upstream: `triton-lang/triton#8473` / `triton-lang/triton#8481` (see `notes/issues/triton-sm103-tcgen05-llvm-abort.md`).
 
 ## Current Status
 
