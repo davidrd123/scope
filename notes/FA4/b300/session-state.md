@@ -20,7 +20,7 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
     - https://github.com/pytorch/ao/blob/v0.14.1/torchao/quantization/quantize_/workflows/float8/float8_tensor.py
     - https://github.com/pytorch/ao/blob/v0.15.0/torchao/quantization/quantize_/workflows/float8/float8_tensor.py
   - TorchAO ↔ torch compatibility table: https://github.com/pytorch/ao/issues/2919
-  - Local unblock for experiments (PerTensor-only): `scripts/patch_float8_as_strided.py` (registers `aten.as_strided.default` for `Float8Tensor`, guarded on `scale.numel()==1`). Upstream issue text: `notes/issues/torchao-as-strided-dispatch.md`.
+  - Local unblock for experiments (PerTensor-only): the realtime pipeline auto-applies a PerTensor-only monkeypatch when running `--compile + fp8` (disable with `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`). Patch code: `src/scope/core/compat/torchao_float8_as_strided.py`. Upstream issue text: `notes/issues/torchao-as-strided-dispatch.md`. (For ad-hoc experiments outside the pipeline: `scripts/patch_float8_as_strided.py`.)
 
 - **Conv3d BF16/FP16 regressions (PyTorch 2.9 era)**
   - PyTorch **v2.9.1** release notes recommend: install **`nvidia-cudnn-cu12>=9.15`** if impacted by BF16 Conv3d regressions: https://github.com/pytorch/pytorch/releases/tag/v2.9.1
@@ -48,7 +48,7 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
   - `SCOPE_KV_BIAS_BACKEND=fa4`: **~17.0 FPS**
   - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile`: **~19.5 FPS**
   - `SCOPE_KV_BIAS_BACKEND=fa4` + `--quantization fp8_e4m3fn` (no compile): **~15.2 FPS**
-  - With the PerTensor-only monkeypatch (`import scripts.patch_float8_as_strided` before quantizing), `--compile + --quantization fp8_e4m3fn` now runs (example run on B300: **~14.9 FPS**; treat as experimental until upstream support lands).
+  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile` + `--quantization fp8_e4m3fn`: **~20.8 FPS** (requires the PerTensor-only TorchAO `as_strided` monkeypatch; applied automatically by the pipeline unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`).
   - Note: on SM103 we default flash segment-combine to the stable FA2 varlen op; opt in to FA4 `return_lse` experiments with `SCOPE_FLASH_COMBINE_USE_FA4_LSE=1`.
 - `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, `scripts/b300_env_fix_cu130.sh` now tries `torchao==0.15.0+cu130` from the cu130 index (then PyPI as fallback). **As of 2025-12-26**, `torchao==0.15.0+cu130` still prints `Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 ...` (likely upstream; no FPS change observed).
 
@@ -158,11 +158,15 @@ KV-bias backend A/B (B300, cu130, `320x576`, `kv_cache_attention_bias=0.3`, quan
 
 ### Quantization Note (B300)
 
-On B300, FP8 quantization via torchao is not automatically a win. In a direct A/B run (same settings, FA4 backend):
-- `--quantization fp8_e4m3fn`: **~15.0 FPS**
-- `--quantization none` (bf16 weights): **~16.7 FPS**
+On B300, FP8 quantization via torchao is not automatically a win *unless* you're also using `torch.compile`. In direct A/B runs (same settings, FA4 backend):
+- No compile:
+  - `--quantization fp8_e4m3fn`: **~15.0 FPS**
+  - `--quantization none` (bf16 weights): **~16.7 FPS**
+- With compile:
+  - `--compile --quantization fp8_e4m3fn`: **~20.8 FPS** (requires PerTensor-only TorchAO `as_strided` monkeypatch; see above)
+  - `--compile --quantization none`: **~19.5 FPS**
 
-Interpretation: FP8 introduces extra conversion/scaling overhead on this stack. If you have ample VRAM (B300), consider running unquantized for higher FPS and simpler dependencies.
+Interpretation: without compile, FP8 introduces extra conversion/scaling overhead on this stack. With compile, FP8 can become a net win (at least on our current B300/cu130 setup). If you have ample VRAM (B300), BF16 is still the simplest dependency story.
 
 ### KV Cache Recompute Cadence (Perf Win, Quality Regression)
 
@@ -196,7 +200,7 @@ As of 2025-12-26:
 - **Quantization none:** `scripts/profile_krea_pipeline_blocks.py --compile` now works on B300 and improves throughput.
   - Example (B300, cu130 env, `320x576`, bias `0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`): **~16.7 FPS → ~19.0 FPS**
   - Tradeoff: longer warmup due to compilation (expect ~10–30s depending on cache state).
-- **FP8 (torchao):** runs under `--compile` *if* you apply the PerTensor-only `aten.as_strided.default` monkeypatch: `scripts/patch_float8_as_strided.py` (upstream issue: `notes/issues/torchao-as-strided-dispatch.md`).
+- **FP8 (torchao):** runs under `--compile` with the PerTensor-only `aten.as_strided.default` monkeypatch (applied automatically by `KreaRealtimeVideoPipeline` unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`). Patch code: `src/scope/core/compat/torchao_float8_as_strided.py` (upstream issue: `notes/issues/torchao-as-strided-dispatch.md`).
 
 Implementation note: we keep CuTe/FA4 calls **opaque** to Dynamo during compilation to avoid FakeTensor/DLPack failures; this enables compiling the surrounding transformer regions without trying to trace into CUTLASS DSL.
 

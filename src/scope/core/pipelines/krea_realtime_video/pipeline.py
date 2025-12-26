@@ -112,6 +112,27 @@ class KreaRealtimeVideoPipeline(Pipeline, LoRAEnabledPipeline):
         else:
             generator = generator.to(device=device, dtype=dtype)
 
+        if compile and quantization == Quantization.FP8_E4M3FN:
+            # Workaround for upstream TorchAO missing `aten.as_strided.default` on
+            # torchao.quantization.Float8Tensor (can break torch.compile via AOTAutograd).
+            if os.getenv("SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED", "1") != "0":
+                try:
+                    from scope.core.compat.torchao_float8_as_strided import (
+                        patch_torchao_quantization_float8_as_strided,
+                    )
+
+                    ok = patch_torchao_quantization_float8_as_strided()
+                    if not ok:
+                        logger.warning(
+                            "TorchAO Float8Tensor as_strided patch requested but could not be applied; "
+                            "FP8 + torch.compile may fail. Set SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0 "
+                            "to disable patch attempts."
+                        )
+                except Exception:
+                    logger.exception(
+                        "Failed to apply TorchAO Float8Tensor as_strided patch; FP8 + torch.compile may fail."
+                    )
+
         if compile:
             compile_mode = os.getenv("SCOPE_TORCH_COMPILE_MODE", "").strip()
             compile_kwargs = {"fullgraph": False}
