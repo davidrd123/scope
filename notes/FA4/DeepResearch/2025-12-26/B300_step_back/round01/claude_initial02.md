@@ -281,7 +281,7 @@ From cuDNN documentation:
 
 - Use **PyTorch 2.7+** with **CUDA 12.8+** for Blackwell SDPA
 - Avoid FP8 SDPA on SM100 until deadlock fix is released
-- Enable via `torch.backends.cuda.enable_cudnn_sdp(True)` or `TORCH_CUDNN_SDPA_ENABLED=1`
+- Enable via `torch.backends.cuda.enable_cudnn_sdp(True)` (and optionally scope with `torch.nn.attention.sdpa_kernel(...)`)
 
 ---
 
