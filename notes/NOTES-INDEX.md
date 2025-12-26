@@ -6,6 +6,12 @@
 
 ---
 
+## ⚠️ Environment Note
+
+**Claude Code version jump:** Attempted to pin at `0.2.62` but it auto-updated to `0.2.74`. Version pinning via `npm install -g @anthropic-ai/claude-code@0.2.62` did not hold. Be aware of potential behavior/context changes.
+
+---
+
 ## ⚠️ Incoming Material (79 files - Needs Permanent Home)
 
 **Location:** `research/2025-12-24/incoming/` + `FA4/explainers/15-18`
