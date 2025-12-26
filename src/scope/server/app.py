@@ -19,7 +19,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .download_models import download_models
 from .download_progress_manager import download_progress_manager
@@ -796,6 +796,14 @@ class HardCutRequest(BaseModel):
     prompt: str | None = None  # Optional prompt to apply after cache reset
 
 
+class SoftCutRequest(BaseModel):
+    """Request to perform a soft cut (temporary bias reduction)."""
+
+    prompt: str | None = None  # Optional prompt to apply with soft cut
+    temp_bias: float = Field(default=0.1, ge=0.01, le=1.0)
+    num_chunks: int = Field(default=2, ge=1, le=10)
+
+
 class WorldStateRequest(BaseModel):
     """Request to set world state (full replace)."""
 
@@ -1057,6 +1065,53 @@ async def hard_cut(
         raise HTTPException(400, str(e)) from e
     except Exception as e:
         logger.error(f"Error performing hard cut: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.post("/api/v1/realtime/soft-cut", response_model=RealtimeControlResponse)
+async def soft_cut(
+    request: SoftCutRequest | None = None,
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Perform a soft cut (temporarily lower KV cache bias).
+
+    A soft cut temporarily reduces the KV cache attention bias, making the scene
+    more responsive to new prompts without a full cache reset. The bias is
+    automatically restored after the specified number of chunks.
+
+    Use this for:
+    - Faster transitions that still maintain some continuity
+    - Testing different bias/duration combinations
+    - Smoother scene changes than hard cuts
+    """
+    try:
+        session = get_active_session(webrtc_manager)
+        req = request or SoftCutRequest()
+
+        # Build control message with soft transition
+        msg: dict = {
+            "_rcp_soft_transition": {
+                "temp_bias": req.temp_bias,
+                "num_chunks": req.num_chunks,
+            }
+        }
+
+        # Optionally include new prompt
+        if req.prompt:
+            msg["prompts"] = [{"text": req.prompt, "weight": 1.0}]
+
+        if not apply_control_message(session, msg):
+            raise HTTPException(503, "Failed to apply soft cut")
+
+        fp = session.video_track.frame_processor
+        return RealtimeControlResponse(
+            status="soft_cut_applied",
+            chunk_index=fp.chunk_index if fp else None,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        logger.error(f"Error performing soft cut: {e}")
         raise HTTPException(500, str(e)) from e
 
 
@@ -1350,7 +1405,12 @@ async def jiggle_prompt(
 
 
 def _apply_playlist_prompt(
-    webrtc_manager: WebRTCManager, prompt: str, hard_cut: bool = False
+    webrtc_manager: WebRTCManager,
+    prompt: str,
+    hard_cut: bool = False,
+    soft_cut: bool = False,
+    soft_cut_bias: float | None = None,
+    soft_cut_chunks: int | None = None,
 ) -> bool:
     """Apply the current playlist prompt to the session.
 
@@ -1358,12 +1418,23 @@ def _apply_playlist_prompt(
         webrtc_manager: WebRTC manager instance
         prompt: The prompt text to apply
         hard_cut: If True, reset KV cache before applying prompt (clean scene transition)
+        soft_cut: If True, temporarily lower KV cache bias (soft transition)
+        soft_cut_bias: Temporary bias value during soft transition (default 0.1)
+        soft_cut_chunks: Number of chunks for soft transition (default 2)
     """
     try:
         session = get_active_session(webrtc_manager)
         msg: dict = {"prompts": [{"text": prompt, "weight": 1.0}]}
+
+        # Hard cut takes precedence over soft cut
         if hard_cut:
             msg["reset_cache"] = True
+        elif soft_cut:
+            msg["_rcp_soft_transition"] = {
+                "temp_bias": soft_cut_bias if soft_cut_bias is not None else 0.1,
+                "num_chunks": soft_cut_chunks if soft_cut_chunks is not None else 2,
+            }
+
         return apply_control_message(session, msg)
     except Exception:
         return False
@@ -1447,22 +1518,45 @@ async def preview_playlist(context: int = Query(default=3, ge=1, le=10)):
 async def playlist_next(
     apply: bool = Query(default=True, description="Apply prompt after navigating"),
     hard_cut: bool = Query(default=False, description="Reset KV cache for clean scene transition"),
+    soft_cut: bool = Query(default=False, description="Temporarily lower KV cache bias"),
+    soft_cut_bias: float | None = Query(default=None, ge=0.01, le=1.0, description="Temp bias during soft cut"),
+    soft_cut_chunks: int | None = Query(default=None, ge=1, le=10, description="Chunks for soft cut duration"),
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
     """Move to the next prompt in the playlist, optionally applying it.
 
     Use hard_cut=true to reset the KV cache, causing a clean scene transition
     instead of morphing from the current frame.
+
+    Use soft_cut=true to temporarily lower the KV cache bias for faster adaptation
+    while maintaining some continuity.
     """
     global _prompt_playlist
     if _prompt_playlist is None:
         raise HTTPException(400, "No playlist loaded")
 
     prompt = _prompt_playlist.next()
-    applied = _apply_playlist_prompt(webrtc_manager, prompt, hard_cut=hard_cut) if apply else False
+    applied = (
+        _apply_playlist_prompt(
+            webrtc_manager,
+            prompt,
+            hard_cut=hard_cut,
+            soft_cut=soft_cut,
+            soft_cut_bias=soft_cut_bias,
+            soft_cut_chunks=soft_cut_chunks,
+        )
+        if apply
+        else False
+    )
+
+    status = "next"
+    if hard_cut:
+        status = "hard_cut_next"
+    elif soft_cut:
+        status = "soft_cut_next"
 
     return PlaylistResponse(
-        status="hard_cut_next" if hard_cut else "next",
+        status=status,
         source_file=_prompt_playlist.source_file,
         current_index=_prompt_playlist.current_index,
         total=_prompt_playlist.total,
@@ -1478,22 +1572,45 @@ async def playlist_next(
 async def playlist_prev(
     apply: bool = Query(default=True, description="Apply prompt after navigating"),
     hard_cut: bool = Query(default=False, description="Reset KV cache for clean scene transition"),
+    soft_cut: bool = Query(default=False, description="Temporarily lower KV cache bias"),
+    soft_cut_bias: float | None = Query(default=None, ge=0.01, le=1.0, description="Temp bias during soft cut"),
+    soft_cut_chunks: int | None = Query(default=None, ge=1, le=10, description="Chunks for soft cut duration"),
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
     """Move to the previous prompt in the playlist, optionally applying it.
 
     Use hard_cut=true to reset the KV cache, causing a clean scene transition
     instead of morphing from the current frame.
+
+    Use soft_cut=true to temporarily lower the KV cache bias for faster adaptation
+    while maintaining some continuity.
     """
     global _prompt_playlist
     if _prompt_playlist is None:
         raise HTTPException(400, "No playlist loaded")
 
     prompt = _prompt_playlist.prev()
-    applied = _apply_playlist_prompt(webrtc_manager, prompt, hard_cut=hard_cut) if apply else False
+    applied = (
+        _apply_playlist_prompt(
+            webrtc_manager,
+            prompt,
+            hard_cut=hard_cut,
+            soft_cut=soft_cut,
+            soft_cut_bias=soft_cut_bias,
+            soft_cut_chunks=soft_cut_chunks,
+        )
+        if apply
+        else False
+    )
+
+    status = "prev"
+    if hard_cut:
+        status = "hard_cut_prev"
+    elif soft_cut:
+        status = "soft_cut_prev"
 
     return PlaylistResponse(
-        status="hard_cut_prev" if hard_cut else "prev",
+        status=status,
         source_file=_prompt_playlist.source_file,
         current_index=_prompt_playlist.current_index,
         total=_prompt_playlist.total,
@@ -1510,22 +1627,45 @@ async def playlist_goto(
     request: PlaylistGotoRequest,
     apply: bool = Query(default=True, description="Apply prompt after navigating"),
     hard_cut: bool = Query(default=False, description="Reset KV cache for clean scene transition"),
+    soft_cut: bool = Query(default=False, description="Temporarily lower KV cache bias"),
+    soft_cut_bias: float | None = Query(default=None, ge=0.01, le=1.0, description="Temp bias during soft cut"),
+    soft_cut_chunks: int | None = Query(default=None, ge=1, le=10, description="Chunks for soft cut duration"),
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
     """Go to a specific index in the playlist, optionally applying it.
 
     Use hard_cut=true to reset the KV cache, causing a clean scene transition
     instead of morphing from the current frame.
+
+    Use soft_cut=true to temporarily lower the KV cache bias for faster adaptation
+    while maintaining some continuity.
     """
     global _prompt_playlist
     if _prompt_playlist is None:
         raise HTTPException(400, "No playlist loaded")
 
     prompt = _prompt_playlist.goto(request.index)
-    applied = _apply_playlist_prompt(webrtc_manager, prompt, hard_cut=hard_cut) if apply else False
+    applied = (
+        _apply_playlist_prompt(
+            webrtc_manager,
+            prompt,
+            hard_cut=hard_cut,
+            soft_cut=soft_cut,
+            soft_cut_bias=soft_cut_bias,
+            soft_cut_chunks=soft_cut_chunks,
+        )
+        if apply
+        else False
+    )
+
+    status = "goto"
+    if hard_cut:
+        status = "hard_cut_goto"
+    elif soft_cut:
+        status = "soft_cut_goto"
 
     return PlaylistResponse(
-        status="hard_cut_goto" if hard_cut else "goto",
+        status=status,
         source_file=_prompt_playlist.source_file,
         current_index=_prompt_playlist.current_index,
         total=_prompt_playlist.total,
@@ -1540,21 +1680,40 @@ async def playlist_goto(
 @app.post("/api/v1/realtime/playlist/apply", response_model=PlaylistResponse)
 async def playlist_apply(
     hard_cut: bool = Query(default=False, description="Reset KV cache for clean scene transition"),
+    soft_cut: bool = Query(default=False, description="Temporarily lower KV cache bias"),
+    soft_cut_bias: float | None = Query(default=None, ge=0.01, le=1.0, description="Temp bias during soft cut"),
+    soft_cut_chunks: int | None = Query(default=None, ge=1, le=10, description="Chunks for soft cut duration"),
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
     """Re-apply the current playlist prompt without changing position.
 
     Use hard_cut=true to reset the KV cache, causing a clean scene transition
     instead of morphing from the current frame.
+
+    Use soft_cut=true to temporarily lower the KV cache bias for faster adaptation
+    while maintaining some continuity.
     """
     global _prompt_playlist
     if _prompt_playlist is None:
         raise HTTPException(400, "No playlist loaded")
 
-    applied = _apply_playlist_prompt(webrtc_manager, _prompt_playlist.current, hard_cut=hard_cut)
+    applied = _apply_playlist_prompt(
+        webrtc_manager,
+        _prompt_playlist.current,
+        hard_cut=hard_cut,
+        soft_cut=soft_cut,
+        soft_cut_bias=soft_cut_bias,
+        soft_cut_chunks=soft_cut_chunks,
+    )
+
+    status = "applied"
+    if hard_cut:
+        status = "hard_cut_applied"
+    elif soft_cut:
+        status = "soft_cut_applied"
 
     return PlaylistResponse(
-        status="hard_cut_applied" if hard_cut else "applied",
+        status=status,
         source_file=_prompt_playlist.source_file,
         current_index=_prompt_playlist.current_index,
         total=_prompt_playlist.total,

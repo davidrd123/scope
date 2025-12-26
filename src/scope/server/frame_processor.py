@@ -177,6 +177,13 @@ class FrameProcessor:
         # Stored on the worker thread for deterministic semantics.
         self._pending_steps = 0
 
+        # Soft transition state (temporary KV cache bias adjustment)
+        self._soft_transition_active: bool = False
+        self._soft_transition_chunks_remaining: int = 0
+        self._soft_transition_temp_bias: float | None = None
+        self._soft_transition_original_bias: float | None = None
+        self._soft_transition_original_bias_was_set: bool = False
+
         # Snapshot store (server-side, in-memory)
         # Keys are snapshot_id, values are Snapshot objects with cloned tensors
         self.snapshots: dict[str, Snapshot] = {}
@@ -861,6 +868,85 @@ class FrameProcessor:
                 step_count = max(1, step_val)
             self._pending_steps += step_count
 
+        # Soft transition: temporarily lower KV cache bias for N chunks
+        if "_rcp_soft_transition" in merged_updates:
+            soft_data = merged_updates.pop("_rcp_soft_transition")
+            if isinstance(soft_data, dict):
+                temp_bias = soft_data.get("temp_bias", 0.1)
+                num_chunks = soft_data.get("num_chunks", 2)
+
+                # Handle precedence: if explicit kv_cache_attention_bias in same message,
+                # treat it as the base bias to restore to (and don't let it override temp)
+                explicit_bias = merged_updates.pop("kv_cache_attention_bias", None)
+
+                # Coerce + clamp inputs (avoid log(<=0) downstream)
+                try:
+                    temp_bias = float(temp_bias)
+                except (TypeError, ValueError):
+                    temp_bias = 0.1
+                temp_bias = max(0.01, min(temp_bias, 1.0))
+
+                try:
+                    num_chunks = int(num_chunks)
+                except (TypeError, ValueError):
+                    num_chunks = 2
+                num_chunks = max(1, min(num_chunks, 10))
+
+                if explicit_bias is not None:
+                    try:
+                        explicit_bias = float(explicit_bias)
+                    except (TypeError, ValueError):
+                        explicit_bias = None
+                    if explicit_bias is not None:
+                        explicit_bias = max(0.01, min(explicit_bias, 1.0))
+
+                # Re-entrancy: don't overwrite original if already in soft transition
+                if not self._soft_transition_active:
+                    # First trigger: save current bias as original
+                    if explicit_bias is not None:
+                        self._soft_transition_original_bias = explicit_bias
+                        self._soft_transition_original_bias_was_set = True
+                    else:
+                        # Preserve "unset": if the key wasn't present, restore by deleting it.
+                        if "kv_cache_attention_bias" in self.parameters:
+                            self._soft_transition_original_bias = self.parameters.get(
+                                "kv_cache_attention_bias"
+                            )
+                            self._soft_transition_original_bias_was_set = True
+                        else:
+                            self._soft_transition_original_bias = None
+                            self._soft_transition_original_bias_was_set = False
+                elif explicit_bias is not None:
+                    # Re-trigger with explicit bias: update restore target
+                    self._soft_transition_original_bias = explicit_bias
+                    self._soft_transition_original_bias_was_set = True
+
+                # (Re)start countdown
+                self._soft_transition_temp_bias = temp_bias
+                self._soft_transition_chunks_remaining = num_chunks
+                self._soft_transition_active = True
+
+                # Apply temporary bias immediately
+                self.parameters["kv_cache_attention_bias"] = temp_bias
+                logger.info(
+                    f"Soft transition: bias -> {temp_bias} for {num_chunks} chunks "
+                    f"(will restore to "
+                    f"{self._soft_transition_original_bias if self._soft_transition_original_bias_was_set else '<unset>'})"
+                )
+
+        # If an explicit bias update arrives while a soft transition is active (and it wasn't
+        # consumed above), treat it as an override and cancel the soft transition so we
+        # don't later restore over the user's explicit change.
+        if self._soft_transition_active and "kv_cache_attention_bias" in merged_updates:
+            logger.info(
+                "Soft transition canceled: explicit kv_cache_attention_bias update received"
+            )
+            self._soft_transition_active = False
+            self._soft_transition_chunks_remaining = 0
+            self._soft_transition_temp_bias = None
+            self._soft_transition_original_bias = None
+            self._soft_transition_original_bias_was_set = False
+
         # Track if explicit prompts were set this chunk (for precedence)
         explicit_prompts_set = "prompts" in merged_updates
 
@@ -1193,6 +1279,48 @@ class FrameProcessor:
                 raise e
 
         self.is_prepared = True
+
+        # Soft transition countdown and auto-restore at chunk boundary
+        if self._soft_transition_active:
+            self._soft_transition_chunks_remaining -= 1
+            if self._soft_transition_chunks_remaining <= 0:
+                if self._soft_transition_original_bias_was_set:
+                    # Restore original bias value
+                    if self._soft_transition_original_bias is not None:
+                        self.parameters["kv_cache_attention_bias"] = (
+                            self._soft_transition_original_bias
+                        )
+                        logger.info(
+                            f"Soft transition complete: restored bias to "
+                            f"{self._soft_transition_original_bias}"
+                        )
+                    else:
+                        self.parameters.pop("kv_cache_attention_bias", None)
+                        logger.info(
+                            "Soft transition complete: restored kv_cache_attention_bias to <unset>"
+                        )
+                else:
+                    # Restore to "unset" (pipeline/config default) if we didn't get overridden.
+                    current_bias = self.parameters.get("kv_cache_attention_bias")
+                    if (
+                        self._soft_transition_temp_bias is None
+                        or current_bias == self._soft_transition_temp_bias
+                    ):
+                        self.parameters.pop("kv_cache_attention_bias", None)
+                        logger.info(
+                            "Soft transition complete: restored kv_cache_attention_bias to <unset>"
+                        )
+                    else:
+                        logger.info(
+                            "Soft transition complete: keeping kv_cache_attention_bias override"
+                        )
+
+                self._soft_transition_active = False
+                self._soft_transition_chunks_remaining = 0
+                self._soft_transition_temp_bias = None
+                self._soft_transition_original_bias = None
+                self._soft_transition_original_bias_was_set = False
+
         self.chunk_index += 1
 
         # Send step response after completing a step-driven chunk generation.

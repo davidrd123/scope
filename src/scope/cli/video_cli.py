@@ -353,7 +353,10 @@ def playlist_nav(ctx):
         →, n, l, SPACE  Next prompt
         ←, p            Previous prompt (stops autoplay)
         o               Toggle autoplay (default 5s interval)
-        H               Toggle hard cut mode (reset cache on each transition)
+        h/H             Toggle hard cut mode (reset cache on each transition)
+        s               Toggle soft cut mode (temporary KV-bias override)
+        1-5             Set soft cut bias (when soft cut active)
+        !@#$%           Set soft cut duration in chunks (when soft cut active)
         +/-             Adjust autoplay speed (1-30s)
         g               Go to index (prompts for number)
         a               Apply current prompt
@@ -362,6 +365,7 @@ def playlist_nav(ctx):
 
     Changes are auto-applied by default.
     Hard cut mode resets the KV cache on each prompt change for clean scene transitions.
+    Soft cut mode temporarily lowers kv_cache_attention_bias for faster adaptation without a full reset.
     """
     import os
     import select
@@ -393,7 +397,15 @@ def playlist_nav(ctx):
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-    def display_preview(client, autoplay=False, interval=5.0, hard_cut=False):
+    def display_preview(
+        client,
+        autoplay=False,
+        interval=5.0,
+        hard_cut=False,
+        soft_cut=False,
+        soft_cut_bias=0.1,
+        soft_cut_chunks=2,
+    ):
         """Fetch and display preview."""
         import shutil
 
@@ -413,6 +425,8 @@ def playlist_nav(ctx):
             status += f"  [▶ AUTO {interval}s]"
         if hard_cut:
             status += "  [✂ HARD CUT]"
+        elif soft_cut:
+            status += f"  [~ SOFT b={soft_cut_bias:.2f} c={soft_cut_chunks}]"
         click.echo(status)
         click.echo("=" * term_width)
 
@@ -431,7 +445,9 @@ def playlist_nav(ctx):
                 click.echo(f"{marker}[{idx:3d}] {prompt}")
 
         click.echo("=" * term_width)
-        click.echo("  ←/→ nav | o auto | H hard cut | +/- speed | g goto | q quit")
+        click.echo(
+            "  ←/→ nav | o auto | +/- speed | g goto | a apply | h hard | s soft [1-5 bias, !-% chunks] | r refresh | q quit"
+        )
         click.echo("=" * term_width + "\n")
         return data
 
@@ -446,8 +462,15 @@ def playlist_nav(ctx):
     # Hard cut state - when enabled, all transitions reset the KV cache
     hard_cut = False
 
+    # Soft cut state - when enabled, transitions temporarily lower KV cache bias
+    soft_cut = False
+    soft_cut_bias = 0.1  # Default temp bias
+    soft_cut_chunks = 2  # Default duration
+
     with get_client(ctx) as client:
-        if display_preview(client, autoplay, autoplay_interval, hard_cut) is None:
+        if display_preview(
+            client, autoplay, autoplay_interval, hard_cut, soft_cut, soft_cut_bias, soft_cut_chunks
+        ) is None:
             return
 
         while True:
@@ -467,14 +490,57 @@ def playlist_nav(ctx):
                     elif ch == "o":
                         autoplay = not autoplay
                         last_advance = time.time()
-                        display_preview(client, autoplay, autoplay_interval, hard_cut)
+                        display_preview(
+                            client, autoplay, autoplay_interval, hard_cut,
+                            soft_cut, soft_cut_bias, soft_cut_chunks
+                        )
 
-                    # Toggle hard cut mode
-                    elif ch == "H":
+                    # Toggle hard cut mode (mutually exclusive with soft cut)
+                    elif ch in ("H", "h"):
                         hard_cut = not hard_cut
+                        if hard_cut:
+                            soft_cut = False  # Mutually exclusive
                         status = "ON - transitions will reset cache" if hard_cut else "OFF"
                         click.echo(f"  ✂ Hard cut: {status}")
-                        display_preview(client, autoplay, autoplay_interval, hard_cut)
+                        display_preview(
+                            client, autoplay, autoplay_interval, hard_cut,
+                            soft_cut, soft_cut_bias, soft_cut_chunks
+                        )
+
+                    # Toggle soft cut mode (mutually exclusive with hard cut)
+                    elif ch == "s":
+                        soft_cut = not soft_cut
+                        if soft_cut:
+                            hard_cut = False  # Mutually exclusive
+                        if soft_cut:
+                            status = f"ON (bias={soft_cut_bias}, chunks={soft_cut_chunks})"
+                        else:
+                            status = "OFF"
+                        click.echo(f"  ~ Soft cut: {status}")
+                        display_preview(
+                            client, autoplay, autoplay_interval, hard_cut,
+                            soft_cut, soft_cut_bias, soft_cut_chunks
+                        )
+
+                    # Bias adjustment (1-5 keys when soft_cut active)
+                    elif soft_cut and ch in "12345":
+                        bias_map = {"1": 0.05, "2": 0.1, "3": 0.15, "4": 0.2, "5": 0.25}
+                        soft_cut_bias = bias_map[ch]
+                        click.echo(f"  ~ Soft cut bias: {soft_cut_bias}")
+                        display_preview(
+                            client, autoplay, autoplay_interval, hard_cut,
+                            soft_cut, soft_cut_bias, soft_cut_chunks
+                        )
+
+                    # Chunk adjustment (Shift+1-5 = !, @, #, $, % when soft_cut active)
+                    elif soft_cut and ch in "!@#$%":
+                        chunk_map = {"!": 1, "@": 2, "#": 3, "$": 4, "%": 5}
+                        soft_cut_chunks = chunk_map[ch]
+                        click.echo(f"  ~ Soft cut chunks: {soft_cut_chunks}")
+                        display_preview(
+                            client, autoplay, autoplay_interval, hard_cut,
+                            soft_cut, soft_cut_bias, soft_cut_chunks
+                        )
 
                     # Adjust speed
                     elif ch in ("+", "=", "]"):
@@ -486,22 +552,36 @@ def playlist_nav(ctx):
 
                     # Next
                     elif ch in ("\x1b[C", "n", "l", " "):
-                        r = client.post(
-                            "/api/v1/realtime/playlist/next",
-                            params={"apply": True, "hard_cut": hard_cut},
-                        )
+                        params = {"apply": True}
+                        if hard_cut:
+                            params["hard_cut"] = True
+                        elif soft_cut:
+                            params["soft_cut"] = True
+                            params["soft_cut_bias"] = soft_cut_bias
+                            params["soft_cut_chunks"] = soft_cut_chunks
+                        r = client.post("/api/v1/realtime/playlist/next", params=params)
                         if r.status_code == 200:
-                            display_preview(client, autoplay, autoplay_interval, hard_cut)
+                            display_preview(
+                                client, autoplay, autoplay_interval, hard_cut,
+                                soft_cut, soft_cut_bias, soft_cut_chunks
+                            )
                         last_advance = time.time()
 
                     # Previous (stops autoplay)
                     elif ch in ("\x1b[D", "p"):
-                        r = client.post(
-                            "/api/v1/realtime/playlist/prev",
-                            params={"apply": True, "hard_cut": hard_cut},
-                        )
+                        params = {"apply": True}
+                        if hard_cut:
+                            params["hard_cut"] = True
+                        elif soft_cut:
+                            params["soft_cut"] = True
+                            params["soft_cut_bias"] = soft_cut_bias
+                            params["soft_cut_chunks"] = soft_cut_chunks
+                        r = client.post("/api/v1/realtime/playlist/prev", params=params)
                         if r.status_code == 200:
-                            display_preview(client, autoplay, autoplay_interval, hard_cut)
+                            display_preview(
+                                client, autoplay, autoplay_interval, hard_cut,
+                                soft_cut, soft_cut_bias, soft_cut_chunks
+                            )
                         last_advance = time.time()
                         if autoplay:
                             autoplay = False
@@ -516,47 +596,73 @@ def playlist_nav(ctx):
                         try:
                             idx_str = input()
                             idx = int(idx_str)
+                            params = {"apply": True}
+                            if hard_cut:
+                                params["hard_cut"] = True
+                            elif soft_cut:
+                                params["soft_cut"] = True
+                                params["soft_cut_bias"] = soft_cut_bias
+                                params["soft_cut_chunks"] = soft_cut_chunks
                             r = client.post(
                                 "/api/v1/realtime/playlist/goto",
                                 json={"index": idx},
-                                params={"apply": True, "hard_cut": hard_cut},
+                                params=params,
                             )
                             if r.status_code == 200:
-                                display_preview(client, autoplay, autoplay_interval, hard_cut)
+                                display_preview(
+                                    client, autoplay, autoplay_interval, hard_cut,
+                                    soft_cut, soft_cut_bias, soft_cut_chunks
+                                )
                             last_advance = time.time()
                         except ValueError:
                             click.echo("Invalid index")
                         except EOFError:
                             pass
 
-                    # Apply (with hard cut if enabled)
+                    # Apply (with hard/soft cut if enabled)
                     elif ch == "a":
-                        r = client.post(
-                            "/api/v1/realtime/playlist/apply",
-                            params={"hard_cut": hard_cut},
-                        )
+                        params = {}
+                        if hard_cut:
+                            params["hard_cut"] = True
+                        elif soft_cut:
+                            params["soft_cut"] = True
+                            params["soft_cut_bias"] = soft_cut_bias
+                            params["soft_cut_chunks"] = soft_cut_chunks
+                        r = client.post("/api/v1/realtime/playlist/apply", params=params)
                         if r.status_code == 200:
                             msg = "✓ Prompt applied"
                             if hard_cut:
                                 msg += " (hard cut)"
+                            elif soft_cut:
+                                msg += f" (soft cut b={soft_cut_bias})"
                             click.echo(f"  {msg}")
 
                     # Refresh
                     elif ch == "r":
-                        display_preview(client, autoplay, autoplay_interval, hard_cut)
+                        display_preview(
+                            client, autoplay, autoplay_interval, hard_cut,
+                            soft_cut, soft_cut_bias, soft_cut_chunks
+                        )
 
                 # Autoplay advance
                 if autoplay and (time.time() - last_advance) >= autoplay_interval:
-                    r = client.post(
-                        "/api/v1/realtime/playlist/next",
-                        params={"apply": True, "hard_cut": hard_cut},
-                    )
+                    params = {"apply": True}
+                    if hard_cut:
+                        params["hard_cut"] = True
+                    elif soft_cut:
+                        params["soft_cut"] = True
+                        params["soft_cut_bias"] = soft_cut_bias
+                        params["soft_cut_chunks"] = soft_cut_chunks
+                    r = client.post("/api/v1/realtime/playlist/next", params=params)
                     if r.status_code == 200:
                         data = r.json()
                         if not data.get("has_next", False):
                             autoplay = False
                             click.echo("  ⏹ End of playlist")
-                        display_preview(client, autoplay, autoplay_interval, hard_cut)
+                        display_preview(
+                            client, autoplay, autoplay_interval, hard_cut,
+                            soft_cut, soft_cut_bias, soft_cut_chunks
+                        )
                     last_advance = time.time()
 
             except KeyboardInterrupt:
