@@ -19,6 +19,7 @@ Capability features in the pipeline:
 | **VLM Frame Analysis** | Ready to Implement | No | `proposals/vlm-integration.md` |
 | **VLM-Mediated V2V** | Speculative | Needs VLM first | Below |
 | **Context Editing** | Speculative | Needs validation spike | Below |
+| **Tidal Cycles Integration** | Speculative | Needs Tidal setup | Below |
 
 ---
 
@@ -394,6 +395,108 @@ The VLM acts as a **semantic bridge** — it "watches" the input and "describes"
 
 ---
 
+## 8. Tidal Cycles Integration — SPECULATIVE
+
+**What:** Synchronize live-coded music (Tidal Cycles) with video generation by routing "music intent" from video cues to Tidal parameters.
+
+**Status:** Speculative — requires Tidal setup, MCP server, and OSC bridge.
+
+**Research:** `notes/research/2025-12-26/tidal/aoi_5pro_01.md`
+
+### The Concept
+
+```
+Video Cues → Music Intent → OSC Bridge → Tidal Cycles → Live Music
+  (prompts)   (energy/tension)  (HTTP→OSC)   (patterns)    (SuperDirt)
+```
+
+The video system emits "cue + intent" events; the music system translates them into:
+- **Continuous steering** via OSC `/ctrl` (fast, safe)
+- **Arrangement toggles** via `/solo`, `/hush`, `/muteAll`
+- **Pattern rewrites** via MCP `tidal_eval` (powerful, gated)
+
+### Music Intent Vocabulary
+
+| Control | Range | Maps To |
+|---------|-------|---------|
+| `energy` | 0–1 | Drum density, gain, distortion |
+| `tension` | 0–1 | Filter modulation, dissonance, syncopation |
+| `density` | 0–1 | Event frequency, layering |
+| `space` | 0–1 | Reverb/delay send, tail length |
+| `brightness` | 0–1 | Filter cutoff |
+| `grit` | 0–1 | Distortion/saturation |
+| `focus` | discrete | drums / bass / pads / full |
+
+### Mapping to Video Transitions
+
+| Video Event | Music Response |
+|-------------|----------------|
+| **Soft cut** (plasticity window) | Parameter morph + Tidal transition (`xfadeIn`, `clutchIn`) |
+| **Hard cut** (cache reset) | `/hush` → new pattern bank |
+| **Scene change** | Cue sheet lookup → intent update |
+
+### Architecture Layers
+
+1. **Phase 1: OSC Parameter Steering**
+   - Tidal listens on `127.0.0.1:6010` for `/ctrl` messages
+   - Video box sends intent via HTTP to local bridge
+   - Bridge converts to OSC `/ctrl <key> <value>`
+
+2. **Phase 2: Arrangement Controls**
+   - Add `/solo`, `/hush`, `/muteAll` for scene boundaries
+   - Map hard cuts to hush-then-start patterns
+
+3. **Phase 3: Agent-Mediated Rewrites**
+   - MCP server exposes `tidal_eval`, `tidal_get_state`, etc.
+   - Claude Code proposes pattern changes
+   - Human-in-the-loop approval before applying
+
+### Existing Resources
+
+| Resource | URL |
+|----------|-----|
+| TidalCycles MCP Server | https://github.com/Benedict/tidal-cycles-mcp-server |
+| Tidal OSC Controller Input | https://tidalcycles.org/docs/working-with-patterns/Controller_Input/ |
+| Tidal Transitions | https://tidalcycles.org/docs/reference/transitions/ |
+| Open Stage Control (UI) | https://club.tidalcycles.org/t/open-stage-control-tidalcycles/1283 |
+
+### Cue Sheet Format (Draft)
+
+```json
+{
+  "cue_id": "akira_042",
+  "prompt_id": "playlist_index_42",
+  "transition": { "type": "soft", "cycles": 4 },
+  "tags": ["neo_tokyo", "chase", "motorbikes"],
+  "music_intent": {
+    "energy": 0.85,
+    "tension": 0.90,
+    "space": 0.15,
+    "brightness": 0.70,
+    "density": 0.80,
+    "grit": 0.55
+  },
+  "arrangement": {
+    "focus": "drums+bass",
+    "action": "unsoloAll"
+  }
+}
+```
+
+### Dependencies
+
+- Tidal Cycles + SuperDirt installed on music machine
+- OSC bridge (HTTP → OSC) — reference impl in research doc
+- MCP server for agent integration (optional, Phase 3)
+
+### Open Questions
+
+- [ ] Network topology: same box or remote? (affects OSC routing)
+- [ ] Sync mechanism: manual start or Ableton Link?
+- [ ] Control surface for buddy: Open Stage Control or custom?
+
+---
+
 ## Dependency Graph
 
 ```
@@ -412,6 +515,11 @@ Style Layer (Phase 6a) ───────────────────
     │                                  └── depends on: external     │
     │                                      video capture            │
     │                                                               │
+    ├── [independent] Tidal Cycles Integration                      │
+    │                        │                                      │
+    │                        ├── depends on: Tidal + SuperDirt      │
+    │                        └── depends on: OSC bridge             │
+    │                                                               │
     └── [independent] Context Editing                               │
                          │                                          │
                          ├── depends on: nano-banana / image edit   │
@@ -419,7 +527,7 @@ Style Layer (Phase 6a) ───────────────────
 ```
 
 **Ready now:** Style Layer (in progress), VACE-14B, Session Recorder, Style Swap, VLM Frame Analysis
-**Speculative:** VLM-Mediated V2V, Context Editing
+**Speculative:** VLM-Mediated V2V, Context Editing, Tidal Cycles Integration
 
 ---
 
@@ -437,6 +545,7 @@ Style Layer (Phase 6a) ───────────────────
 ### Tier 3: Speculative (needs validation/dependencies)
 6. **VLM-Mediated V2V** — Depends on VLM Frame Analysis + video capture
 7. **Context Editing** — Run validation spike first
+8. **Tidal Cycles Integration** — Depends on Tidal setup + OSC bridge
 
 ---
 
