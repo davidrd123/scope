@@ -1,6 +1,6 @@
 # Proposal: Session Recording with Timeline Export
 
-> Status: Draft
+> Status: Implemented (MVP), follow-ups pending
 > Date: 2025-12-26
 
 ## Problem
@@ -21,6 +21,21 @@ When recording, also export a timeline JSON that represents the same session win
 On stop, export both:
 1. **Video file** — the realtime capture (as today; browser download)
 2. **Timeline JSON** — re-renderable with `src/scope/cli/render_timeline.py` at any quality preset
+
+## MVP Implementation (Frontend-only)
+
+Shipped behavior (as of 2025-12-26):
+
+- When a recording stops, the UI downloads a second file: `${filenameBase}.timeline.json`.
+- The exported timeline is **clipped** to the recording window and **normalized** to start at `startTime=0`.
+- Segment boundaries are derived from prompt startTime events (“hold last prompt until next change”).
+- If recording starts mid-segment, the first exported segment does **not** replay that segment’s transition at `t=0`.
+- The export includes extra `recording` metadata; `render_timeline.py` ignores unknown fields (`extra="ignore"`).
+
+Implementation locations:
+
+- `frontend/src/hooks/useStreamRecorder.ts` — adds `onRecordingSaved` and locks a deterministic `filenameBase` at recording start.
+- `frontend/src/pages/StreamPage.tsx` — builds the clipped timeline payload at stop time and downloads it when the video save completes.
 
 ## Use Case
 
@@ -106,7 +121,7 @@ There are two implementation paths. The recommended MVP is frontend-only (no bac
 
 Where to implement:
 - Recording: `frontend/src/hooks/useStreamRecorder.ts`
-- Timeline export: `frontend/src/components/PromptTimeline.tsx` (`handleExport`)
+- Timeline export: `frontend/src/pages/StreamPage.tsx` (record button stop handler)
 
 What to add:
 - On recording start: capture `recordingStartTimeSec` from timeline playback (or `performance.now()` baseline).
