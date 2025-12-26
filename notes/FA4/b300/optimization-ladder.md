@@ -98,7 +98,7 @@ Current state:
 What's missing for Level 5:
 - RoPE is still separate from attention, and attention-adjacent glue (casts/copies/layout fixes) is still sizable
 - Not exploiting Blackwell-specific features (TMA, warp specialization)
-- torch.compile integration is partial (some modes abort on SM103)
+- torch.compile integration is partial (some modes abort on SM103; `--compile + fp8_e4m3fn` is currently blocked by a TorchAO `Float8Tensor` `aten.as_strided` dispatch gap; some cudagraph-heavy modes can hit “output overwritten”) — see `notes/FA4/DeepResearch/2025-12-26/B300_optim_ladder/round02/claude_dr.md`
 
 ---
 

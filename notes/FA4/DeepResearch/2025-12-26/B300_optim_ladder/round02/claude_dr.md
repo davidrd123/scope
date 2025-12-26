@@ -74,6 +74,61 @@ One of these would unblock `--compile + fp8_e4m3fn` for us:
 2) Provide an officially supported pattern for `torch.compile` with `Float8DynamicActivationFloat8WeightConfig` that guarantees Inductor won’t emit `as_strided` on the tensor subclass, or
 3) Provide a documented helper to “unwrap” the float8 tensor subclass at compile boundaries while still using float8 kernels internally.
 
+### Paste-ready upstream issue payload (TorchAO / PyTorch compile stack)
+
+If you want to file this upstream (or send it to maintainers), here’s a copy/paste starter that is consistent with what we’ve observed in this repo.
+
+**Title**
+- `torch.compile` fails with `torchao.quantization.Float8Tensor`: missing `aten.as_strided.default` dispatch
+
+**Environment**
+- GPU: NVIDIA B300 (SM103), but the failure is a tensor-subclass dispatch gap and should repro on any CUDA GPU (and possibly even CPU, depending on the codepath).
+- `torch`: `2.9.0+cu130` (our “fast” stack); we also have a separate baseline stack (`2.8.0+cu129`) used for A/B.
+- `torchao`: observed on `v0.14.1` and `v0.15.0` (the quantization-path Float8Tensor implementation lacks `aten.as_strided` in both tags).
+
+**Repro (this repo; no minimal standalone yet)**
+```bash
+# Canonical reproduction harness in this repo:
+# - quantizes via Float8DynamicActivationFloat8WeightConfig(granularity=PerTensor())
+# - then attempts torch.compile
+SCOPE_KV_BIAS_BACKEND=fa4 \
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 2 --skip 0 \
+  --kv-cache-attention-bias 0.3 \
+  --quantization fp8_e4m3fn \
+  --compile
+```
+
+**Observed error (signature)**
+- `NotImplementedError: Float8Tensor dispatch: attempting to run unimplemented operator/function: func=<OpOverload: aten.as_strided.default> ...`
+
+**Where it comes from**
+- This is **`torchao.quantization.Float8Tensor`** (the *quantization* workflow used by `quantize_`), not `torchao.float8.Float8TrainingTensor` (the *training* workflow).
+- In `torchao.quantization.Float8Tensor`, several view-like ops are registered, but **`aten.as_strided.default` is not** (v0.14.1 and v0.15.0).
+- In the compile stack (Dynamo → AOTAutograd → Inductor), Inductor can lower higher-level view/layout ops into `aten.as_strided` and/or use `as_strided` in stride-correction logic at graph boundaries. So users can hit this even with no explicit `.as_strided(...)` in model code.
+
+**Why this seems fixable for our exact config**
+- Our repo’s FP8 path uses `granularity=PerTensor()` (single scale). With a scalar scale, `as_strided` semantics are relatively straightforward: any view preserves the meaning of the scale factor.
+- The “`as_strided` is ill-defined” concern is strongest for per-row/per-block scaling where a view can intermix elements that are supposed to share a scale.
+
+**Concrete “asks” (any one unblocks us)**
+1) Add `aten.as_strided.default` support for `torchao.quantization.Float8Tensor` at least for per-tensor scale (optionally: guardrails / explicit error for non-preserving views under per-row/per-block scaling), or
+2) Provide an officially supported `torch.compile` pattern for `Float8DynamicActivationFloat8WeightConfig` that avoids emitting `as_strided` on the subclass, or
+3) Provide a first-class, documented compile boundary pattern (unwrap/re-wrap) so `torch.compile` can operate on plain tensors while still using float8 kernels internally.
+
+**Related evidence**
+- Quantization Float8Tensor lacks `aten.as_strided`:
+  - https://github.com/pytorch/ao/blob/v0.14.1/torchao/quantization/quantize_/workflows/float8/float8_tensor.py
+  - https://github.com/pytorch/ao/blob/v0.15.0/torchao/quantization/quantize_/workflows/float8/float8_tensor.py
+- Training float8 op table includes `aten.as_strided.default` (contrast case):
+  - https://github.com/pytorch/ao/blob/v0.15.0/torchao/float8/float8_ops.py
+- Compile can surface `aten.as_strided` for view-like ops (supporting example, DTensor):
+  - https://github.com/pytorch/pytorch/issues/167074
+
 ### Current workaround (what we’re doing today)
 
 We treat `--compile + fp8_e4m3fn` as a blocked axis and benchmark with `--quantization none` (BF16) as the canonical baseline until float8+compile is stable.

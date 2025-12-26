@@ -7,6 +7,7 @@ This guide documents the journey of optimizing the KREA Realtime Video Pipeline'
 - Bottleneck: self-attention was ~51% of the pipeline, but the KV-bias attention kernel was only ~27% of self-attn time (QKV + RoPE were another ~37%).
 - Biggest wins: FA4/CUTE `score_mod` for the KV-bias path (0.54ms vs 1.02ms Triton) plus RoPE cleanup/fusion (0.48ms → 0.38ms).
 - End-to-end: ~15 FPS → ~20 FPS on B200 and 8.8 FPS → 15 FPS on B300 (cu130), measured at `320x576` with quality-preserving settings.
+- Compile/FP8 note (B300): `torch.compile` is high-upside but has known SM103 footguns (cudagraph “output overwritten” in `reduce-overhead`; TorchAO FP8 + compile currently hits `Float8Tensor` `aten.as_strided` dispatch gaps).
 - SM103 note: avoid “silent fallback” benchmarking. On B300, some toolchain/backends can be *catastrophically* slow; prefer `fa4` when available, otherwise `flash`, and treat `triton` as an explicit experiment.
 
 ---
