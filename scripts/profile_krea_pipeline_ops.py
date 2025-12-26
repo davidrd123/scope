@@ -94,13 +94,19 @@ def _parse_args() -> argparse.Namespace:
         action="append",
         default=None,
         help="Repeatable: print a grouped-by-stack summary for this op key (e.g. --stack-key aten::copy_). "
-        "Defaults to aten::copy_ and aten::fill_.",
+        "Defaults to aten::copy_, aten::_to_copy, aten::to, and aten::fill_.",
     )
     parser.add_argument(
         "--stack-limit",
         type=int,
         default=15,
         help="How many stack groups to print per --stack-key.",
+    )
+    parser.add_argument(
+        "--summary",
+        type=Path,
+        default=None,
+        help="Optional: write a Markdown summary (top ops + grouped-by-stack highlights).",
     )
     parser.add_argument(
         "--chrome-trace",
@@ -165,6 +171,16 @@ def _maybe_set_default_env() -> None:
 def _write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def _evt_device_us(evt) -> float:
+    # On newer PyTorch versions this is `device_time_total`, not `cuda_time_total`.
+    return float(getattr(evt, "device_time_total", 0.0) or 0.0)
 
 
 def main() -> int:
@@ -249,7 +265,10 @@ def main() -> int:
     if args.with_stack:
         # `with_stack=True` alone isn't enough in some Kineto builds; verbose mode
         # ensures stack frames are recorded in the trace.
-        experimental_config = torch._C._profiler._ExperimentalConfig(verbose=True)
+        try:
+            experimental_config = torch._C._profiler._ExperimentalConfig(verbose=True)
+        except Exception:
+            experimental_config = None
 
     with profile(
         activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
@@ -267,12 +286,49 @@ def main() -> int:
     # (not `cuda_time_total`). The table renderer will label it as CUDA for CUDA devices.
     print(prof.key_averages().table(sort_by="device_time_total", row_limit=args.row_limit))
 
+    summary_lines: list[str] = []
+    stack_groups: dict[str, list[dict]] | None = None
+
+    events_for_summary = list(prof.key_averages())
+    total_self_device_us = sum(
+        float(getattr(evt, "self_device_time_total", 0.0) or 0.0)
+        for evt in events_for_summary
+    )
+    top_events = sorted(
+        events_for_summary,
+        key=lambda e: float(getattr(e, "self_device_time_total", 0.0) or 0.0),
+        reverse=True,
+    )[: min(len(events_for_summary), 25)]
+
+    if args.summary is not None:
+        summary_lines.append("# Krea pipeline op profile\n\n")
+        summary_lines.append("## Meta\n")
+        summary_lines.append(f"- torch: `{torch.__version__}` (cuda `{torch.version.cuda}`)\n")
+        summary_lines.append(
+            f"- device: `{torch.cuda.get_device_name(0)}` cc={torch.cuda.get_device_capability(0)}\n"
+        )
+        summary_lines.append(f"- compile: `{bool(args.compile)}`\n")
+        summary_lines.append(f"- kv_cache_attention_bias: `{args.kv_cache_attention_bias}`\n")
+        summary_lines.append(f"- SCOPE_KV_BIAS_BACKEND: `{os.getenv('SCOPE_KV_BIAS_BACKEND')}`\n")
+        summary_lines.append(f"- profiled_wall_time_s: `{dt:.3f}`\n")
+        summary_lines.append("\n## Top ops (self CUDA)\n")
+        summary_lines.append("| self_cuda_ms | pct | calls | key |\n")
+        summary_lines.append("|---:|---:|---:|---|\n")
+        for evt in top_events:
+            self_us = float(getattr(evt, "self_device_time_total", 0.0) or 0.0)
+            pct = (100.0 * self_us / total_self_device_us) if total_self_device_us else 0.0
+            summary_lines.append(
+                f"| {self_us/1e3:,.3f} | {pct:,.2f}% | {evt.count:,} | `{evt.key}` |\n"
+            )
+
     if args.with_stack:
         stack_keys = (
             args.stack_key
             if args.stack_key is not None
             else [
                 "aten::copy_",
+                "aten::_to_copy",
+                "aten::to",
                 "aten::fill_",
             ]
         )
@@ -280,28 +336,58 @@ def main() -> int:
 
         print("")
         print(f"Grouped-by-stack summary (group_by_stack_n={args.stack_n}):")
+        stack_groups = {}
         for key in stack_keys:
             rows = [evt for evt in stack_avgs if evt.key == key]
             if not rows:
                 print(f"- {key}: (no events)")
+                stack_groups[key] = []
+                if args.summary is not None:
+                    summary_lines.append(f"\n## Stack groups: `{key}`\n\n(no events)\n")
                 continue
 
             rows.sort(
-                key=lambda e: getattr(e, "device_time_total", 0.0),
+                key=_evt_device_us,
                 reverse=True,
             )
             print(f"- {key}: top {min(len(rows), args.stack_limit)}")
+            stack_groups[key] = []
+            if args.summary is not None:
+                summary_lines.append(f"\n## Stack groups: `{key}`\n")
             for evt in rows[: args.stack_limit]:
-                device_ms = getattr(evt, "device_time_total", 0.0) / 1e3
-                cpu_ms = evt.cpu_time_total / 1e3
-                print(f"  count={evt.count:<7} device_ms={device_ms:>8.3f} cpu_ms={cpu_ms:>8.3f}")
-                for frame in getattr(evt, "stack", [])[: int(args.stack_n)]:
+                device_us = _evt_device_us(evt)
+                self_device_us = float(getattr(evt, "self_device_time_total", 0.0) or 0.0)
+                cpu_us = float(getattr(evt, "cpu_time_total", 0.0) or 0.0)
+                print(
+                    f"  count={evt.count:<7} "
+                    f"device_ms={device_us/1e3:>8.3f} "
+                    f"self_device_ms={self_device_us/1e3:>8.3f} "
+                    f"cpu_ms={cpu_us/1e3:>8.3f}"
+                )
+                frames = [str(frame) for frame in getattr(evt, "stack", [])]
+                for frame in frames[: int(args.stack_n)]:
                     print(f"    {frame}")
+                stack_groups[key].append(
+                    {
+                        "count": int(evt.count),
+                        "cpu_time_total_us": cpu_us,
+                        "device_time_total_us": device_us,
+                        "self_device_time_total_us": self_device_us,
+                        "stack": frames,
+                    }
+                )
+                if args.summary is not None:
+                    summary_lines.append(
+                        f"\n- count={evt.count} device_ms={device_us/1e3:.3f} "
+                        f"self_device_ms={self_device_us/1e3:.3f} cpu_ms={cpu_us/1e3:.3f}\n"
+                    )
+                    for frame in frames[: int(args.stack_n)]:
+                        summary_lines.append(f"  - `{frame}`\n")
 
     if args.json is not None:
         events = []
         for evt in prof.key_averages():
-            device_time_total = getattr(evt, "device_time_total", 0.0)
+            device_time_total = _evt_device_us(evt)
             if device_time_total <= 0:
                 continue
             events.append(
@@ -331,12 +417,21 @@ def main() -> int:
                     "disable_flex_attention_compile": os.getenv("DISABLE_FLEX_ATTENTION_COMPILE"),
                     "wanvae_stream_decode_mode": os.getenv("WANVAE_STREAM_DECODE_MODE"),
                     "triton_ptxas_path": os.getenv("TRITON_PTXAS_PATH"),
+                    "with_stack": bool(args.with_stack),
+                    "stack_n": args.stack_n if args.with_stack else None,
+                    "stack_keys": args.stack_key if args.with_stack else None,
+                    "stack_limit": args.stack_limit if args.with_stack else None,
                     "profiled_wall_time_s": dt,
                 },
                 "events": events,
+                "stack_groups": stack_groups,
             },
         )
         print(f"\nWrote JSON: {args.json}")
+
+    if args.summary is not None:
+        _write_text(args.summary, "".join(summary_lines))
+        print(f"Wrote summary: {args.summary}")
 
     if args.chrome_trace is not None:
         args.chrome_trace.parent.mkdir(parents=True, exist_ok=True)
