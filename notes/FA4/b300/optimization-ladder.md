@@ -187,6 +187,10 @@ barrier.wait()                  # Compute on previous tile
   - reducing the remaining non-attention bottlenecks (QKV/projections, glue copies, decode)
   - only then: experimenting with kernel-level rewrites (learning-first)
 
+**A “Level 6 thesis” that matches our measured bottleneck (`other_in_self`):**
+- Build a fused “post-projection pack” kernel that applies RoPE and packs Q/K/V into the exact layouts we want (including KV-cache write), deleting glue and copies.
+- Start with Phase A (keep cuBLAS GEMM; fuse RoPE + packing + KV-cache write), then consider Phase B (CUTLASS/CuTe GEMM with custom epilogue) only if Phase A proves the boundary is worth owning.
+
 ---
 
 ### Level 7: Novel Algorithms
@@ -199,8 +203,9 @@ This is FlashAttention-level contribution:
 
 **What it would look like for our problem:**
 - New algorithm for streaming video attention that exploits temporal structure
-- Maybe: predictive KV-cache that skips redundant computation
-- Maybe: frame-delta attention that only recomputes what changed
+- Drift-aware KV recompute (adaptive schedule): recompute when an error/drift signal trips, rather than “every N” (quality-preserving target).
+- Frame/token-delta updates: update attention only for changed regions/tokens, treat the update as a low-rank or sparse correction.
+- Temporal sparsity with stability guarantees: dynamic windowing that expands when motion increases.
 
 ---
 

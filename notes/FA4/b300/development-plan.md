@@ -140,9 +140,27 @@ References:
 ### 6) Level 6 R&D Bets (weeks, only after the above)
 
 Candidate directions:
-- Evaluate ThunderKittens-style Blackwell attention kernels (attention + backward).
-- Investigate cuDNN SDPA backend choices for non-bias attention.
-- If Triton improves on SM103, revisit warp specialization experiments.
+- **Level 6 kernel thesis: “post-projection pack”** (targets `other_in_self`)
+  - Goal: delete glue by owning the boundary between QKV projection → RoPE → KV-cache write → attention.
+  - Phase A (smaller): keep cuBLAS GEMMs, then run one custom kernel that applies RoPE to Q/K and writes Q and KV cache directly into the layouts downstream kernels want.
+  - Phase B (harder): replace QKV projection with a CUTLASS/CuTe GEMM that has a custom epilogue (GEMM + RoPE + packing in one op).
+  - Primary metric: “how many kernels/copies did we delete?” (and which stack groups disappeared), not just microbench TFLOPS.
+- **Make VAE decode a planned subsystem**
+  - Treat decode as an engine: stabilize algorithm selection and reduce framework overhead (cudnn-frontend planning or capture-style approaches) rather than writing conv kernels.
+  - Motivation: we’ve already seen 4× swings from stack/algo selection; decode is a “big rock” worth subsystem treatment.
+- **ThunderKittens / reference Blackwell kernels**
+  - Use as a learning accelerator for Blackwell patterns (TMA, warpgroup pipelining, etc.) and as a potential source of drop-in kernels where shapes match.
+  - Sober gate: only pursue if it integrates cleanly (doesn’t poison toolchain) and can match our runtime shapes.
+- **A small “layout & glue kernel pack”**
+  - One or two highly optimized pack/unpack kernels (QKV/KV-cache layouts, dtype/layout shims) that can be reused across call sites to kill `copy_/to` at the source.
+- Investigate cuDNN SDPA backend choices for non-bias attention (cheap A/B; can be a “free win” if selected).
+- If Triton improves on SM103, revisit warp specialization experiments (learning-first, with a safe escape hatch).
+
+Productionization guardrails for Level 6 work (start day 1):
+- Keep a hard fallback ladder (never require the new kernel to run).
+- Add correctness + quality sentinels (golden clips / snapshot set).
+- Add a “kernel provenance” banner at startup (what’s active vs what fell back).
+- Keep Nsight-friendly minimal repro scripts per kernel.
 
 References:
 - `notes/FA4/b300/level5-level6-resources.md`

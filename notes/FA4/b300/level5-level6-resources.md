@@ -17,6 +17,30 @@ When you try something, capture it as a 1-card experiment in `notes/FA4/b300/exp
 
 ## What We Already Have
 
+## “Level 6 Bets” (What Might Actually Break Through)
+
+These are not “do all of this” tasks — they’re candidate theses for Level 6 work that connect directly to our measured bottlenecks.
+
+1) **Post-projection pack kernel (targets `other_in_self`)**
+- Fuse RoPE + packing + KV-cache write (and ideally delete downstream glue/copies).
+- Phase A: keep cuBLAS GEMMs; add one kernel after projection that applies RoPE + writes Q/K/V into the layouts the attention/cache expects.
+- Phase B: replace projection with CUTLASS/CuTe GEMM + custom epilogue (GEMM + RoPE + packing in one op).
+
+2) **VAE decode as a planned subsystem**
+- Use cudnn-frontend planning / capture-style approaches to stabilize algorithm selection and reduce overhead (instead of writing conv3d kernels).
+- Decode is a “big rock” and has shown 4× stack sensitivity in our measurements.
+
+3) **Layout & glue kernel pack**
+- A small set of highly optimized layout kernels that we reuse broadly (kill `copy_/to` at the source).
+
+4) **Reference Blackwell kernels (ThunderKittens, etc.)**
+- High upside if it integrates cleanly and supports our runtime shapes; also a shortcut to learning Level 6 patterns from proven code.
+
+Production notes (make it shippable):
+- Keep a strict fallback ladder (new kernels must be optional).
+- Add correctness + video-quality sentinels (golden snapshot/clip set).
+- Log kernel provenance at startup (“what’s active vs what fell back?”).
+
 ### Local Resources (In This Repo)
 
 | Resource | Location | Relevance |
