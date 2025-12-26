@@ -369,3 +369,70 @@ The upsample frames disappear from the `aten::copy_` grouped-by-stack output (as
 
 **Decision:**  
 Keep (it removes a suspicious dtype roundtrip and adds an escape hatch), but don’t expect a large end-to-end FPS gain from this alone.
+
+### 2025-12-26 — WanRMSNorm: remove `x.float()` copies (use fused `rms_norm`)
+
+**Status:** Done (nice eager-mode cleanup; small end-to-end win)
+
+**Question:**  
+Can we eliminate the `aten::copy_` / `aten::_to_copy` storm caused by `WanRMSNorm.forward` doing `x.float().type_as(x)`?
+
+**Hypothesis:**  
+Yes. PyTorch has a fused `rms_norm` implementation that should avoid explicit dtype roundtrips and collapse several elementwise ops.
+
+**Change (one thing):**  
+In `src/scope/core/pipelines/krea_realtime_video/modules/model.py`, `WanRMSNorm.forward` now prefers `torch.nn.functional.rms_norm` (fused CUDA path) and falls back to the legacy implementation when:
+- `SCOPE_WAN_RMSNORM_IMPL=legacy`, or
+- the torch build lacks `F.rms_norm`
+
+**Benchmark config:**  
+- GPU: B300 (SM103)  
+- Env: cu130 decode env (`.venv-b300-cu130-decode`)  
+- torch / cuda: `2.9.0+cu130` / `13.0`  
+- Settings: `320x576`, bias=`0.3`, quantization=`none`, compile=`False`, `SCOPE_KV_BIAS_BACKEND=fa4`  
+
+**Command(s):**
+```bash
+# Legacy (baseline in same code revision)
+SCOPE_WAN_RMSNORM_IMPL=legacy \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_ops.py \
+  --height 320 --width 576 \
+  --iters 1 --pre-iters 1 \
+  --kv-cache-attention-bias 0.3 \
+  --kv-bias-backend fa4 \
+  --quantization none \
+  --with-stack --stack-n 12
+
+# Auto (fused rms_norm)
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_ops.py \
+  --height 320 --width 576 \
+  --iters 1 --pre-iters 1 \
+  --kv-cache-attention-bias 0.3 \
+  --kv-bias-backend fa4 \
+  --quantization none \
+  --with-stack --stack-n 12
+```
+
+**Baseline (legacy):**  
+From `outputs/observe_b300_2025-12-26_qnone/ops_profile_qnone_fa4_bias0.3_nocompile_withstack_rmsnormlegacy_s12.md`:
+- `aten::copy_`: **24.45ms**, **11,376** calls (stack groups dominated by `WanRMSNorm.forward` → `x.float()`)
+- Profiled wall time: **5.451s**
+
+**Result (auto/fused):**  
+From `outputs/observe_b300_2025-12-26_qnone/ops_profile_qnone_fa4_bias0.3_nocompile_withstack_rmsnormfix_s12.md`:
+- `aten::copy_`: **19.26ms**, **10,576** calls (WanRMSNorm `x.float()` stack groups disappear)
+- `aten::_fused_rms_norm`: **6.12ms**, **600** calls (new fused kernel)
+- Profiled wall time: **5.418s**
+
+**Decision:**  
+Keep. It’s not “the” bottleneck, but it removes a very visible eager-mode copy hotspot and makes the op profile easier to interpret.
+
+**Lessons:**  
+- When stack-attributed `aten::copy_` points at a dtype cast in a hot per-layer op, try a fused primitive first (`rms_norm` / `layer_norm`) before chasing deeper kernel fusion.  
+- Using an env-var switch (`SCOPE_WAN_RMSNORM_IMPL`) makes A/B testing safer when we care about quality.

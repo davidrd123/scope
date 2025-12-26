@@ -5,6 +5,7 @@ import os
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.models.modeling_utils import ModelMixin
 from einops import repeat
@@ -50,6 +51,8 @@ except Exception:
 USE_TRITON_ROPE_FUSED = TRITON_ROPE_FUSED_AVAILABLE and os.environ.get("SCOPE_DISABLE_TRITON_ROPE_FUSED", "0") != "1"
 if TRITON_ROPE_FUSED_AVAILABLE:
     print(f"TRITON_ROPE_FUSED_AVAILABLE: {TRITON_ROPE_FUSED_AVAILABLE}, USE_TRITON_ROPE_FUSED: {USE_TRITON_ROPE_FUSED}")
+
+_WAN_RMSNORM_IMPL = os.environ.get("SCOPE_WAN_RMSNORM_IMPL", "auto").lower()
 
 __all__ = ['WanModel']
 
@@ -236,6 +239,8 @@ class WanRMSNorm(nn.Module):
         Args:
             x(Tensor): Shape [B, L, C]
         """
+        if _WAN_RMSNORM_IMPL != "legacy" and hasattr(F, "rms_norm"):
+            return F.rms_norm(x, [self.dim], self.weight, self.eps)
         return self._norm(x.float()).type_as(x) * self.weight
 
     def _norm(self, x):
