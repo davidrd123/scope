@@ -34,6 +34,7 @@ If you only remember one rule: **always record which backend actually ran** (to 
 |--------|--------|---------|------------------|-------|
 | `SCOPE_KV_CACHE_ATTENTION_BIAS` | float | `0.3` | Default `kv_cache_attention_bias` when the runtime doesn’t override it | `1.0` disables bias path |
 | `SCOPE_KV_BIAS_BACKEND` | `fa4|flash|triton|flex` | SM100→`triton`, SM103→`flash` | KV-bias backend when bias is enabled | **Read at import time**; restart process when changing |
+| `SCOPE_FLASH_COMBINE_USE_FA4_LSE` | `0|1` | `0` | Forces FA4 `return_lse` in the `flash` segment-combine path | **SM103:** default is FA2 varlen (avoids cutlass-dsl ICE); use only for experiments |
 | `DISABLE_FLASH_ATTENTION_4` | `0|1` | `0` | Disables FA4 varlen selection for plain attention | Useful to avoid CuTe mixing on SM103 |
 | `SCOPE_ENABLE_FA4_VARLEN` | `0|1` | `0` | Allows FA4 varlen for *plain* attention even when `SCOPE_KV_BIAS_BACKEND=fa4` | Opt-in because mixing CuTe module sources can break |
 | `SCOPE_COMPILE_KREA_PIPELINE` | `0|1` | (auto: Hopper only) | Enables `torch.compile` of diffusion blocks in the server pipeline | On B200 (SM100), compile is typically a big steady-state win |
@@ -104,6 +105,10 @@ Backends:
 
 - `SCOPE_KV_BIAS_BACKEND`  
   Picks the KV-bias backend (`fa4`, `flash`, `triton`, `flex`).
+
+- `SCOPE_FLASH_COMBINE_USE_FA4_LSE=1` (only affects `SCOPE_KV_BIAS_BACKEND=flash`)  
+  In the `flash` backend, we do segment-combine by computing per-segment attention + LSE, then merging results. If FA4’s CuTe op supports `return_lse=True`, we *can* use it for the per-segment calls.  
+  **On SM103 (B300)**, some cutlass-dsl builds ICE on the FA4 `return_lse` path, so we default to the stable FlashAttention varlen op; this env var is an explicit “try FA4 anyway” experiment switch.
 
 ---
 

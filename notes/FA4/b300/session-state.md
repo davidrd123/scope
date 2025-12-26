@@ -15,9 +15,10 @@
 **Update (cu130 + FlashAttention + FA4 KV-bias):**
 - Daydream end-to-end (cu130 env): **~14.8–15.0 FPS** at `320x576` (canonical; measured before defaulting to FA4 KV-bias)
 - `scripts/profile_krea_pipeline_blocks.py` benchmark (cu130 env, quantization none, bias=0.3):
-  - `SCOPE_KV_BIAS_BACKEND=flash`: **~14.9 FPS**
-  - `SCOPE_KV_BIAS_BACKEND=fa4`: **~16.7 FPS**
-  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile`: **~19.0 FPS**
+  - `SCOPE_KV_BIAS_BACKEND=flash`: **~15.1 FPS**
+  - `SCOPE_KV_BIAS_BACKEND=fa4`: **~17.0 FPS**
+  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile`: **~19.5 FPS**
+  - Note: on SM103 we default flash segment-combine to the stable FA2 varlen op; opt in to FA4 `return_lse` experiments with `SCOPE_FLASH_COMBINE_USE_FA4_LSE=1`.
 - `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, `scripts/b300_env_fix_cu130.sh` now tries `torchao==0.15.0+cu130` from the cu130 index (then PyPI as fallback). **As of 2025-12-25**, `torchao==0.15.0+cu130` still prints `Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 ...` (likely upstream; no FPS change observed).
 
 This is a ~70% improvement over the repo-default baseline.

@@ -209,6 +209,7 @@ except Exception:
 
 _flash_bias_fa4_fwd = None
 _flash_bias_tripped = False
+_flash_bias_fa4_lse_tripped = False
 _kv_bias_backend_logged = False
 
 
@@ -262,27 +263,46 @@ def _flash_attn_with_lse(
         lse: [B, Lq, H] (float32)
     """
     fa4_fwd = _get_fa4_fwd()
-    if fa4_fwd is not None:
-        out, lse = fa4_fwd(
-            q,
-            k,
-            v,
-            softmax_scale=softmax_scale,
-            causal=False,
-            return_lse=True,
-        )
-        if lse is None:
-            raise RuntimeError("FA4 _flash_attn_fwd returned lse=None with return_lse=True")
-        if lse.dim() == 3:
-            # [B, H, Lq] -> [B, Lq, H]
-            lse = lse.transpose(1, 2)
-        elif lse.dim() == 2:
-            # [H, total_q] -> [B, Lq, H]
-            b, lq = q.shape[:2]
-            lse = lse.transpose(0, 1).reshape(b, lq, -1)
-        else:
-            raise RuntimeError(f"Unexpected lse shape from FA4: {tuple(lse.shape)}")
-        return out, lse
+    global _flash_bias_fa4_lse_tripped
+    # On SM103, some cutlass-dsl builds ICE in the `return_lse` path; prefer the
+    # stable FA2 varlen forward by default (opt-in via env var for experiments).
+    force_fa4_lse = os.getenv("SCOPE_FLASH_COMBINE_USE_FA4_LSE", "").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+    allow_fa4_lse = force_fa4_lse or not _is_sm103()
+    if fa4_fwd is not None and allow_fa4_lse and not _flash_bias_fa4_lse_tripped:
+        try:
+            out, lse = fa4_fwd(
+                q,
+                k,
+                v,
+                softmax_scale=softmax_scale,
+                causal=False,
+                return_lse=True,
+            )
+            if lse is None:
+                raise RuntimeError("FA4 _flash_attn_fwd returned lse=None with return_lse=True")
+            if lse.dim() == 3:
+                # [B, H, Lq] -> [B, Lq, H]
+                lse = lse.transpose(1, 2)
+            elif lse.dim() == 2:
+                # [H, total_q] -> [B, Lq, H]
+                b, lq = q.shape[:2]
+                lse = lse.transpose(0, 1).reshape(b, lq, -1)
+            else:
+                raise RuntimeError(f"Unexpected lse shape from FA4: {tuple(lse.shape)}")
+            return out, lse
+        except Exception as e:
+            # Some cutlass-dsl builds can ICE in the `return_lse` path on SM103.
+            # Keep segment-combine functional by falling back to the stable FA2 varlen op.
+            _flash_bias_fa4_lse_tripped = True
+            logger.warning(
+                "FA4 return_lse path failed; falling back to FlashAttention varlen forward: %s",
+                e,
+            )
 
     from flash_attn.flash_attn_interface import _flash_attn_varlen_forward
 
