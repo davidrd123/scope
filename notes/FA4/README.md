@@ -11,11 +11,15 @@ This directory tracks the journey of optimizing attention kernels for the Krea R
 | Understand the full journey | `kernel-dev-log.md` |
 | Continue from last session | `SESSION-HANDOFF-*.md` (latest date) |
 | See B200 current state | `b200/session-state.md` |
+| See B200 development plan | `b200/development-plan.md` |
 | Investigate B300 8.8 FPS issue | `b300/investigation-runbook.md` |
 | See B300 optimization roadmap | `b300/optimization-vision.md` |
+| See B300 development plan | `b300/development-plan.md` |
 | Set up a B300 machine | `b300/setup-guide.md` |
 | Understand RoPE optimizations | `rope/optimization.md` |
 | Work on FA4 score_mod | `fa4/phase4-score-mod.md` |
+| Optimization bootstrapping (Phase 3) | `explainers/13-optimization-bootstrapping.md` |
+| Blog patterns → experiment cards | `explainers/14-blog-patterns-to-experiments.md` |
 
 ## Directory Structure
 
@@ -38,12 +42,14 @@ notes/FA4/
 │   ├── level5-level6-resources.md # Reading list for deeper kernel work
 │   ├── optimization-ladder.md      # Learning ladder framing (corrected + measurement-driven)
 │   ├── optimization-vision.md     # Strategic optimization roadmap
+│   ├── development-plan.md        # Concrete development plan (current priorities)
 │   ├── setup-guide.md             # Environment setup
 │   └── session-state.md           # Stashed session state
 │
 ├── b200/                          # B200 (SM100) specific
 │   ├── session-state.md           # Current “what to run today”
 │   ├── experiments.md             # “One-change” experiment cards
+│   ├── development-plan.md        # Concrete development plan (current priorities)
 │   └── bringup-log.md             # Historical bring-up notes
 │
 ├── rope/                          # RoPE optimization work

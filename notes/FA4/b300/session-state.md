@@ -5,6 +5,7 @@
 - **How to reproduce / measure:** `notes/FA4/b300/investigation-runbook.md`
 - **Where to record “one-change” trials:** `notes/FA4/b300/experiments.md`
 - **Roadmap / next levers:** `notes/FA4/b300/optimization-vision.md`
+- **Development plan (what to build next):** `notes/FA4/b300/development-plan.md`
 - **Level 5/6 reading list:** `notes/FA4/b300/level5-level6-resources.md`
 
 ## Current Status

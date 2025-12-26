@@ -17,6 +17,7 @@
 | Cohort update template | [daydream/cohort-update-template.md](daydream/cohort-update-template.md) |
 | Performance optimization journey | [FA4/kernel-dev-log.md](FA4/kernel-dev-log.md) |
 | Perf deep dive (shareable) | [FA4/docs/kernel-optimization-guide.md](FA4/docs/kernel-optimization-guide.md) |
+| Perf work map (timeline + where to record things) | [FA4/optimization-map.md](FA4/optimization-map.md) |
 | Feature roadmap | [capability-roadmap.md](capability-roadmap.md) |
 | What others are building | [ecosystem.md](ecosystem.md) |
 | Pipeline architecture explainer | [../src/scope/core/pipelines/krea_realtime_video/docs/architecture-guide.md](../src/scope/core/pipelines/krea_realtime_video/docs/architecture-guide.md) |
@@ -32,6 +33,7 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 | File | Description |
 |------|-------------|
 | [FA4/kernel-dev-log.md](FA4/kernel-dev-log.md) | **The chronicle** - 1000+ line dev log tracking all optimization work |
+| [FA4/optimization-map.md](FA4/optimization-map.md) | Timeline + “truth sources” + where to record experiments/resources |
 | [FA4/docs/kernel-optimization-guide.md](FA4/docs/kernel-optimization-guide.md) | Shareable writeup: profiling → KV-bias attention → FA4/CUTE `score_mod` → RoPE → FPS |
 | [FA4/README.md](FA4/README.md) | Navigation guide for FA4 directory |
 | [FA4/SESSION-HANDOFF-2025-12-24.md](FA4/SESSION-HANDOFF-2025-12-24.md) | Latest session state, what's working, what's blocked |
@@ -46,6 +48,25 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 | [FA4/b300/fa4-patches.md](FA4/b300/fa4-patches.md) | SM103 patches for nvidia-cutlass-dsl |
 | [FA4/b300/setup-guide.md](FA4/b300/setup-guide.md) | B300 environment setup |
 | [FA4/b300/optimization-vision.md](FA4/b300/optimization-vision.md) | Strategic performance roadmap |
+| [FA4/b300/development-plan.md](FA4/b300/development-plan.md) | Concrete B300 plan (priorities + milestones) |
+| [FA4/b300/experiments.md](FA4/b300/experiments.md) | One-change experiment cards (hypothesis → command → result → lesson) |
+
+### B200 (Blackwell SM100) Notes
+
+| File | Description |
+|------|-------------|
+| [FA4/b200/session-state.md](FA4/b200/session-state.md) | Current B200 state + repro commands |
+| [FA4/b200/development-plan.md](FA4/b200/development-plan.md) | Concrete B200 plan (priorities + milestones) |
+| [FA4/b200/experiments.md](FA4/b200/experiments.md) | One-change experiment cards |
+| [FA4/b200/bringup-log.md](FA4/b200/bringup-log.md) | Historical bring-up notes |
+
+### FA4/CuTe Explainers (Learning Track + Phase 3 Playbooks)
+
+| File | Description |
+|------|-------------|
+| [FA4/explainers/README.md](FA4/explainers/README.md) | Index of all explainers (Phase 1–3) |
+| [FA4/explainers/13-optimization-bootstrapping.md](FA4/explainers/13-optimization-bootstrapping.md) | Phase 3: optimization playbook |
+| [FA4/explainers/14-blog-patterns-to-experiments.md](FA4/explainers/14-blog-patterns-to-experiments.md) | Phase 3: blog patterns → experiment cards |
 
 ### RoPE Optimization
 

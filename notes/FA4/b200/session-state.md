@@ -4,6 +4,7 @@
 
 - Map (timeline + “what goes where”): `notes/FA4/optimization-map.md`
 - Shareable perf story: `notes/FA4/docs/kernel-optimization-guide.md`
+- Development plan (what to build next): `notes/FA4/b200/development-plan.md`
 - Where to record one-change trials: `notes/FA4/b200/experiments.md`
 - Historical bring-up notes: `notes/FA4/b200/bringup-log.md`
 

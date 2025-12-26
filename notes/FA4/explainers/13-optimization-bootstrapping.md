@@ -179,6 +179,136 @@ Starting points:
 
 ---
 
+## Blog-Derived Patterns (Translated into “What To Do Here”)
+
+We already vendor the relevant blog notes under:
+`notes/research/2025-12-24/incoming/perf/blogs/`
+
+This section is a “translation layer”: what those posts imply for *our* work (and where in this repo it maps).
+
+### 1) “Blackwell is a dataflow machine” (ThunderKittens)
+
+Source notes:
+- `notes/research/2025-12-24/incoming/perf/blogs/thunderkittens-blackwell.md`
+
+What to take away:
+- The core framing is **pipeline bubbles**, not “one clever instruction”.
+- On Blackwell, fully utilizing tensor cores often means **bigger tiles** (rule of thumb from TK: 128×128 systolic behavior) and **deeper load/compute/store overlap**.
+- “Keep tensor cores hot” becomes a dataflow scheduling problem (producer/consumer orchestration, persistent scheduling, staged outputs).
+
+Where it maps here:
+- FA4/CuTe already looks like this: load warps + MMA warp(s) + epilogue warps + explicit pipelines.
+  - `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py`
+  - `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_bwd_sm100.py`
+  - `vendored/flash_attn_cute_score_mod/flash_attn/cute/pipeline.py`
+
+How to use it in Phase 3:
+- If you’re considering “Level 6 work”, phrase experiments as: “does this reduce bubbles / improve overlap?” (not “does this one micro-op run faster?”).
+- When you change tiling/staging, always validate:
+  - occupancy didn’t crater (register pressure / smem)
+  - you didn’t accidentally disable persistence (e.g., path-specific conditions)
+
+### 2) Warp specialization is now a compiler feature (Triton / PyTorch)
+
+Source notes:
+- `notes/research/2025-12-24/incoming/perf/blogs/warp-specialization.md`
+
+What to take away:
+- Warp specialization is a practical way to express “producer vs consumer” roles without manually interleaving instruction streams.
+- In Triton, it’s enabled via autotune flags like `num_consumer_groups` and `num_buffers_warp_spec`.
+
+Where it maps here:
+- This is most relevant if/when we revive Triton kernel work on B200 (or if Triton improves on SM103).
+- For CuTe kernels, warp specialization is already explicit (warp IDs and barriers), so this is more about **future Triton experiments**.
+
+How to use it in Phase 3:
+- Treat warp-spec as an experiment card, not a refactor: add the flags, benchmark, and record wins/losses.
+- Don’t do warp-spec experiments on SM103 unless you have a “safe fallback” path; we’ve already seen tcgen05-related compile aborts in some modes.
+
+### 3) TMA + mbarrier correctness is the price of admission (tcgen05)
+
+Source notes:
+- `notes/research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md`
+
+What to take away:
+- Blackwell/Hopper-style kernels get their bandwidth via **TMA** (`cp.async.bulk.tensor`) and their correctness via **mbarrier phase accounting** (arrival count + expected bytes).
+- When these go wrong, symptoms often look like: deadlocks / hangs / “mysterious wrong data” / “works on one GPU but not another”.
+
+Where it maps here:
+- CuTe kernels hide the PTX, but you still see the logic:
+  - `cute.arch.mbarrier_arrive(...)`
+  - `cute.arch.mbarrier_wait(...)`
+  - “expect_tx” style barriers around loads
+  - explicit “pipeline stage” objects
+
+How to use it in Phase 3:
+- If you’re editing CuTe load/stage code, treat barriers as *part of the algorithm*, not boilerplate.
+- If you see an SM103-only hang: check toolchain first (#12), then assume a barrier/async-proxy mismatch before assuming “math bug”.
+
+### 4) `mask_mod` vs `score_mod` is a performance choice (FlexAttention / CuTe DSL)
+
+Source notes:
+- `notes/research/2025-12-24/incoming/perf/blogs/flexattention_guide.md`
+- `notes/research/2025-12-24/incoming/perf/blogs/flexattn-for-inference.md`
+
+What to take away:
+- `mask_mod` enables **block sparsity** (skip fully-masked blocks, fast-path fully-unmasked blocks).
+- `score_mod` is more general but easier to make expensive (it runs on all elements that survive masking).
+
+Where it maps here:
+- Our “recompute” path uses block masks (great for sparsity); our KV-bias path uses score modification (best expressed as `score_mod`).
+- Explainers to re-open when optimizing masks:
+  - `notes/FA4/explainers/08-masking-and-mask_mod.md`
+  - `notes/FA4/explainers/03-score-mod.md`
+
+How to use it in Phase 3:
+- Don’t accidentally re-encode a mask as a score_mod: you’ll lose the ability to skip work at the block level.
+- If you’re trying to make a path faster, ask: “can any of this become block-sparse?” before writing a new kernel.
+
+### 5) “Glue” is often memory-bound; treat it like bandwidth engineering (QuACK)
+
+Source notes:
+- `notes/research/2025-12-24/incoming/perf/blogs/getting-mem-bound-kernals-SOL.md`
+
+What to take away:
+- Once you’re in the memory-bound regime, the win is usually “fewer passes over memory” and “better reduction strategy”, not “more math tricks”.
+- Reduction-heavy kernels (softmax/norm) can be bottlenecked by register pressure and extra loads; cluster-level strategies exist for very large reductions.
+
+Where it maps here:
+- After KV-bias is solved, we see meaningful time in copies, dtype conversions, and elementwise glue (`aten::copy_`, `aten::to`, etc.).
+- That’s exactly the kind of workload where “speed-of-light” thinking applies: reduce redundant loads/stores and fuse where safe.
+
+How to use it in Phase 3:
+- When op-level profiling says “copies dominate”, treat it as a first-class optimization target, not a rounding error.
+- Proposed experiments should aim to delete whole kernels (fuse/collapse conversions), not shave 1–2% off one kernel.
+
+### 6) Compilation and host overhead are part of performance (Diffusers + Modal)
+
+Source notes:
+- `notes/research/2025-12-24/incoming/perf/blogs/torch-compile-and-diffusers.md`
+- `notes/research/2025-12-24/incoming/perf/blogs/modal_host-overhead-inference-efficency.md`
+
+What to take away:
+- The best `torch.compile` wins come from **regional compilation**, fewer graph breaks, and fewer recompiles.
+- Host overhead shows up as **gaps in CUDA streams**; kernel launch count matters once kernels get short.
+
+Where it maps here:
+- We already treat CuTe calls as opaque to Dynamo for correctness.
+- Our block-level profilers deliberately synchronize, so they are *breakdown truth*, not “peak overlap truth”.
+
+How to use it in Phase 3:
+- When compile is unstable on SM103, prefer small, controlled compile regions and record the exact mode/env that works.
+- If/when we get the pipeline “fast enough”, expect launch overhead and host overhead to become visible again.
+
+---
+
+## Extending Phase 3
+
+This playbook is meant to grow. The next Phase 3 explainer is:
+- `notes/FA4/explainers/14-blog-patterns-to-experiments.md` (turn blog patterns into concrete experiment cards for this repo)
+
+---
+
 ## How This Relates to the Explainers You Just Read
 
 If you’re trying to decide “which explainer should I re-open right now?”, use this mapping:
@@ -200,5 +330,5 @@ If you’re trying to decide “which explainer should I re-open right now?”, 
 - B300 current best-known config: `notes/FA4/b300/session-state.md`
 - B300 forward-looking options: `notes/FA4/b300/optimization-vision.md`
 - Level 5/6 reading list: `notes/FA4/b300/level5-level6-resources.md`
+- Blog notes (local, vendored): `notes/research/2025-12-24/incoming/perf/blogs/`
 - Phase 1–2 explainer index: `notes/FA4/explainers/README.md`
-

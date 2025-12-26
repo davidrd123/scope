@@ -23,8 +23,10 @@ Source of truth for “what to run right now”: `notes/FA4/b300/session-state.m
 **Protocol vs state vs notebook vs bibliography (per GPU):**
 
 - **B200 session state (what to run today):** `notes/FA4/b200/session-state.md`
+- **B200 development plan (what to build next):** `notes/FA4/b200/development-plan.md`
 - **B200 experiments log:** `notes/FA4/b200/experiments.md`
 - **B300 session state (what to run today):** `notes/FA4/b300/session-state.md`
+- **B300 development plan (what to build next):** `notes/FA4/b300/development-plan.md`
 - **B300 runbook (how to measure / decide):** `notes/FA4/b300/investigation-runbook.md`
 - **B300 experiments log:** `notes/FA4/b300/experiments.md`
 - **B300 external docs brief:** `notes/FA4/b300/blackwell-docs.md`

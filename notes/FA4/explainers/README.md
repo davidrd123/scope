@@ -45,6 +45,7 @@ This phase is less “kernel anatomy” and more “how to turn the anatomy into
 | # | Topic | Source Files | Status |
 |---|-------|--------------|--------|
 | 13 | **Bootstrapping Further Optimization (Playbook)** | `notes/FA4/*` + pipeline codepaths | ✅ DONE |
+| 14 | **Blog Patterns → Experiment Cards** | `notes/research/.../blogs/*` + pipeline codepaths | ✅ DONE |
 
 ### Explainers Index
 
@@ -63,6 +64,7 @@ This phase is less “kernel anatomy” and more “how to turn the anatomy into
 | 11 | Split-K and Segment-Combine | [11-splitk-and-segment-combine.md](11-splitk-and-segment-combine.md) |
 | 12 | SM103 Notes (B300) | [12-sm103-notes.md](12-sm103-notes.md) |
 | 13 | Bootstrapping Further Optimization | [13-optimization-bootstrapping.md](13-optimization-bootstrapping.md) |
+| 14 | Blog Patterns → Experiment Cards | [14-blog-patterns-to-experiments.md](14-blog-patterns-to-experiments.md) |
 
 ---
 
@@ -86,6 +88,10 @@ vendored/flash_attn_cute_score_mod/flash_attn/
 - `notes/research/2025-12-24/incoming/perf/blogs/thunderkittens-blackwell.md`
 - `notes/research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md`
 - `notes/research/2025-12-24/incoming/perf/blogs/warp-specialization.md`
+- `notes/research/2025-12-24/incoming/perf/blogs/flexattention_guide.md`
+- `notes/research/2025-12-24/incoming/perf/blogs/getting-mem-bound-kernals-SOL.md`
+- `notes/research/2025-12-24/incoming/perf/blogs/torch-compile-and-diffusers.md`
+- `notes/research/2025-12-24/incoming/perf/blogs/modal_host-overhead-inference-efficency.md`
 
 ---
 
