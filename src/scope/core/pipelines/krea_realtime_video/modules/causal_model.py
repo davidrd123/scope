@@ -34,16 +34,21 @@ def _is_sm103() -> bool:
 
 # KV-cache bias backend selection
 # SCOPE_KV_BIAS_BACKEND:
+# - auto:  choose a safe default for the current GPU
 # - fa4:   FA4/CUTE score_mod (fastest when available; requires CUTLASS DSL)
 # - flash: Bias via FlashAttention segment-combine (no score_mod; SM103 default)
 # - triton: Triton Kernel B (SM100 default)
 # - flex:  torch.nn.attention.flex_attention fallback
-_env_kv_bias_backend = os.getenv("SCOPE_KV_BIAS_BACKEND")
-_KV_BIAS_BACKEND = (
-    _env_kv_bias_backend.lower()
-    if _env_kv_bias_backend
-    else ("flash" if _is_sm103() else "triton")
-)
+_env_kv_bias_backend = os.getenv("SCOPE_KV_BIAS_BACKEND", "").strip().lower()
+if _env_kv_bias_backend in ("", "auto", "default"):
+    _env_kv_bias_backend = ""
+_KV_BIAS_BACKEND = _env_kv_bias_backend or ("flash" if _is_sm103() else "triton")
+if _KV_BIAS_BACKEND not in ("fa4", "flash", "triton", "flex"):
+    logger.warning(
+        "Unknown SCOPE_KV_BIAS_BACKEND=%r; falling back to auto selection.",
+        _env_kv_bias_backend,
+    )
+    _KV_BIAS_BACKEND = ("flash" if _is_sm103() else "triton")
 
 # FA4 + CUTE score_mod: 1.89x faster than Triton Kernel B on B200
 _fa4_available = False
@@ -129,8 +134,16 @@ if _KV_BIAS_BACKEND == "fa4":
         logger.warning(f"FA4/CUTE not available, falling back to {fallback_backend}: {e}")
         _KV_BIAS_BACKEND = fallback_backend
 
-# Triton Kernel B: fast fallback for KV-cache bias path
-USE_TRITON_KERNEL_B = _KV_BIAS_BACKEND in ("triton", "fa4", "flash")  # fa4/flash fall back to triton
+# Triton Kernel B: fast on SM100, but historically catastrophic on SM103 (forced scalar kernel in Triton 3.5).
+if _is_sm103():
+    # Only enable Triton when explicitly forced by the user (for experiments).
+    USE_TRITON_KERNEL_B = _KV_BIAS_BACKEND == "triton"
+    if USE_TRITON_KERNEL_B:
+        logger.warning(
+            "KV-bias backend forced to Triton on SM103; this is usually extremely slow."
+        )
+else:
+    USE_TRITON_KERNEL_B = _KV_BIAS_BACKEND in ("triton", "fa4", "flash")  # fa4/flash can fall back to triton
 _triton_kernel_b = None
 
 if USE_TRITON_KERNEL_B:
@@ -1219,8 +1232,14 @@ class CausalWanSelfAttention(nn.Module):
 
                 x = None
 
+                backend = _KV_BIAS_BACKEND
+
                 global _fa4_bias_tripped
-                if _fa4_available and (not _fa4_bias_tripped) and _KV_BIAS_BACKEND == "fa4":
+                # If FA4 has already tripped once on SM103, treat "fa4" as "flash" for
+                # subsequent calls (avoid silently dropping to flex unless flash is also broken).
+                if _is_sm103() and backend == "fa4" and _fa4_bias_tripped:
+                    backend = "flash"
+                if backend == "fa4" and _fa4_available and (not _fa4_bias_tripped):
                     # FA4 + CUTE score_mod: 1.89x faster than Triton Kernel B
                     # FA4 expects layout: [B, L, H, D] (already correct)
                     try:
@@ -1268,12 +1287,19 @@ class CausalWanSelfAttention(nn.Module):
                             )
                     except Exception as e:
                         _fa4_bias_tripped = True
-                        logger.warning(
-                            "FA4/CUTE KV-bias failed; falling back to Triton: %s",
-                            e,
-                        )
+                        if _is_sm103():
+                            logger.warning(
+                                "FA4/CUTE KV-bias failed; falling back to flash/flex: %s",
+                                e,
+                            )
+                            backend = "flash"
+                        else:
+                            logger.warning(
+                                "FA4/CUTE KV-bias failed; falling back to Triton: %s",
+                                e,
+                            )
 
-                elif _KV_BIAS_BACKEND == "flash":
+                if x is None and backend == "flash":
                     global _flash_bias_tripped
                     if not _flash_bias_tripped:
                         try:
@@ -1298,10 +1324,16 @@ class CausalWanSelfAttention(nn.Module):
                                 )
                         except Exception as e:
                             _flash_bias_tripped = True
-                            logger.warning(
-                                "KV-bias flash backend failed; falling back to Triton: %s",
-                                e,
-                            )
+                            if _is_sm103():
+                                logger.warning(
+                                    "KV-bias flash backend failed; falling back to flex: %s",
+                                    e,
+                                )
+                            else:
+                                logger.warning(
+                                    "KV-bias flash backend failed; falling back to Triton: %s",
+                                    e,
+                                )
 
                 if x is None and USE_TRITON_KERNEL_B and _triton_kernel_b is not None:
                     # Triton Kernel B: no padding needed

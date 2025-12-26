@@ -94,7 +94,7 @@ If RW opens fail, you won’t be able to benchmark or run `daydream-scope` until
 When you see ~`8.8 FPS` again, it’s almost always one of these:
 
 - **Wrong env / wrong torch**: `python -c "import torch; print(torch.__version__, torch.version.cuda)"` should be `2.9.0+cu130` / `13.0` for the B300 env.
-- **Missing FlashAttention**: if `import flash_attn` fails, KV-bias can fall back to Triton/flex and go catastrophic on SM103.
+- **Missing FlashAttention**: if `import flash_attn` fails, KV-bias can fall back to flex (and perf can collapse). On SM103 we now avoid Triton fallback by default because it is usually catastrophically slow.
 - **Wrong backend**: `SCOPE_KV_BIAS_BACKEND=triton` is unusable on SM103 (forced scalar kernel in Triton 3.5).
 - **ptxas mismatch**: Triton/Inductor need a `ptxas` that knows `sm_103` (`/usr/local/cuda-12.9+`).
 - **Competing GPU work**: check `nvidia-smi` for other running processes (e.g. a background `daydream-scope` server can cut benchmark FPS in half).
