@@ -18,6 +18,7 @@ Based on precedent from:
 """
 
 import torch
+from torch.utils._python_dispatch import return_and_correct_aliasing
 
 aten = torch.ops.aten
 
@@ -65,24 +66,29 @@ def _patch_float8tensor_as_strided():
         # Apply as_strided to the underlying qdata
         new_qdata = aten.as_strided.default(self.qdata, size, stride, storage_offset)
 
-        # Compute new block_size (clamp to new shape)
-        new_block_size = self.block_size.copy() if self.block_size else []
-        if new_block_size:
-            for i in range(min(len(new_block_size), len(size))):
-                new_block_size[i] = min(new_block_size[i], size[i])
-            # Adjust length if rank changed
-            while len(new_block_size) < len(size):
-                new_block_size.append(size[len(new_block_size)])
-            new_block_size = new_block_size[: len(size)]
+        # Reshape scale to match new rank if needed (for per-tensor, scale is scalar-like)
+        new_rank = len(size)
+        if self.scale.ndim != new_rank:
+            new_scale = self.scale.reshape([1] * new_rank)
+        else:
+            new_scale = self.scale
 
-        return Float8Tensor(
-            new_qdata,
-            self.scale,  # Scale unchanged for per-tensor
-            new_block_size if new_block_size else None,
-            self.mm_config,
-            self.act_quant_kwargs,
-            self.kernel_preference,
-            self.dtype,
+        # For per-tensor scale, block_size spans the whole tensor
+        new_block_size = list(size)
+
+        return return_and_correct_aliasing(
+            func,
+            args,
+            kwargs,
+            Float8Tensor(
+                new_qdata,
+                new_scale,
+                new_block_size,
+                self.mm_config,
+                self.act_quant_kwargs,
+                self.kernel_preference,
+                self.dtype,
+            ),
         )
 
     # Mark as patched
