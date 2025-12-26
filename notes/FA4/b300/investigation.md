@@ -106,7 +106,7 @@ XL              1      4096   8      128    0.046        739.98
 
 ---
 
-## Issue 2: nvidia-cutlass-dsl Conflicts with PyTorch Inductor - BLOCKER
+## Issue 2: nvidia-cutlass-dsl Conflicts with PyTorch Inductor (cutlass shadowing)
 
 ### Problem
 When FA4 deps are installed, `nvidia-cutlass-dsl` provides a `cutlass` module that shadows PyTorch's internal cutlass utilities in `torch._inductor`.
@@ -118,14 +118,18 @@ NoValidChoicesError: target: flex_attention
 AttributeError: module 'cutlass' has no attribute 'CACHE_FILE'
 ```
 
-### Workaround
-Uninstall FA4 deps before running normal pipelines:
+### Update (2025-12-26)
+This is no longer a hard blocker for the main pipeline: **FA4 KV-bias can coexist with regional `torch.compile`** on B300/cu130 by keeping CuTe calls opaque to Dynamo and disabling flex_attention compilation on SM103 (see `notes/FA4/b300/session-state.md` and `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`).
+
+### Mitigations / Workarounds
+If you need to compile `flex_attention` (or hit Inductor compilation failures that trace to `torch._inductor.codegen.cuda.cutlass_utils`), uninstall FA4 deps:
 ```bash
 uv pip uninstall nvidia-cutlass-dsl cuda-python cuda-bindings cuda-pathfinder
 ```
 
-### Status
-FA4 can only be used in isolation (benchmarks). Cannot coexist with render_timeline.
+If you’re running FA4 KV-bias with regional compile, prefer:
+- `DISABLE_FLEX_ATTENTION_COMPILE=1` on SM103 (avoid tcgen05 LLVM aborts)
+- Leave CuTe calls opaque to Dynamo (already done in the code path above)
 
 ---
 
