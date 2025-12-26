@@ -4,6 +4,8 @@
 
 **Why a single file?** It avoids repo clutter (no explosion of one-off files). If this grows too large, we can later split into `notes/FA4/b300/experiments/YYYY-MM-DD-<slug>.md` and add an index.
 
+**Quality gate:** FP8 quantization is currently **off-limits** on B300 (garbage output). Any FP8 numbers in this file are perf-only breadcrumbs for upstream debugging; use `--quantization none` for real output.
+
 ## How this differs from the other docs
 
 - `notes/FA4/b300/session-state.md`: “what to run today” (known-good commands + caveats)
@@ -189,7 +191,7 @@ WANVAE_STREAM_DECODE_MODE=chunk \
 
 **Decision:**  
 - If not compiling: use `--quantization none` as the canonical B300/cu130 baseline for perf work (fp8 is slower on this stack unless compile is enabled).
-- If compiling: fp8 becomes viable again (still pending upstream TorchAO fix; we currently rely on a PerTensor-only monkeypatch).
+- If compiling: fp8 can benchmark higher, but is currently **not viable for quality** on B300 (gray/noise output). Treat fp8 runs as perf-only.
 
 **Lessons:**
 - On SM103, fp8 can be *slower* than BF16 if the intended fp8 kernels aren’t actually active (and/or conversion overhead dominates).

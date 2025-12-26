@@ -17,6 +17,7 @@ This folder is the “working set” for the B300 (SM103) optimization thread: h
 ## Ground Truth Conventions
 
 - **Canonical perf comparisons:** `320x576`, 4 denoise steps, `kv_cache_attention_bias=0.3`, quality-preserving settings.
+- **Quality gate:** FP8 quantization is currently **off-limits** on B300 (garbage output). Use `--quantization none` (BF16). Details: `session-state.md`.
 - **One-change rule:** change exactly one thing per experiment card and write down:
   - command, env, baseline, result, artifacts, and the lesson.
 

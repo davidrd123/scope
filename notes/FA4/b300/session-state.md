@@ -10,6 +10,11 @@
 - **Deep-research packets (2025-12-26):** `notes/FA4/DeepResearch/2025-12-26/B300_optim_ladder/round02/claude_dr.md` (source-backed links + spellings)
 - **Paste-ready upstream issue (TorchAO as_strided):** `notes/issues/torchao-as-strided-dispatch.md`
 
+## Quality Gate (Read This First)
+
+**We prioritize output quality over speed.** As of 2025-12-26 on B300/SM103, **FP8 quantization is off-limits** for “real” runs because it produces **garbage output** (gray/noise).  
+Use `--quantization none` (BF16) for the best-known quality. FP8 measurements are kept only as *perf-only* debugging breadcrumbs for upstream work.
+
 ## Upstream refs (source-backed quick links)
 
 These are the three “version/typo landmines” we keep tripping over; keep this section short and prefer upstream links.
@@ -52,8 +57,8 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
   - `SCOPE_KV_BIAS_BACKEND=flash` + `--compile`: **~21.4 FPS**
   - `SCOPE_KV_BIAS_BACKEND=fa4`: **~19.7 FPS**
   - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile`: **~22.8 FPS**
-  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--quantization fp8_e4m3fn` (no compile): **~17.3 FPS**
-  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile` + `--quantization fp8_e4m3fn`: **~25.1 FPS** (requires the PerTensor-only TorchAO `as_strided` monkeypatch; applied automatically by the pipeline unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`).
+  - *(perf-only; quality broken)* `SCOPE_KV_BIAS_BACKEND=fa4` + `--quantization fp8_e4m3fn` (no compile): **~17.3 FPS**
+  - *(perf-only; quality broken)* `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile` + `--quantization fp8_e4m3fn`: **~25.1 FPS** (requires the PerTensor-only TorchAO `as_strided` monkeypatch; applied automatically by the pipeline unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`).
   - Note: on SM103 we default flash segment-combine to the stable FA2 varlen op; opt in to FA4 `return_lse` experiments with `SCOPE_FLASH_COMBINE_USE_FA4_LSE=1`.
 - `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, `scripts/b300_env_fix_cu130.sh` now tries `torchao==0.15.0+cu130` from the cu130 index (then PyPI as fallback). **As of 2025-12-26**, `torchao==0.15.0+cu130` still prints `Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 ...` (likely upstream; no FPS change observed).
 

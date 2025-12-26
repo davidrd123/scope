@@ -38,7 +38,7 @@ If you only remember one rule: **always record which backend actually ran** (to 
 | `DISABLE_FLASH_ATTENTION_4` | `0|1` | `0` | Disables FA4 varlen selection for plain attention | Useful to avoid CuTe mixing on SM103 |
 | `SCOPE_ENABLE_FA4_VARLEN` | `0|1` | `0` | Allows FA4 varlen for *plain* attention even when `SCOPE_KV_BIAS_BACKEND=fa4` | Opt-in because mixing CuTe module sources can break |
 | `SCOPE_COMPILE_KREA_PIPELINE` | `0|1` | (auto: Hopper only) | Enables `torch.compile` of diffusion blocks in the server pipeline | On B200 (SM100), compile is typically a big steady-state win |
-| `SCOPE_COMPILE_KREA_PIPELINE_ALLOW_QUANTIZATION` | `0|1` | `0` | Allows `torch.compile` even when FP8 quantization is enabled | On SM100 we allow compile+FP8 without this; elsewhere this is an explicit experiment override |
+| `SCOPE_COMPILE_KREA_PIPELINE_ALLOW_QUANTIZATION` | `0|1` | `0` | Allows `torch.compile` even when FP8 quantization is enabled | **B300:** FP8 output quality is currently broken; do not enable for real runs |
 | `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED` | `0|1` | `1` | Applies a PerTensor-only TorchAO monkeypatch so `--compile + fp8` can run | Workaround for upstream TorchAO missing `aten.as_strided.default`; disable to reproduce the upstream failure |
 | `SCOPE_TORCH_COMPILE_MODE` | string | unset | Controls `torch.compile(..., mode=...)` | Some modes are footguns on SM103 |
 | `SCOPE_ALLOW_REDUCE_OVERHEAD_SM103` | `0|1` | `0` | Allows `SCOPE_TORCH_COMPILE_MODE=reduce-overhead` on SM103 | Default is to fall back to the default compile mode (reduce-overhead can hit CUDAGraph “output overwritten” on SM103) |
