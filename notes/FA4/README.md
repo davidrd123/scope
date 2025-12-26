@@ -13,6 +13,7 @@ This directory tracks the journey of optimizing attention kernels for the Krea R
 | See B200 current state | `b200/session-state.md` |
 | See B200 development plan | `b200/development-plan.md` |
 | Investigate B300 8.8 FPS issue | `b300/investigation-runbook.md` |
+| Get the B300 folder index | `b300/README.md` |
 | See B300 optimization roadmap | `b300/optimization-vision.md` |
 | See B300 development plan | `b300/development-plan.md` |
 | Set up a B300 machine | `b300/setup-guide.md` |

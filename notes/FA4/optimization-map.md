@@ -1,7 +1,7 @@
 # FA4 Optimization Map (Timeline, Truth Sources, Workspace)
 
 > **Purpose:** A short “you are here” map for the FA4 / realtime-video optimization work: what’s been done, what’s currently true, where to record new learnings, and where the relevant resources live.
-> **Updated:** 2025-12-25
+> **Updated:** 2025-12-26
 
 ---
 
@@ -52,6 +52,7 @@ This is intentionally “milestones only.” The detailed blow-by-blow is `notes
 | 2025-12-24 | B300 “8.8 FPS mystery” framed + systematic runbook | `notes/FA4/b300/investigation-runbook.md` |
 | 2025-12-24–25 | Key B300 insight: runtime stack dominates decode; cu130 fixes VAE decode | `notes/FA4/b300/session-state.md` |
 | 2025-12-25 | FA4/CuTe `score_mod` KV-bias stabilized for B300; backend guardrails documented | `notes/FA4/b300/session-state.md`, `notes/FA4/b300/optimization-vision.md` |
+| 2025-12-26 | Collected source-backed upstream refs (TorchAO FP8+compile, Conv3d/cuDNN, CUDAGraph step markers) | `notes/FA4/b300/session-state.md`, `notes/FA4/b300/blackwell-docs.md`, `notes/FA4/DeepResearch/2025-12-26/B300_optim_ladder/round02/claude_dr.md` |
 
 ---
 
