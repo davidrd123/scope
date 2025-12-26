@@ -409,6 +409,14 @@ export function StreamPage() {
       return;
     }
 
+    if (pendingRecordingTimelineExportRef.current) {
+      toast.info("Finishing previous recording…", {
+        description:
+          "Wait for the download prompts before starting a new recording.",
+      });
+      return;
+    }
+
     recordingTimelineStartRef.current = timelineCurrentTime;
     pendingRecordingTimelineExportRef.current = null;
     startRecording();
