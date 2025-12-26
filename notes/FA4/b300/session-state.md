@@ -1,4 +1,4 @@
-# B300 Session State - 2025-12-24 (Updated)
+# B300 Session State - 2025-12-26 (Updated)
 
 ## Navigation
 
@@ -8,6 +8,7 @@
 - **Development plan (what to build next):** `notes/FA4/b300/development-plan.md`
 - **Level 5/6 reading list:** `notes/FA4/b300/level5-level6-resources.md`
 - **Deep-research packets (2025-12-26):** `notes/FA4/DeepResearch/2025-12-26/B300_optim_ladder/round02/claude_dr.md` (source-backed links + spellings)
+- **Paste-ready upstream issue (TorchAO as_strided):** `notes/issues/torchao-as-strided-dispatch.md`
 
 ## Upstream refs (source-backed quick links)
 
@@ -19,6 +20,7 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
     - https://github.com/pytorch/ao/blob/v0.14.1/torchao/quantization/quantize_/workflows/float8/float8_tensor.py
     - https://github.com/pytorch/ao/blob/v0.15.0/torchao/quantization/quantize_/workflows/float8/float8_tensor.py
   - TorchAO ↔ torch compatibility table: https://github.com/pytorch/ao/issues/2919
+  - Local unblock for experiments (PerTensor-only): `scripts/patch_float8_as_strided.py` (registers `aten.as_strided.default` for `Float8Tensor`, guarded on `scale.numel()==1`). Upstream issue text: `notes/issues/torchao-as-strided-dispatch.md`.
 
 - **Conv3d BF16/FP16 regressions (PyTorch 2.9 era)**
   - PyTorch **v2.9.1** release notes recommend: install **`nvidia-cudnn-cu12>=9.15`** if impacted by BF16 Conv3d regressions: https://github.com/pytorch/pytorch/releases/tag/v2.9.1
@@ -40,9 +42,10 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
   - `SCOPE_KV_BIAS_BACKEND=flash` + `--compile`: **~18.4 FPS**
   - `SCOPE_KV_BIAS_BACKEND=fa4`: **~17.0 FPS**
   - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile`: **~19.5 FPS**
-  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--quantization fp8_e4m3fn` (no compile): **~15.2 FPS**; `--compile + fp8_e4m3fn` currently fails (torchao Float8Tensor dispatch / `aten.as_strided`).
+  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--quantization fp8_e4m3fn` (no compile): **~15.2 FPS**
+  - With the PerTensor-only monkeypatch (`import scripts.patch_float8_as_strided` before quantizing), `--compile + --quantization fp8_e4m3fn` now runs (example run on B300: **~14.9 FPS**; treat as experimental until upstream support lands).
   - Note: on SM103 we default flash segment-combine to the stable FA2 varlen op; opt in to FA4 `return_lse` experiments with `SCOPE_FLASH_COMBINE_USE_FA4_LSE=1`.
-- `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, `scripts/b300_env_fix_cu130.sh` now tries `torchao==0.15.0+cu130` from the cu130 index (then PyPI as fallback). **As of 2025-12-25**, `torchao==0.15.0+cu130` still prints `Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 ...` (likely upstream; no FPS change observed).
+- `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, `scripts/b300_env_fix_cu130.sh` now tries `torchao==0.15.0+cu130` from the cu130 index (then PyPI as fallback). **As of 2025-12-26**, `torchao==0.15.0+cu130` still prints `Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 ...` (likely upstream; no FPS change observed).
 
 This is a ~70% improvement over the repo-default baseline.
 
@@ -183,12 +186,12 @@ Takeaway: the `SCOPE_KV_BIAS_BACKEND=fa4` safety disable can cost ~1 FPS **when 
 
 ### torch.compile Status (B300)
 
-As of 2025-12-25:
+As of 2025-12-26:
 
 - **Quantization none:** `scripts/profile_krea_pipeline_blocks.py --compile` now works on B300 and improves throughput.
   - Example (B300, cu130 env, `320x576`, bias `0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`): **~16.7 FPS → ~19.0 FPS**
   - Tradeoff: longer warmup due to compilation (expect ~10–30s depending on cache state).
-- **FP8 (torchao):** still fails under `--compile` due to float8 wrapper limitations under Dynamo/Inductor.
+- **FP8 (torchao):** runs under `--compile` *if* you apply the PerTensor-only `aten.as_strided.default` monkeypatch: `scripts/patch_float8_as_strided.py` (upstream issue: `notes/issues/torchao-as-strided-dispatch.md`).
 
 Implementation note: we keep CuTe/FA4 calls **opaque** to Dynamo during compilation to avoid FakeTensor/DLPack failures; this enables compiling the surrounding transformer regions without trying to trace into CUTLASS DSL.
 

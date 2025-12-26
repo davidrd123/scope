@@ -3,11 +3,13 @@
 Attempt at minimal repro for torch.compile + torchao.quantization.Float8Tensor
 aten.as_strided.default dispatch gap.
 
-RESULT: Simple models do NOT trigger the issue.
+NOTE: This script is not a reliable standalone repro. In our toy MLPs (even with
+explicit view/reshape/transpose ops), we did not hit the failure; we hit it in
+the full transformer-based diffusion pipeline.
 
-The as_strided call comes from AOTAutograd's gen_alias_from_base() during
-alias handling at graph boundaries, not from model-level view ops. You need
-complex graph patterns (like transformer attention blocks) to hit this.
+Current hypothesis: `aten.as_strided` is being introduced by AOTAutograd
+aliasing/stride-correction logic (e.g., `gen_alias_from_base`) during
+compilation, not necessarily by explicit model `.as_strided(...)` calls.
 
 Canonical repro that DOES trigger the issue:
     SCOPE_KV_BIAS_BACKEND=fa4 \\
@@ -15,6 +17,10 @@ Canonical repro that DOES trigger the issue:
       --quantization fp8_e4m3fn --compile
 
 See: notes/issues/torchao-as-strided-dispatch.md
+
+As of 2025-12-26: `scripts/patch_float8_as_strided.py` provides a PerTensor-only
+monkeypatch that unblocks `--compile + fp8` for experiments (upstream support is
+still missing).
 
 Environment:
     pip install torch torchao
