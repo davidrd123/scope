@@ -118,6 +118,18 @@ export OUT_DIR=$INVESTIGATION_DIR/$GPU_TAG
 Run on each GPU before any other tests.
 
 ```bash
+# Quick CUDA access preflight (distinguish “driver wedge” vs “no compute permission”)
+python3 - <<'PY'
+import os
+for p in ("/dev/nvidiactl", "/dev/nvidia0", "/dev/nvidia-uvm"):
+    try:
+        fd = os.open(p, os.O_RDWR)
+        os.close(fd)
+        print(p, "RW OK")
+    except Exception as e:
+        print(p, "RW FAIL:", type(e).__name__, e)
+PY
+
 # Capture system info
 nvidia-smi -q > $OUT_DIR/nvidia-smi-full.txt
 nvidia-smi -L > $OUT_DIR/nvidia-smi-devices.txt

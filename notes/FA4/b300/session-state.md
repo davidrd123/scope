@@ -67,6 +67,28 @@ See also: `notes/FA4/b300/investigation-runbook.md` (“Ground Truth” section)
 
 **Operational note (intermittent):** We have seen rare CUDA/NVML wedges on this host (`nvidia-smi` → “Failed to initialize NVML: Unknown Error”, PyTorch `cudaGetDeviceCount` → Error 304). When `nvidia-smi` is healthy (normal driver table), you’re fine; when it wedges, bench scripts can fail at import-time and you’ll likely need a host-level driver restart or reboot.
 
+**Another failure mode (looks similar): “monitor-only GPU access”**
+
+Sometimes you can still see the GPU (e.g. `nvidia-smi -L` works) but **CUDA compute is blocked** (common on login nodes / mis-scoped containers / device-cgroup restrictions). Symptoms:
+- PyTorch: `torch.cuda.is_available() == False` with `cudaGetDeviceCount` **Error 304**
+- `/dev/nvidia*` can be opened **read-only** but not read-write
+
+Quick check:
+```bash
+python3 - <<'PY'
+import os
+for p in ("/dev/nvidiactl", "/dev/nvidia0", "/dev/nvidia-uvm"):
+    try:
+        fd = os.open(p, os.O_RDWR)
+        os.close(fd)
+        print(p, "RW OK")
+    except Exception as e:
+        print(p, "RW FAIL:", type(e).__name__, e)
+PY
+```
+
+If RW opens fail, you won’t be able to benchmark or run `daydream-scope` until you re-enter a GPU compute allocation (or re-launch the container/job with proper GPU device permissions).
+
 ### “Why did FPS regress?” quick checklist
 
 When you see ~`8.8 FPS` again, it’s almost always one of these:

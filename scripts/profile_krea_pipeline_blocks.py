@@ -62,6 +62,32 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _cuda_unavailable_hint(torch) -> str:
+    import os as _os
+
+    dev_checks = []
+    for path in ("/dev/nvidiactl", "/dev/nvidia0", "/dev/nvidia-uvm"):
+        try:
+            fd = _os.open(path, _os.O_RDWR)
+            _os.close(fd)
+            dev_checks.append(f"{path}=rw_ok")
+        except FileNotFoundError:
+            dev_checks.append(f"{path}=missing")
+        except PermissionError:
+            dev_checks.append(f"{path}=rw_denied")
+        except Exception as e:
+            dev_checks.append(f"{path}=err:{type(e).__name__}")
+
+    return (
+        "CUDA not available.\n"
+        f"- torch: {torch.__version__} (cuda={torch.version.cuda})\n"
+        f"- /dev access: {', '.join(dev_checks)}\n"
+        "If /dev/* is rw_denied, you likely don't have GPU *compute* permissions "
+        "(device-cgroup / container missing GPU access). If NVML is wedged "
+        "(nvidia-smi errors), a host driver restart/reboot may be required."
+    )
+
+
 def main() -> int:
     args = _parse_args()
 
@@ -87,11 +113,11 @@ def main() -> int:
         if not attn_logger.handlers:
             handler = logging.StreamHandler()
             handler.setFormatter(logging.Formatter("%(message)s"))
-            attn_logger.addHandler(handler)
+        attn_logger.addHandler(handler)
         attn_logger.propagate = False
 
     if not torch.cuda.is_available():
-        raise SystemExit("CUDA not available")
+        raise SystemExit(_cuda_unavailable_hint(torch))
 
     torch.backends.cudnn.benchmark = bool(args.cudnn_benchmark)
 
