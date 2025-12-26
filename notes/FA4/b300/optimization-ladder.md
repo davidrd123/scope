@@ -91,12 +91,15 @@ Knobs map: `notes/FA4/explainers/17-backend-selection-and-knobs.md`.
 ## ✅ YOU ARE HERE: Between Level 4 and 5
 
 Current state:
-- B300: **~15 FPS** in typical cu130 end-to-end runs; **~22–23 FPS** with `--compile` (BF16, config-dependent). FP8+compile can benchmark higher (~25 FPS) but is currently **not a usable win** on B300 because FP8 output quality is broken (see `notes/FA4/b300/session-state.md`).
+- B300 (cu130): **~19–20 FPS** baseline (BF16) and **~22–23 FPS** with `--compile` (BF16, config-dependent). FP8 can benchmark higher, but is currently **not a usable win** on B300 because FP8 output quality is broken (gray/noise) — see `notes/FA4/b300/session-state.md`.
 - Solved the “white whale” mystery: the original ~8.8 FPS wasn’t an attention backend cap; it was dominated by runtime stack + decode/cuDNN behavior and SM103 backend pitfalls
 - Have documented, reproducible optimizations
+- Recent “big win” pattern: eliminating hidden slow paths (e.g. Conv3d patch-embed → per-frame Conv2d) can dwarf attention micro-tuning by removing `aten::copy_`/`aten::fill_` storms
 
 What's missing for Level 5:
 - RoPE is still separate from attention, and attention-adjacent glue (casts/copies/layout fixes) is still sizable
+- Warmup time is not consistently tracked (compile is a win, but cold-start matters)
+- We haven’t done a cross-resolution scaling “sanity card” yet (do bottlenecks shift at 480×864 / 640×1152?)
 - Not exploiting Blackwell-specific features (TMA, warp specialization)
 - torch.compile integration is partial (some modes abort on SM103; `--compile + fp8_e4m3fn` is blocked upstream by TorchAO `Float8Tensor` missing `aten.as_strided.default`, but is unblocked locally via a PerTensor-only monkeypatch applied by the realtime pipeline: `src/scope/core/compat/torchao_float8_as_strided.py` (disable with `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`); upstream issue text is paste-ready at `notes/issues/torchao-as-strided-dispatch.md`; some cudagraph-heavy modes can still hit “output overwritten”) — see `notes/FA4/b300/session-state.md`
 
@@ -217,16 +220,18 @@ This is FlashAttention-level contribution:
 
 ## The Path Forward
 
-### Immediate (Level 4→5): Fuse RoPE + Attention
+### Immediate (Level 4→5): Reduce Glue + Memory Traffic (Then Consider Fusion)
 
-**Effort:** Medium-to-high (this can turn into real R&D depending on how deep we go)
-**Impact:** Unknown; likely modest unless we also reduce memory traffic / conversions / projections
+**Effort:** Low-to-medium (repeat the “patch-embed playbook” with stack-attributed op profiling)
+**Impact:** Often higher than you’d expect; slow-path elimination has been our most reliable lever so far
 
 Steps:
 1. Pick a *single* representative benchmark (canonical `320x576`, bias `0.3`, cu130 env) and record the baseline
-2. Identify the “why” for fusion (e.g. reduce kernel launches, reduce `aten::copy_`, remove redundant transposes)
-3. Prototype a minimal fusion target (e.g. “RoPE during Q/K load”) and validate correctness first
-4. Benchmark, then write down the lesson (what moved, what didn’t, what got harder)
+2. Record both **steady-state FPS** and **warmup time** (compile modes can shift this tradeoff a lot)
+3. Run `scripts/profile_krea_pipeline_ops.py --with-stack --summary` and pick the top 1–2 call stacks behind `aten::copy_` / `aten::_to_copy` / `aten::fill_`
+4. Prefer “structural” fixes first: Conv3d→Conv2d (time-kernel=1), remove dtype/layout roundtrips, use fused primitives (`rms_norm`, `layer_norm`)
+5. Only then, if the remaining top stacks are truly attention-adjacent glue: prototype a minimal fusion target (e.g. RoPE during Q/K load) and validate correctness
+6. Benchmark, then write down the lesson (what moved, what didn’t, what got harder)
 
 ### Medium-term (Level 5→6): TMA/Warp Specialization
 

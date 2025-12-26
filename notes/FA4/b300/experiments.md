@@ -24,6 +24,7 @@
 Suggested measurement harness:
 - `scripts/profile_krea_pipeline_blocks.py` (end-to-end FPS; optional block JSON)
 - `scripts/profile_b300_denoise_drilldown.sh` (deeper split; writes JSON under `outputs/`)
+- If `--compile` is involved, also record **warmup time** (it matters for UX and can dominate “time to first frame”).
 
 ---
 
@@ -46,6 +47,7 @@ Suggested measurement harness:
 - torch / cuda: <e.g. 2.9.0+cu130 / 13.0>  
 - Settings: `320x576`, steps=`4`, bias=`0.3`  
 - Notes: <compile on/off, quantization, backend vars>
+- Warmup: <seconds to reach steady-state (esp. `--compile`)>
 
 **Command(s):**
 ```bash

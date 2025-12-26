@@ -88,8 +88,11 @@ uv pip install -p .venv-b300-cu130-decode/bin/python wheel ninja
 uv pip install -p .venv-b300-cu130-decode/bin/python --no-deps --no-build-isolation --no-binary flash-attn flash-attn==2.8.3
 ```
 
-Reference benchmark result on B300 (`320x576`, FP8, bias=0.3):
-- `outputs/b300_cu130_fp8_bias03_flashattn.log` → **~13.3–13.5 FPS**
+Reference benchmark result on B300 (`320x576`, BF16, bias=0.3, cu130 env):
+- `--quantization none`, `SCOPE_KV_BIAS_BACKEND=fa4`: **~19–20 FPS**
+- With `--compile`: **~22–23 FPS** (longer warmup; see `notes/FA4/b300/session-state.md`)
+
+FP8 note: FP8 output quality is currently broken on B300 (gray/noise), so the canonical baseline is BF16 (`--quantization none`).
 
 ### Running Daydream on B300 (cu130 env)
 
@@ -137,7 +140,7 @@ Adding to `.venv/bin/activate` only works when manually activating the venv with
 | **RoPE fused** | ✅ PASS | 0.029 ms |
 | **Correctness tests** | ✅ ALL PASS | |
 
-**Triton Kernel B is 10.8% faster than flex_attention on B300!**
+Note: Kernel microbenchmarks can look good while still losing end-to-end. On SM103, the *Triton KV-bias backend* is currently not a production option (it can fall back to a much slower scalar path); prefer `SCOPE_KV_BIAS_BACKEND=fa4` (or `flash` fallback).
 
 ## Environment Details
 
@@ -171,8 +174,8 @@ PYTHONPATH=src .venv-b300-cu130-decode/bin/python scripts/bench_wanvae_stream_de
 | flex_attention | ✅ | ✅ | 1.095 ms |
 | RoPE fused | ✅ | ✅ | 0.029 ms |
 | FA4/CUTE basic | ✅ | ✅ | **0.074 ms** (13x faster!) - needs patches |
-| FA4/CUTE score_mod | ✅ | ❌ | Version mismatch, see B300-FA4-PATCHES.md |
-| daydream-scope | ✅ 20 FPS | ✅ 8.8 FPS (baseline) / ✅ ~13.3 FPS (cu130+flash-attn) | End-to-end sensitive to runtime stack |
+| FA4/CUTE score_mod | ✅ | ✅ | Works on the current B300 path; see `notes/FA4/b300/session-state.md` and `notes/FA4/b300/fa4-patches.md` |
+| daydream-scope | ✅ ~20 FPS | ✅ ~8.8 FPS (repo-default) / ✅ ~19–23 FPS (cu130, BF16; benchmark harness) | End-to-end sensitive to runtime stack; Daydream numbers should be re-measured after major pipeline changes |
 
 ## FA4/CUTE on B300 (Optional)
 

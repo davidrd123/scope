@@ -48,21 +48,27 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
 
 ## Current Status
 
-**Baseline (repo default stack): B300 is ~8.8 FPS at `320x576` (reference resolution) and the number is stable across iterations.**
+**Baseline (repo default stack):** B300 is ~8.8 FPS at `320x576` (reference resolution) and the number is stable across iterations.
 
-**Update (cu130 + FlashAttention + FA4 KV-bias):**
-- Daydream end-to-end (cu130 env): **TBD re-measure** (previously ~`14.8–15.0 FPS` at `320x576`, but that was measured before the Conv2d patch-embedding fastpath landed)
-- `scripts/profile_krea_pipeline_blocks.py` benchmark (cu130 env, quantization none, bias=0.3):
-  - `SCOPE_KV_BIAS_BACKEND=flash`: **~17.2 FPS**
-  - `SCOPE_KV_BIAS_BACKEND=flash` + `--compile`: **~21.4 FPS**
-  - `SCOPE_KV_BIAS_BACKEND=fa4`: **~19.7 FPS**
-  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile`: **~22.8 FPS**
-  - *(perf-only; quality broken)* `SCOPE_KV_BIAS_BACKEND=fa4` + `--quantization fp8_e4m3fn` (no compile): **~17.3 FPS**
-  - *(perf-only; quality broken)* `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile` + `--quantization fp8_e4m3fn`: **~25.1 FPS** (requires the PerTensor-only TorchAO `as_strided` monkeypatch; applied automatically by the pipeline unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`).
-  - Note: on SM103 we default flash segment-combine to the stable FA2 varlen op; opt in to FA4 `return_lse` experiments with `SCOPE_FLASH_COMBINE_USE_FA4_LSE=1`.
-- `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, `scripts/b300_env_fix_cu130.sh` now tries `torchao==0.15.0+cu130` from the cu130 index (then PyPI as fallback). **As of 2025-12-26**, `torchao==0.15.0+cu130` still prints `Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 ...` (likely upstream; no FPS change observed).
+### Production-viable (quality-preserving; BF16 / `--quantization none`)
 
-This is a ~70% improvement over the repo-default baseline.
+Benchmark harness (`scripts/profile_krea_pipeline_blocks.py`, cu130 env, bias=0.3):
+- `SCOPE_KV_BIAS_BACKEND=fa4`: **~19.7 FPS**
+- `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile`: **~22.8 FPS**
+- `SCOPE_KV_BIAS_BACKEND=flash`: **~17.2 FPS**
+- `SCOPE_KV_BIAS_BACKEND=flash` + `--compile`: **~21.4 FPS**
+
+Daydream end-to-end (cu130 env): **TBD re-measure** (historical note: pre patch-embed fastpath it was ~`14.8–15.0 FPS`; do not rely on that number now).
+
+### Perf-only / blocked paths (not usable for quality)
+
+- *(perf-only; quality broken)* `SCOPE_KV_BIAS_BACKEND=fa4` + `--quantization fp8_e4m3fn` (no compile): **~17.3 FPS**
+- *(perf-only; quality broken)* `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile` + `--quantization fp8_e4m3fn`: **~25.1 FPS** (requires the PerTensor-only TorchAO `as_strided` monkeypatch; applied automatically by the pipeline unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`).
+- Note: on SM103 we default flash segment-combine to the stable FA2 varlen op; opt in to FA4 `return_lse` experiments with `SCOPE_FLASH_COMBINE_USE_FA4_LSE=1`.
+
+`torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, `scripts/b300_env_fix_cu130.sh` now tries `torchao==0.15.0+cu130` from the cu130 index (then PyPI as fallback). **As of 2025-12-26**, `torchao==0.15.0+cu130` still prints `Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 ...` (likely upstream; no FPS change observed).
+
+This is roughly a **2.6× throughput improvement** over the repo-default baseline (~8.8 → ~22.8 FPS in the benchmark harness).
 
 External doc brief (for RepoPrompt / web research): `notes/FA4/b300/blackwell-docs.md`
 
@@ -100,8 +106,9 @@ scripts/profile_b300_denoise_drilldown.sh
 Latest drill-down run (cu130, profiling enabled): `outputs/b300_cu130_none_bias0.3_drilldown_perf.log` averaged **~14.7 FPS** (expected lower than the non-profiled benchmark due to extra synchronizations).
 
 Artifacts:
-- `outputs/b300_cu130_fp8_bias03_flashattn.log`
-- `outputs/b300_cu130_fp8_bias03_flashattn.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_perf.log`
+- `outputs/b300_cu130_none_bias0.3_drilldown_perf.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_blocks_profile.json`
 
 **Key update:** This no longer looks like an “invisible FPS cap” caused by WebRTC/codec pacing or CPU stalls. A block-level CUDA-event profile shows GPU time ≈ wall time, and the dominant blocks are `denoise` and `decode` (not the KV-bias attention microkernel).
 

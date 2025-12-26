@@ -24,7 +24,7 @@
 
 Two regimes exist:
 - **Repo-default stack:** ~`8.8 FPS` at `320x576` (decode/cuDNN dominated).
-- **SM103-native stack (cu130):** ~`15 FPS` typical end-to-end; higher best-case under favorable compile conditions.
+- **SM103-native stack (cu130):** ~`19–20 FPS` baseline (BF16) and ~`22–23 FPS` with `--compile` (BF16), at `320x576` with bias `0.3`.
 
 Truth sources:
 - `notes/FA4/b300/session-state.md`
@@ -82,17 +82,15 @@ Touchpoints:
 
 ### 3) Choose the Right “Performance Baseline” (Quantization + Stack) (1–2 days)
 
-**Why:** On B300, fp8 can lose to `quantization none` due to conversion/scaling overhead and ABI mismatches.
+**Why:** On B300, **output quality comes first** — FP8 is currently broken (gray/noise), so the canonical baseline must be BF16 (`--quantization none`). FP8 runs are kept only as perf-only breadcrumbs for upstream/tooling work.
 
 **Work**
-- Run a controlled sweep:
-  - `--quantization none`
-  - fp8 (current default option)
-- For each: record end-to-end FPS + `PROFILE_ATTENTION=1` + op-level profile once.
-- If fp8 is selected, ensure torchao is actually providing the intended fastpaths (no “cpp extensions skipped”).
+- Establish BF16 (`--quantization none`) as the single baseline for B300 perf work (so results remain quality-preserving).
+- For BF16: record end-to-end FPS + warmup time + one op-level profile (stack-attributed) for the current “best” config.
+- If running FP8 for debugging: require (a) working torchao C++ extensions and (b) a quality snapshot check, so we don’t mistake “fast garbage” for progress.
 
 **Acceptance**
-- We pick one baseline config for future experiments (so we stop comparing apples to oranges).
+- We have one baseline config for future experiments (BF16), with repeatable numbers and a short “known good” command in `session-state.md`.
 
 References:
 - `notes/FA4/b300/optimization-vision.md`
@@ -105,8 +103,9 @@ References:
 **Why:** After FA4 KV-bias, the remaining self-attn cost is often dominated by QKV/projections and memory traffic (`copy_`, `to`).
 
 **Work (one-change cards)**
-- Use op-level profiling to identify the top copy/to hotspots.
+- Use op-level profiling (`scripts/profile_krea_pipeline_ops.py --with-stack --summary`) to identify the top copy/to/fill hotspots by call stack.
 - Remove redundant conversions, hoist invariant reshapes, and reduce layout churn.
+- Run one higher-resolution “sanity card” (e.g. `480x864`) to see whether bottlenecks shift (attention vs decode vs glue).
 - Treat each fix as an experiment card; promote only stable wins.
 
 **Acceptance**
@@ -126,6 +125,7 @@ Touchpoints:
 **Work**
 - Keep compile experiments tightly scoped (regional compile around stable regions).
 - Sweep `SCOPE_TORCH_COMPILE_MODE` via experiment cards; record “known good” vs “known bad”.
+- Track warmup time explicitly (compile wins can trade steady-state for cold-start).
 - Consider AOT export (torch.export/AOTInductor) only if cold-start is a primary goal; keep it separate from steady-state perf work.
 
 **Acceptance**
@@ -178,4 +178,3 @@ References:
 - “What to run today”: `notes/FA4/b300/session-state.md`
 - Measurement protocol: `notes/FA4/b300/investigation-runbook.md`
 - Strategy options: `notes/FA4/b300/optimization-vision.md`
-

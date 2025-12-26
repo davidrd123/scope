@@ -17,7 +17,7 @@ These observations are meant to prevent re-running the same “is it pacing?” 
 - **Resolution:** `320x576` (reference resolution for comparisons)
 - **Denoising steps:** `4` (current reference)
 - **KV-cache attention bias:** `0.3` (unless explicitly testing bias off/on)
-- **Typical steady-state:** ~`8.7–8.8 FPS` on the repo-default stack, ~`14.8–15.0 FPS` on the cu130 stack (Daydream)
+- **Typical steady-state (quality-preserving BF16):** ~`8.7–8.8 FPS` on the repo-default stack; on the cu130 stack, ~`19–20 FPS` (no compile) and ~`22–23 FPS` with `--compile` (benchmark harness). Daydream end-to-end numbers should be re-measured when server/plumbing changes.
 
 Repro command (includes per-block CUDA-event timings):
 
@@ -45,6 +45,18 @@ Dominant blocks (4 pipeline calls):
 | `text_conditioning` | ~655 | ~7% | ~164 ms |
 
 Implication: attention micro-optimizations (FA4 score_mod, Triton Kernel B tuning, etc.) will not move end-to-end FPS unless they materially reduce time inside `denoise` (and possibly also reduce work in `decode` / `recompute_kv_cache`).
+
+### Known B300 Trap: Copy/Fill Storms from Patch Embedding (Conv3d Slow Path)
+
+If an op-level profile shows huge `aten::copy_` / `aten::fill_` counts, the culprit may not be “attention glue” at all — it can be a single pathological op.
+
+Historically on B300, the diffusion model’s **patch embedding** used Conv3d with `kernel_size=(1,2,2)`, which can hit a slow path and trigger a big copy/fill storm. Rewriting it as per-frame Conv2d (when time-kernel is 1) was a multi-FPS win.
+
+How to detect it quickly:
+- Run `scripts/profile_krea_pipeline_ops.py --with-stack --summary` and look at the top stack groups for `aten::copy_` / `aten::fill_`.
+- If the stacks point into patch embedding / Conv3d, you’re likely on the slow path (or on an older revision without the fastpath).
+
+Reference card: `notes/FA4/b300/experiments.md` (“Patch embedding: use Conv2d fastpath when `patch_size[0]==1`”).
 
 ### SM103-Native Stack Hypothesis (New, High-Value)
 
@@ -245,9 +257,11 @@ Enabling cuDNN benchmark improves decode somewhat (at the cost of slower warmup 
 export SCOPE_KV_CACHE_RECOMPUTE_EVERY=2  # default 1 (always recompute)
 ```
 
-Measured (B300 cu130, `320x576`, `kv_cache_attention_bias=0.3`):
-- fp8: `SCOPE_KV_BIAS_BACKEND=flash` ~`13.5 FPS` → `SCOPE_KV_BIAS_BACKEND=fa4` ~`15.0 FPS`
-- quantization none: `SCOPE_KV_BIAS_BACKEND=flash` ~`14.9 FPS` → `SCOPE_KV_BIAS_BACKEND=fa4` ~`16.7 FPS`
+Measured (B300 cu130, `320x576`, `kv_cache_attention_bias=0.3`, **quality-preserving BF16**):
+- `--quantization none`: `SCOPE_KV_BIAS_BACKEND=flash` ~`17.2 FPS` → `SCOPE_KV_BIAS_BACKEND=fa4` ~`19.7 FPS`
+- With `--compile`: `flash` ~`21.4 FPS`, `fa4` ~`22.8 FPS` (longer warmup)
+
+FP8 note: FP8 is currently **off-limits** for real runs on B300 because output quality is broken (gray/noise). Keep FP8 measurements only as perf-only breadcrumbs (see `notes/FA4/b300/session-state.md`).
 
 **Quality result (Daydream, B300):** `SCOPE_KV_CACHE_RECOMPUTE_EVERY=2` **visibly glitches**. Treat this knob as **debug-only**; do not ship it as a default optimization.
 
@@ -325,16 +339,16 @@ PYTHONPATH=src \
 .venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
   --height 320 --width 576 \
   --iters 6 --skip 2 \
-  --quantization fp8_e4m3fn \
+  --quantization none \
   --kv-cache-attention-bias 0.3 \
   --cudnn-benchmark
 ```
 
 Interpretation (high ROI decision points):
-- If `ffn` dominates: prioritize **GEMM/MLP** work (FP8 fastpaths, torch.compile on the transformer blocks, memory formats).
+- If `ffn` dominates: prioritize **GEMM/MLP** work (torch.compile on the transformer blocks, memory formats, fused projections).
 - If `self_attn` dominates: prioritize **attention backend** choices (FlashAttention vs Triton vs FA4 score_mod) and KV-bias implementation costs (segment-combine does multiple FA calls).
 - If `rope_apply`/`qkv_projection` dominate: consider fused projections and/or RoPE kernel tuning (but confirm first that they’re truly a big share).
-- If you are on **B300 with ample VRAM**, also sanity-check `--quantization none`: FP8 can be slower than bf16 on this stack due to conversion/scaling overhead.
+- On B300, treat BF16 (`--quantization none`) as the quality baseline. FP8 is currently perf-only because output quality is broken.
 
 Notes:
 - This profiler uses `torch.cuda.synchronize()` per measured block, so it reduces overlap and will lower absolute FPS; treat it as a breakdown tool.
@@ -367,10 +381,12 @@ Command:
 BACKENDS="flash fa4 triton" scripts/bench_b300_kv_bias_backends.sh
 ```
 
-Result (B300, `320x576`, fp8, `kv_cache_attention_bias=0.3`, cu130 env):
-- `fa4`: ~`15.0 FPS` (best in this repo right now)
-- `flash`: ~`13.5 FPS` (stable SM103 default)
-- `triton`: ~`1.1 FPS` (unusable; also had a very slow warmup)
+Result (B300, `320x576`, `--quantization none`, `kv_cache_attention_bias=0.3`, cu130 env):
+- `fa4`: ~`19.7 FPS` (best no-compile baseline)
+- `flash`: ~`17.2 FPS` (stable fallback)
+- `triton`: ~`~1 FPS` (unusable; also had a very slow warmup)
+
+With `--compile`, both `fa4` and `flash` improve further (see `notes/FA4/b300/session-state.md`).
 
 Cause: `src/scope/core/kernels/triton_attention.py` currently forces Kernel B into a **scalar** implementation on SM103 + triton `>=3.5` to avoid a tcgen05 LLVM hard-abort. That scalar variant is dramatically slower than FlashAttention on B300.
 
@@ -380,20 +396,22 @@ Implication: on SM103, prefer `SCOPE_KV_BIAS_BACKEND=fa4` (score_mod) if it work
 
 Once you know **denoise/transformer dominates**, the next question is often:
 
-> Is the remaining time actually “attention kernels”, or is it **copies / dtype conversions / elementwise ops / FP8 GEMMs**?
+> Is the remaining time actually “attention kernels”, or is it **copies / dtype conversions / elementwise ops / GEMMs**?
 
-Use the operator-level profiler script:
+Use the operator-level profiler script (prefer BF16; FP8 is perf-only on B300):
 
 ```bash
 PYTHONPATH=src \
 .venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_ops.py \
   --height 320 --width 576 \
-  --quantization fp8_e4m3fn \
+  --quantization none \
   --kv-cache-attention-bias 0.3 \
   --kv-bias-backend fa4 \
   --cudnn-benchmark \
   --iters 1 --pre-iters 1 \
-  --json outputs/b300_cu130_ops_profile_fa4.json
+  --with-stack --stack-n 12 \
+  --summary outputs/b300_cu130_ops_profile_fa4_qnone_summary.md \
+  --json outputs/b300_cu130_ops_profile_fa4_qnone.json
 ```
 
 Run the same command with `--kv-bias-backend flash` to compare:
@@ -402,12 +420,14 @@ Run the same command with `--kv-bias-backend flash` to compare:
 PYTHONPATH=src \
 .venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_ops.py \
   --height 320 --width 576 \
-  --quantization fp8_e4m3fn \
+  --quantization none \
   --kv-cache-attention-bias 0.3 \
   --kv-bias-backend flash \
   --cudnn-benchmark \
   --iters 1 --pre-iters 1 \
-  --json outputs/b300_cu130_ops_profile_flash.json
+  --with-stack --stack-n 12 \
+  --summary outputs/b300_cu130_ops_profile_flash_qnone_summary.md \
+  --json outputs/b300_cu130_ops_profile_flash_qnone.json
 ```
 
 Interpretation notes:
@@ -417,11 +437,11 @@ Interpretation notes:
 
 #### Example B300 (cu130) signal
 
-In a representative run (fp8, `320x576`, bias `0.3`), the top GPU time is largely:
+In representative BF16 runs (`320x576`, bias `0.3`), the top GPU time is often a mix of:
 - `aten::copy_` / `aten::to` / `aten::_to_copy` (dtype conversions + copies)
-- `aten::_scaled_mm` (FP8 GEMMs)
-- many elementwise kernels
-- attention kernels are present but are not the *only* lever
+- conv kernels (especially WanVAE decode conv3d)
+- GEMMs (QKV/projections/FFN)
+- attention kernels are present, but they are not the *only* lever
 
 Comparing `flash` vs `fa4` shows why FA4 score_mod wins:
 - `flash`: heavy `flash_attn::_flash_attn_varlen_forward` (segment-combine does multiple attention calls)
@@ -448,7 +468,7 @@ PYTHONPATH=src .venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_
   --compile
 ```
 
-Observed (B300, cu130, `320x576`, quantization none, bias `0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`): **~16.7 FPS → ~19.0 FPS**.
+Observed (B300, cu130, `320x576`, quantization none, bias `0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`): **~19.7 FPS → ~22.8 FPS**.
 
 Notes:
 - Warmup is slower due to compilation (expect ~10–30s).
@@ -542,7 +562,7 @@ Results recorded:
 Interpretation:
 - If decode is ~4× faster on cu130, **the path forward is to run B300 on a cu130 (or newer) stack**, not to keep tuning attention.
 
-#### Update (2025-12-24): cu130 + FlashAttention makes the full pipeline fast again
+#### Update (2025-12-26): cu130 stack makes the full pipeline fast again (BF16)
 
 The cu130 env **must** have `flash_attn` installed, otherwise KV-bias falls back to slow paths and end-to-end can drop to ~`1 FPS`.
 
@@ -565,25 +585,27 @@ Also note: the repo pins `torchao==0.13.0` (built against torch 2.8), so a cu130
 
 This is usually safe to ignore if you only use torchao’s Python APIs, but if you want torchao’s compiled fastpaths, install a torch 2.9-compatible torchao (per the torchao matrix: `torchao==0.14.1`). `scripts/b300_env_fix_cu130.sh` now attempts this best-effort (override with `TORCHAO_VERSION=...`). Torchao `v0.15.0` was released recently and may change the best pin; treat it as an experiment unless it explicitly states torch `2.9` ABI compatibility.
 
-Then run the full pipeline benchmark (reference settings):
+Then run the full pipeline benchmark (reference settings, quality-preserving BF16):
 
 ```bash
 TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
 DISABLE_FLEX_ATTENTION_COMPILE=1 \
 WANVAE_STREAM_DECODE_MODE=chunk \
+SCOPE_KV_BIAS_BACKEND=fa4 \
 PYTHONPATH=src \
 .venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
   --height 320 --width 576 \
   --iters 6 --skip 2 \
-  --quantization fp8_e4m3fn \
+  --quantization none \
   --kv-cache-attention-bias 0.3 \
   --cudnn-benchmark \
-  --json outputs/b300_cu130_fp8_bias03_flashattn.json
+  --json outputs/b300_cu130_qnone_bias03.json
 ```
 
 Observed:
-- `scripts/profile_krea_pipeline_blocks.py`: **~13.3–13.5 FPS** at `320x576` (see `outputs/b300_cu130_fp8_bias03_flashattn.log`)
-- Daydream (end-to-end): **~14.8–15.0 FPS** at `320x576` (canonical)
+- `scripts/profile_krea_pipeline_blocks.py`: **~19–20 FPS** at `320x576` with `SCOPE_KV_BIAS_BACKEND=fa4` (BF16, no compile)
+- With `--compile`: **~22–23 FPS** (BF16; longer warmup; see `notes/FA4/b300/session-state.md`)
+- Daydream (end-to-end): **re-measure** whenever server/plumbing changes (historically ~14.8–15.0 FPS pre patch-embed; do not rely on that number now)
 
 Optional: capture per-block profile under cu130 (helps confirm decode is no longer dominant):
 
@@ -591,15 +613,16 @@ Optional: capture per-block profile under cu130 (helps confirm decode is no long
 TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
 DISABLE_FLEX_ATTENTION_COMPILE=1 \
 WANVAE_STREAM_DECODE_MODE=chunk \
+SCOPE_KV_BIAS_BACKEND=fa4 \
 PYTHONPATH=src \
 .venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
   --height 320 --width 576 \
   --iters 4 --skip 1 \
-  --quantization fp8_e4m3fn \
+  --quantization none \
   --kv-cache-attention-bias 0.3 \
   --cudnn-benchmark \
   --profile-blocks \
-  --profile-blocks-json outputs/b300_cu130_fp8_bias03_blocks_profile.json
+  --profile-blocks-json outputs/b300_cu130_qnone_bias03_blocks_profile.json
 ```
 
 ---
@@ -821,7 +844,7 @@ H100 result interpretation:
 | H100 FPS | Meaning |
 |----------|---------|
 | ~8.8 FPS (same as B300) | Pacing/scheduling issue in code, not GPU-specific |
-| ~15-20 FPS (like B200) | B300-specific issue (SM103 stack, driver, hardware) |
+| ~19-23 FPS (like “good cu130” B300) | B300-specific issue (SM103 stack, driver, hardware) |
 
 ---
 

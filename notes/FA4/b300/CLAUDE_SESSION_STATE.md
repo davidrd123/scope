@@ -1,12 +1,15 @@
 # Claude Session State — B300 Investigation (2025-12-25, Session 2)
 
 > **Purpose:** Handoff document for context compaction. Resume from here.
+> **Status:** Historical snapshot from 2025-12-25. For the current “what to run today” state (updated numbers, BF16 baseline, compile status), see `notes/FA4/b300/session-state.md` and `notes/FA4/b300/optimization-vision.md`.
 
 ---
 
 ## Current Status
 
-**B300 @ 320×576:** ~15.0 FPS with FA4 (up from 8.8 baseline = +70%)
+**As of 2025-12-25, B300 @ 320×576:** ~15.0 FPS with FA4 (up from 8.8 baseline = +70%)
+
+Current reality has moved since this session (patch-embed Conv2d fastpath + BF16 `--compile` wins). Treat the rest of this file as a time capsule.
 
 **Branch:** `feature/stream-recording`
 
