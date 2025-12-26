@@ -128,7 +128,11 @@ Fewer intermediate stores/loads and fewer “glue” kernels
 ### Level 6: Architecture-Specific Optimization
 *"I'm using Blackwell features that didn't exist last year"*
 
-**Warp Specialization (Hopper/Blackwell):**
+**Important clarification (so this ladder stays honest):**
+
+- **FA4 on SM10x already uses Blackwell-era mechanisms** (TMA, mbarriers, warp specialization, TMEM/tcgen05). When we say “Level 6” in *this* project, we usually mean: **learning those patterns deeply enough to reason about them** and/or **bringing them to other hotspots** (our own kernels, or non-attention ops).
+
+**Warp Specialization (illustrative):**
 ```
 Warp 0-3:  Load data (TMA - Tensor Memory Accelerator)
 Warp 4-7:  Compute (Tensor Cores)
@@ -137,17 +141,23 @@ Warp 8-11: Store results
 All running simultaneously in a software pipeline
 ```
 
+**What it looks like in FA4 (real example in this repo):**
+
+FA4’s SM100 kernel has a more granular role split (softmax warps, correction warps, a single MMA-issuer warp, a load warp, etc.). See:
+- `notes/FA4/explainers/02-blackwell-path.md`
+- `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py` (e.g., `softmax0_warp_ids`, `correction_warp_ids`, `mma_warp_id`, `load_warp_ids`)
+
 **TMA (Tensor Memory Accelerator):**
 - Hardware unit that loads tensor tiles directly into shared memory
 - Async, overlapped with compute
 - No thread involvement during transfer
 
-**What this looks like in code:**
+**What this looks like in code (contrast):**
 ```python
-# Level 4 (what we have)
+# “Plain” custom kernels (e.g., Triton-style patterns)
 q = tl.load(Q_ptr + offsets)  # Threads load cooperatively
 
-# Level 6 (Blackwell-optimized)
+# Blackwell-era kernels (FA4 SM100 path uses TMA in the load warps)
 tma_load(Q_smem, Q_gmem_desc)  # Hardware loads async
 barrier.wait()                  # Compute on previous tile
                                 # while next tile loads
@@ -156,7 +166,11 @@ barrier.wait()                  # Compute on previous tile
 **Concrete opportunity for B300:**
 - B300 is SM103 (Blackwell)
 - TMA and warp specialization are available
-- Current kernels don't use them
+- The **FA4 SM10x attention kernel uses them**; many other ops (and our old Triton KV-bias path) do not
+- Practical “Level 6” work in this repo often looks like:
+  - avoiding silent fallbacks to non-Blackwell-friendly paths
+  - reducing the remaining non-attention bottlenecks (QKV/projections, glue copies, decode)
+  - only then: experimenting with kernel-level rewrites (learning-first)
 
 ---
 
@@ -248,7 +262,7 @@ Takeaway: after the cu130 decode fix + FA4 KV-bias, the next wins are more likel
 | 3 | Write custom kernels | ✅ Done (Triton) |
 | 4 | Bend the libraries | ✅ Done (FA4/CUTE) |
 | 5 | Fused operations | 🎯 Next target (as learning) |
-| 6 | Architecture-specific | Future |
+| 6 | Architecture-specific | Partial (via FA4); deeper work is future |
 | 7 | Novel algorithms | Research |
 | 8 | Production at scale | N/A |
 

@@ -4,6 +4,12 @@
 
 **Why a single file?** It avoids repo clutter (no explosion of one-off files). If this grows too large, we can later split into `notes/FA4/b300/experiments/YYYY-MM-DD-<slug>.md` and add an index.
 
+## How this differs from the other docs
+
+- `notes/FA4/b300/session-state.md`: “what to run today” (known-good commands + caveats)
+- `notes/FA4/b300/investigation-runbook.md`: “how to measure” (protocol + profiler knobs)
+- `notes/FA4/b300/experiments.md` (this file): “what we changed + what happened” (one change per card)
+
 ---
 
 ## Canonical benchmark settings (for comparable perf numbers)
@@ -124,3 +130,41 @@ Keep FA4 `score_mod` as the preferred KV-bias backend on B300 when the cu130 sta
 **Lessons (write like you’re teaching “future you”):**  
 - The KV-bias microkernel can be meaningfully faster with `score_mod`, but end-to-end wins are still bounded by the remaining `self_attn` work (`other_in_self`) + GEMMs + copies.  
 - Once decode is fixed (cu130), attention backend selection becomes “worth doing,” but it’s not the only lever; profiling still matters.
+
+### 2025-12-26 — Baseline choice: `--quantization none` vs `fp8` (planned)
+
+**Status:** Planned (no results recorded yet)
+
+**Question:**  
+Is fp8 actually a win on B300 for our canonical settings, or do conversions/scales dominate (making `quantization none` faster)?
+
+**Hypothesis:**  
+`quantization none` may be faster/more stable in some stacks; fp8 might win only when the exact fastpaths are active (and not silently skipped).
+
+**Change (one thing):**  
+Switch quantization mode (keep everything else fixed).
+
+**Benchmark config:**  
+- GPU: B300 (SM103)  
+- Env: <record actual env here>  
+- Settings: `320x576`, steps=`4`, bias=`0.3`  
+
+**Command(s):**
+```bash
+# Use your active Python env; avoid hardcoding venv paths in the long term.
+
+python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 6 --skip 2 \
+  --kv-cache-attention-bias 0.3 \
+  --quantization none
+
+python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 6 --skip 2 \
+  --kv-cache-attention-bias 0.3 \
+  --quantization fp8
+```
+
+**Baseline / Result / Decision / Artifacts / Lessons:**  
+TBD (fill in after the first run).

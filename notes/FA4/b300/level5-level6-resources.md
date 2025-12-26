@@ -9,6 +9,10 @@ When you try something, capture it as a 1-card experiment in `notes/FA4/b300/exp
 
 **Portability note:** avoid hardcoding `.venv/...` paths. Prefer repo-local sources (e.g. `vendored/flash_attn_cute_score_mod/`) or locate installed packages via Python.
 
+**Reality check (so this doc stays useful):**
+- The FA4 SM10x path we use for KV-bias already exercises “Level 6-ish” mechanisms (TMA/mbarriers/warp specialization/tcgen05+TMEM).
+- The point of the “Level 5/6” workstream here is (a) to understand those mechanisms well enough to reason about profiles and failures, and (b) to apply similar thinking to the remaining hotspots (QKV/projections, glue copies, decode), or to future custom kernels.
+
 ---
 
 ## What We Already Have
@@ -21,7 +25,14 @@ When you try something, capture it as a 1-card experiment in `notes/FA4/b300/exp
 | **Warp Specialization blog** | `notes/research/2025-12-24/incoming/perf/blogs/warp-specialization.md` | Level 6: Triton's built-in warp spec (`num_consumer_groups`) |
 | **tcgen05 for dummies** | `notes/research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md` | Level 6: Low-level Blackwell tensor core programming |
 | **FA4/CUTE source (vendored)** | `vendored/flash_attn_cute_score_mod/flash_attn/cute/` | Level 5/6: the FA4/CuTe code we’re actually editing/using for KV-bias |
-| **FlashAttention RoPE implementation (installed)** | `flash_attn/layers/rotary.py` | Level 5: reference for rotary interfaces / tables (locate via Python) |
+| **FlashAttention RoPE implementation (installed)** | Locate via: `python -c "import flash_attn.layers.rotary as r; print(r.__file__)"` | Level 5: reference for rotary interfaces / tables |
+
+### Start Here (Code-Grounded Reading)
+
+- Blackwell/SM100 mental model: `notes/FA4/explainers/02-blackwell-path.md`
+- Tile scheduling + pipelines: `notes/FA4/explainers/06-tile-scheduling.md`
+- Online softmax (and where scale/bias interacts): `notes/FA4/explainers/07-online-softmax.md`
+- Paged KV + KV-loading backends: `notes/FA4/explainers/09-paged-kv.md`
 
 ### Key FA4/CUTE Files to Study
 
@@ -65,8 +76,9 @@ Load Q,K → RoPE in registers → Attention → Store
 
 #### 1. FA's RoPE Implementation
 ```python
-# flash_attn/layers/rotary.py
-# This is what FlashAttention does for rotary embeddings - study the interface
+# Locate the installed file first:
+#   python -c "import flash_attn.layers.rotary as r; print(r.__file__)"
+# Then study the interface + implementation.
 ```
 
 **What to look for:**
@@ -122,13 +134,13 @@ This suggests the pipeline has distinct phases where you could inject RoPE.
 
 ### The Opportunity
 
-Current: Standard kernel execution
+**Mental model (simplified):** Standard kernel execution
 ```
 All warps do the same thing, take turns
 Load → Compute → Store (sequential)
 ```
 
-Warp Specialized:
+**Mental model (simplified):** Warp specialized
 ```
 Warp 0-1: Producer (TMA loads, async)
 Warp 2-5: Consumer (Tensor Core compute)
@@ -136,6 +148,8 @@ Warp 6-7: Output (store results)
 
 All running simultaneously!
 ```
+
+**In this repo:** FA4’s SM10x path already looks like this (but with more granular roles: softmax warps, correction warps, a load warp, etc.). The “Level 6” opportunity is less “does TMA exist?” and more “can we avoid fallbacks and tune the remaining bottlenecks without breaking correctness?”
 
 ### Key Blackwell Features
 
@@ -155,7 +169,7 @@ From tcgen05 blog:
 From tcgen05 blog:
 > "They seem to behave like 128×128 systolics. To get full FLOP utilization, you want M and N to be 128 (or larger multiples of 128)."
 
-**Implication:** Tile sizes matter more on Blackwell. 64×64 runs at 1/4 the rate of 128×128.
+**Implication (rule of thumb):** tile sizes and major modes matter more on Blackwell; treat shape/tiling claims as “verify by measurement” rather than guarantees.
 
 **Files to study:**
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/mma_sm100_desc.py` - MMA descriptors
