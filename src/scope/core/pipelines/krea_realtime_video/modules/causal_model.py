@@ -1013,8 +1013,18 @@ class CausalWanSelfAttention(nn.Module):
                 kv_cache["k"][:, :local_end_index] = roped_key
                 kv_cache["v"][:, :local_end_index] = v
 
-                kv_cache["global_end_index"] = local_end_index
-                kv_cache["local_end_index"] = local_end_index
+                # Keep cache index tensors stable across iterations. Replacing them with
+                # newly-created tensors (or Python ints) can interact badly with
+                # CUDAGraph Trees (e.g. "output overwritten") when using torch.compile
+                # modes that enable cudagraphs.
+                if isinstance(kv_cache.get("global_end_index"), torch.Tensor):
+                    kv_cache["global_end_index"].fill_(int(local_end_index))
+                else:
+                    kv_cache["global_end_index"] = local_end_index
+                if isinstance(kv_cache.get("local_end_index"), torch.Tensor):
+                    kv_cache["local_end_index"].fill_(int(local_end_index))
+                else:
+                    kv_cache["local_end_index"] = local_end_index
 
                 use_dense_attention_for_block_mask = False
                 if block_mask is not None and _FLEX_ATTENTION_DISABLE_COMPILE and _is_sm103():
@@ -1448,8 +1458,22 @@ class CausalWanSelfAttention(nn.Module):
                 else:
                     x = attention(roped_query, cached_k, cached_v)
 
-            kv_cache["global_end_index"] = current_end
-            kv_cache["local_end_index"] = local_end_index
+            # Keep cache index tensors stable across iterations. Assigning a fresh tensor
+            # (often produced inside a compiled region) into the python dict can turn a
+            # CUDAGraph output into a long-lived input on the next iteration, which can
+            # trigger "output overwritten" errors when copying inputs for cudagraphs.
+            if isinstance(kv_cache.get("global_end_index"), torch.Tensor):
+                kv_cache["global_end_index"].fill_(int(current_end))
+            else:
+                kv_cache["global_end_index"] = current_end
+
+            if isinstance(kv_cache.get("local_end_index"), torch.Tensor):
+                if isinstance(local_end_index, torch.Tensor):
+                    kv_cache["local_end_index"].copy_(local_end_index)
+                else:
+                    kv_cache["local_end_index"].fill_(int(local_end_index))
+            else:
+                kv_cache["local_end_index"] = local_end_index
 
         # output
         if _should_profile():

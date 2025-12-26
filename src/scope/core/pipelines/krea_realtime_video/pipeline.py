@@ -138,10 +138,18 @@ class KreaRealtimeVideoPipeline(Pipeline, LoRAEnabledPipeline):
             compile_kwargs = {"fullgraph": False}
             if compile_mode:
                 compile_kwargs["mode"] = compile_mode
-            # Only compile the attention blocks
-            for block in generator.model.blocks:
-                # Disable fullgraph right now due to issues with RoPE
-                block.compile(**compile_kwargs)
+            # Default strategy: compile each transformer block (keeps graph breaks localized).
+            #
+            # Note: `mode="reduce-overhead"` enables CUDAGraph Trees. On SM103 we've seen
+            # "output overwritten" failures when chaining many separately-compiled blocks.
+            # As an experiment, compile the whole model in that mode instead of compiling
+            # blocks individually.
+            if compile_mode == "reduce-overhead":
+                generator.model.compile(**compile_kwargs)
+            else:
+                for block in generator.model.blocks:
+                    # Disable fullgraph right now due to issues with RoPE
+                    block.compile(**compile_kwargs)
 
         # Load text encoder
         start = time.time()
