@@ -78,6 +78,8 @@ The concern that `as_strided` semantics are ill-defined for float8 is strongest 
 
 We were able to unblock `torch.compile + quantize_` in our pipeline by registering a PerTensor-only `aten.as_strided.default` implementation that forwards to `qdata` and reshapes the (scalar) `scale` to match the new rank.
 
+This PerTensor-only monkeypatch unblocks our pipeline on B300; happy to turn this into an upstream PR if this approach/guardrails are acceptable.
+
 ```python
 from torch.utils._python_dispatch import return_and_correct_aliasing
 from torchao.quantization.quantize_.workflows.float8.float8_tensor import Float8Tensor
