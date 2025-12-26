@@ -2,7 +2,7 @@
 
 > **Goal:** Deep understanding of FlashAttention 4 internals, documented as teachable explainers.
 > **Approach:** Read code → Write explainer → Understanding crystallizes → (Maybe) optimize
-> **Updated:** 2025-12-25
+> **Updated:** 2025-12-26
 
 ---
 
@@ -38,7 +38,7 @@ This phase fills in the “gaps” that matter when you’re debugging real kern
 | 11 | **Split-K and Segment-Combine** | `interface.py` + forward combine/reduction paths | ✅ DONE |
 | 12 | **SM103 Notes (B300): What Carries Over** | our backend selection + FA4/CuTe constraints | ✅ DONE |
 
-### Phase 3 (In Progress): Bootstrapping Further Optimization
+### Phase 3 (Complete): Bootstrapping Further Optimization
 
 This phase is less “kernel anatomy” and more “how to turn the anatomy into speedups”: profiling discipline, Amdahl-driven prioritization, backend/fallback hygiene (especially on SM103), and a concrete roadmap for next levers (GEMMs, copies, compile, Level 5/6 R&D).
 
@@ -46,6 +46,17 @@ This phase is less “kernel anatomy” and more “how to turn the anatomy into
 |---|-------|--------------|--------|
 | 13 | **Bootstrapping Further Optimization (Playbook)** | `notes/FA4/*` + pipeline codepaths | ✅ DONE |
 | 14 | **Blog Patterns → Experiment Cards** | `notes/research/.../blogs/*` + pipeline codepaths | ✅ DONE |
+
+### Phase 4 (Complete): Integration + Operations (“Make It Explainable”)
+
+This phase is about making the work *shareable* and *actionable*: mapping the end-to-end call path, clarifying numerics/precision, documenting backend selection knobs, and writing down real-world debugging traps.
+
+| # | Topic | Source Files | Status |
+|---|-------|--------------|--------|
+| 15 | **Scope → FA4 Call Path** | `frame_processor.py`, `pipeline.py`, `causal_model.py`, `attention.py` | ✅ DONE |
+| 16 | **Numerics & FP8 Reality** | `softmax.py`, pipeline quantization, bias math | ✅ DONE |
+| 17 | **Backend Selection & Knobs** | `attention.py`, `causal_model.py`, env vars | ✅ DONE |
+| 18 | **Debugging Cookbook** | runbooks + known SM103 failures | ✅ DONE |
 
 ### Explainers Index
 
@@ -65,6 +76,10 @@ This phase is less “kernel anatomy” and more “how to turn the anatomy into
 | 12 | SM103 Notes (B300) | [12-sm103-notes.md](12-sm103-notes.md) |
 | 13 | Bootstrapping Further Optimization | [13-optimization-bootstrapping.md](13-optimization-bootstrapping.md) |
 | 14 | Blog Patterns → Experiment Cards | [14-blog-patterns-to-experiments.md](14-blog-patterns-to-experiments.md) |
+| 15 | Scope → FA4 Call Path | [15-scope-to-fa4-call-path.md](15-scope-to-fa4-call-path.md) |
+| 16 | Numerics & FP8 Reality | [16-numerics-and-fp8.md](16-numerics-and-fp8.md) |
+| 17 | Backend Selection & Knobs | [17-backend-selection-and-knobs.md](17-backend-selection-and-knobs.md) |
+| 18 | Debugging Cookbook | [18-debugging-cookbook.md](18-debugging-cookbook.md) |
 
 ---
 

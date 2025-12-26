@@ -185,6 +185,47 @@ See:
 
 ---
 
+## Cost Model (Why Combine Shows Up in Profiles)
+
+This is the “so what does it cost?” section — useful when you’re staring at a profiler and wondering why combine is a big deal.
+
+### A) Split-KV inside FA4 (library optimization)
+
+Split-KV pays for parallelism with extra memory traffic and an extra kernel:
+
+- Forward kernel writes:
+  - `out_partial`: `num_splits × B × Lq × H × Dv` **float32**
+  - `lse_partial`: `num_splits × B × H × Lq` **float32**
+- Combine kernel reads those partials back and writes:
+  - final `out` (and optionally final `lse`)
+
+Rule of thumb:
+
+- Split-KV is worth it when KV is large enough that extra CTAs improve occupancy/latency *more* than the extra write/read traffic hurts.
+- It’s **not** free even if compute scales nicely, because you’re explicitly materializing partial outputs.
+
+### B) Segment-combine for KV-bias (functional workaround)
+
+Segment-combine is “pay extra to express a score modification without score_mod”.
+
+For `S` segments (we use up to 3):
+
+- You run **S attention calls** (separate kernels).
+  - Q is effectively re-used S times (loaded/computed per call).
+  - K/V are streamed per segment (total KV length sums to the original KV, but launches and Q overhead multiply).
+- You run **combine math** (logaddexp + weighted sum) over `B×Lq×H×Dv`.
+
+What this means in practice:
+
+- Even if the total `Lk` across segments equals the original `Lk`, you still pay:
+  - launch overhead × S
+  - Q-side overhead × S
+  - combine overhead (often memory-bound)
+
+This is why `score_mod` tends to win when available: it keeps the whole operation inside a single attention kernel.
+
+---
+
 ## References
 
 - Split-KV dispatch + combine call: `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py`

@@ -253,96 +253,34 @@ Per the helper’s docstring (`softmax.py`), this transforms `dlogits` in place 
 
 ---
 
+## Why we care (even for inference)
+
+This project is inference-first, but the backward explainer is still useful because:
+
+- The same “row stats” concepts (row max / row sum / LSE) are what make **segment-combine** correct (Explainer #11).
+- Some “small” forward changes (e.g. whether LSE is written, or how scores are modified) can silently break the assumptions that backward relies on.
+- If we ever want to upstream a customization (like a score modifier) into a training setting, **`score_mod_bwd` correctness is non-negotiable**.
+
+In other words: you don’t need backward to ship FPS improvements, but you *do* want to avoid “patching the kernel into a corner”.
+
+---
+
 ## Questions & Opportunities
 
-1. SM100 backward currently asserts no varlen (`cu_seqlens_*` / `seqused_*`). What would it take to thread varlen through the scheduler + masking paths?
-2. `pack_gqa` is forced off on SM100 bwd in the interface today. Is that a fundamental limitation or just “not wired up yet”?
-3. The kernel leans on preprocess/postprocess kernels for `lse_log2`, `dPsum`, and accumulator casting. Are there fusion opportunities for inference-only training-adjacent use cases, or is this separation intentional for compilation/runtime reasons?
+1. SM100 backward currently asserts no varlen (`cu_seqlens_*` / `seqused_*`). What would it take to thread varlen through scheduler + masking paths?
+2. `pack_gqa` is forced off on SM100 bwd in the interface today. Is that fundamental or just “not wired up yet”?
+3. What forward intermediates does our build actually write (LSE on/off), and does that affect backward availability or segment-combine plumbing?
+4. How does `score_mod_bwd` relate to `apply_score_mod_bwd_inner` in `softmax.py` (and what are the minimal safe `score_mod_bwd` patterns for additive biases)?
+5. If we ever extend FA4 with a hypothetical `q_mod/k_mod` hook (for RoPE fusion), what backward changes would be required?
 
 ---
 
 ## References
 
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_bwd_sm100.py`
+- `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_bwd_sm90.py` (contrast: different arch, different constraints)
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py` (preprocess/postprocess + `lse_log2` / `dPsum`)
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/softmax.py` (`apply_score_mod_inner`, `apply_score_mod_bwd_inner`)
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/mask.py` (`apply_mask_sm100_transposed`)
 - Explainer #8: `notes/FA4/explainers/08-masking-and-mask_mod.md`
-- Explainer #7: `notes/FA4/explainers/07-online-softmax.md`
-
-`FlashAttentionBackwardSm100` defines:
-
-- Tile sizes (`tile_m`, `tile_n`)
-- Warp specialization roles
-- TMEM layout/offsets for intermediate accumulators (SM100 uses TMEM heavily)
-
-At a high level, backward needs to compute:
-
-1. `dV = P^T dO`
-2. `dP = dO V^T`
-3. `dS = dP ⊙ softmax_grad(S)` (involves row-wise sums and LSE)
-4. `dQ = dS K`
-5. `dK = dS^T Q`
-
-The kernel pipelines loads of Q/K/V/dO and reductions for dQ/dK/dV.
-
----
-
-## Warp specialization (observed in code)
-
-In `flash_bwd_sm100.py`, the backward kernel allocates 16 warps (512 threads), with roles like:
-
-- reduce warps (dQ accumulation reduction)
-- compute warps (main math for dP/dS and partial dQ/dK/dV)
-- MMA warp (tcgen05 issue)
-- load warp (TMA/cp.async loads)
-- epilogue warp (writeback)
-- empty warp (spare / scheduling)
-
-The exact grouping differs from forward, but the principle is the same:
-overlap load/compute/reduce/writeback.
-
----
-
-## Where `score_mod_bwd` and `mask_mod` fit
-
-Forward customization:
-- `score_mod` modifies scores before softmax
-- masks turn invalid entries into `-inf`
-
-Backward must be consistent:
-
-- If `score_mod` changed `S`, backward must incorporate the derivative of the modifier where applicable.
-- If `mask_mod` masked entries, backward must not propagate gradients through masked entries.
-
-SM100 backward exposes:
-- `score_mod_bwd` (a backward-side companion to `score_mod`)
-- `mask_mod` (used for sparse/structured masking cases)
-
-This is likely one of the hardest “correctness” zones when extending FA4: custom score logic must have the right backward behavior or you silently train the wrong model (not our main use-case today, but still important for completeness).
-
----
-
-## Why we care (even for inference)
-
-Even though our current project is inference-first:
-
-- The forward path often writes LSE and supports backward metadata.
-- Understanding backward constraints helps avoid breaking assumptions when we patch vendored FA4/CuTe code (e.g. changing what gets written or when).
-
----
-
-## Questions & Opportunities
-
-1. What forward intermediates does our current build actually write (LSE on/off), and does that affect backward availability?
-2. How does `score_mod_bwd` relate to `apply_score_mod_bwd_inner` in `softmax.py`?
-3. If we extend FA4 with a hypothetical `q_mod/k_mod` hook (for RoPE fusion), what backward changes would be required?
-
----
-
-## References
-
-- `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_bwd_sm100.py`
-- `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_bwd_sm90.py`
-- `vendored/flash_attn_cute_score_mod/flash_attn/cute/softmax.py`
 - Explainer #7: `notes/FA4/explainers/07-online-softmax.md`
