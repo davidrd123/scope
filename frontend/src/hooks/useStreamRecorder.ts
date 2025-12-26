@@ -36,6 +36,12 @@ function formatTimestampForFilename(date: Date): string {
 
 type StreamRecorderOptions = {
   filenameBase?: string | null;
+  onRecordingSaved?: (info: {
+    filenameBase: string;
+    filename: string;
+    extension: "webm" | "mp4";
+    mimeType?: string;
+  }) => void;
 };
 
 export function useStreamRecorder(
@@ -43,6 +49,7 @@ export function useStreamRecorder(
   options: StreamRecorderOptions = {}
 ) {
   const preferredFilenameBase = options.filenameBase ?? null;
+  const onRecordingSaved = options.onRecordingSaved;
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
 
@@ -51,6 +58,7 @@ export function useStreamRecorder(
   const recordingStartTimeRef = useRef<number | null>(null);
   const durationTimerRef = useRef<number | null>(null);
   const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingFilenameBaseRef = useRef<string | null>(null);
 
   const canRecord = useMemo(() => {
     if (!stream) return false;
@@ -72,7 +80,14 @@ export function useStreamRecorder(
     clearDurationTimer();
     setIsRecording(false);
 
-    if (recorder.state === "inactive") return;
+    if (recorder.state === "inactive") {
+      mediaRecorderRef.current = null;
+      recordingStreamRef.current = null;
+      recordingStartTimeRef.current = null;
+      recordingFilenameBaseRef.current = null;
+      setRecordingDuration(0);
+      return;
+    }
 
     try {
       recorder.stop();
@@ -115,6 +130,11 @@ export function useStreamRecorder(
     recordingStartTimeRef.current = performance.now();
     setRecordingDuration(0);
 
+    // Choose and lock a filename base for the duration of this recording.
+    const preferredBase = preferredFilenameBase?.trim();
+    recordingFilenameBaseRef.current =
+      preferredBase || `recording-${formatTimestampForFilename(new Date())}`;
+
     recorder.ondataavailable = event => {
       if (event.data && event.data.size > 0) {
         recordedChunksRef.current.push(event.data);
@@ -135,9 +155,10 @@ export function useStreamRecorder(
 
       const mimeType = recorder.mimeType || preferredMimeType;
       const extension = getFileExtension(mimeType);
-      const preferredBase = preferredFilenameBase?.trim();
       const filenameBase =
-        preferredBase || `recording-${formatTimestampForFilename(new Date())}`;
+        recordingFilenameBaseRef.current ||
+        preferredFilenameBase?.trim() ||
+        `recording-${formatTimestampForFilename(new Date())}`;
       const filename = `${filenameBase}.${extension}`;
 
       if (!chunks.length) {
@@ -159,9 +180,17 @@ export function useStreamRecorder(
         toast.success("Recording saved", { description: filename });
       }
 
+      onRecordingSaved?.({
+        filenameBase,
+        filename,
+        extension,
+        mimeType: mimeType || undefined,
+      });
+
       mediaRecorderRef.current = null;
       recordingStreamRef.current = null;
       recordingStartTimeRef.current = null;
+      recordingFilenameBaseRef.current = null;
       clearDurationTimer();
       setRecordingDuration(0);
       setIsRecording(false);
@@ -174,6 +203,7 @@ export function useStreamRecorder(
       toast.error("Failed to start recording", {
         description: "Your browser refused to start recording.",
       });
+      recordingFilenameBaseRef.current = null;
       return;
     }
 
@@ -186,15 +216,14 @@ export function useStreamRecorder(
       const elapsedSeconds = Math.floor((performance.now() - startTime) / 1000);
       setRecordingDuration(elapsedSeconds);
     }, 250);
-  }, [canRecord, clearDurationTimer, preferredFilenameBase, stopRecording, stream]);
-
-  const toggleRecording = useCallback(() => {
-    if (isRecording) {
-      stopRecording();
-    } else {
-      startRecording();
-    }
-  }, [isRecording, startRecording, stopRecording]);
+  }, [
+    canRecord,
+    clearDurationTimer,
+    onRecordingSaved,
+    preferredFilenameBase,
+    stopRecording,
+    stream,
+  ]);
 
   // Stop recording if the stream changes or disappears.
   useEffect(() => {
@@ -247,6 +276,5 @@ export function useStreamRecorder(
     recordingDuration,
     startRecording,
     stopRecording,
-    toggleRecording,
   };
 }

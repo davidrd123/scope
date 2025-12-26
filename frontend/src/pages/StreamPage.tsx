@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { toast } from "sonner";
 import { Header } from "../components/Header";
 import { InputAndControlsPanel } from "../components/InputAndControlsPanel";
 import { VideoOutput } from "../components/VideoOutput";
@@ -25,6 +26,7 @@ import type {
   PipelineId,
   LoRAConfig,
   LoraMergeStrategy,
+  SettingsState,
   DownloadProgress,
 } from "../types";
 import type { PromptItem, PromptTransition } from "../lib/api";
@@ -69,6 +71,199 @@ function getVaceParams(
     };
   }
   return {};
+}
+
+type TimelineExportPromptItem = {
+  text: string;
+  weight: number;
+};
+
+type RecordingTimelineSegment = {
+  startTime: number;
+  endTime: number;
+  prompts: TimelineExportPromptItem[];
+  transitionSteps?: number;
+  temporalInterpolationMethod?: "linear" | "slerp";
+};
+
+function downloadJsonFile(filename: string, payload: unknown): void {
+  const dataStr = JSON.stringify(payload, null, 2);
+  const dataBlob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(dataBlob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function buildTimelineSettingsExport(
+  settings: SettingsState | undefined
+): Partial<SettingsState> | undefined {
+  if (!settings) return undefined;
+
+  return {
+    pipelineId: settings.pipelineId,
+    inputMode: settings.inputMode,
+    resolution: settings.resolution,
+    seed: settings.seed,
+    denoisingSteps: settings.denoisingSteps,
+    noiseScale: settings.noiseScale,
+    noiseController: settings.noiseController,
+    manageCache: settings.manageCache,
+    quantization: settings.quantization,
+    kvCacheAttentionBias: settings.kvCacheAttentionBias,
+    loras: settings.loras,
+    loraMergeStrategy: settings.loraMergeStrategy,
+  };
+}
+
+function promptItemsFromTimelinePrompt(
+  prompt: TimelinePrompt
+): TimelineExportPromptItem[] {
+  if (prompt.prompts?.length) {
+    return prompt.prompts
+      .filter(p => typeof p.text === "string" && p.text.trim())
+      .map(p => ({ text: p.text, weight: p.weight }));
+  }
+
+  if (typeof prompt.text === "string" && prompt.text.trim()) {
+    return [{ text: prompt.text, weight: 100 }];
+  }
+
+  return [];
+}
+
+function buildRecordingTimelineSegments(
+  prompts: TimelinePrompt[],
+  recordingStartTime: number,
+  recordingEndTime: number
+): RecordingTimelineSegment[] {
+  const windowStart = Math.max(0, recordingStartTime);
+  const windowEnd = Math.max(windowStart, recordingEndTime);
+  const eps = 1e-6;
+
+  const promptEvents = prompts
+    .filter(prompt => prompt.startTime !== prompt.endTime)
+    .filter(prompt => promptItemsFromTimelinePrompt(prompt).length > 0)
+    .sort((a, b) => a.startTime - b.startTime);
+
+  if (!promptEvents.length || windowEnd <= windowStart + eps) {
+    return [];
+  }
+
+  // Find the last prompt event that started at or before the recording window.
+  let firstIdx = -1;
+  for (let idx = 0; idx < promptEvents.length; idx += 1) {
+    if (promptEvents[idx].startTime <= windowStart + eps) {
+      firstIdx = idx;
+    } else {
+      break;
+    }
+  }
+  if (firstIdx < 0) {
+    firstIdx = 0;
+  }
+
+  const eventsInWindow: TimelinePrompt[] = [];
+  for (let idx = firstIdx; idx < promptEvents.length; idx += 1) {
+    if (promptEvents[idx].startTime >= windowEnd - eps) break;
+    eventsInWindow.push(promptEvents[idx]);
+  }
+  if (!eventsInWindow.length) {
+    return [];
+  }
+
+  const segments: RecordingTimelineSegment[] = [];
+  for (let idx = 0; idx < eventsInWindow.length; idx += 1) {
+    const event = eventsInWindow[idx];
+    const nextEvent = eventsInWindow[idx + 1];
+
+    const segStartAbs =
+      idx === 0 ? windowStart : Math.max(windowStart, event.startTime);
+    const segEndAbs = Math.min(
+      windowEnd,
+      nextEvent ? Math.max(windowStart, nextEvent.startTime) : windowEnd
+    );
+
+    if (segEndAbs <= segStartAbs + eps) continue;
+
+    const promptItems = promptItemsFromTimelinePrompt(event);
+    if (!promptItems.length) continue;
+
+    const segment: RecordingTimelineSegment = {
+      startTime: segStartAbs - windowStart,
+      endTime: segEndAbs - windowStart,
+      prompts: promptItems,
+    };
+
+    // If we start recording mid-segment, don't replay the segment's original transition at t=0.
+    const includeTransition = event.startTime >= windowStart - eps;
+    if (includeTransition) {
+      if (event.transitionSteps !== undefined) {
+        segment.transitionSteps = event.transitionSteps;
+      }
+      if (event.temporalInterpolationMethod !== undefined) {
+        segment.temporalInterpolationMethod = event.temporalInterpolationMethod;
+      }
+    }
+
+    segments.push(segment);
+  }
+
+  return segments;
+}
+
+function buildRecordingTimelineExport(opts: {
+  prompts: TimelinePrompt[];
+  settings: SettingsState | undefined;
+  recordingStartTime: number;
+  recordingEndTime: number;
+  fallbackPromptItems: PromptItem[];
+}): {
+  prompts: RecordingTimelineSegment[];
+  settings: Partial<SettingsState> | undefined;
+  version: string;
+  exportedAt: string;
+  recording: { startTime: number; endTime: number; durationSeconds: number };
+} {
+  const startTime = Math.max(0, opts.recordingStartTime);
+  const endTime = Math.max(startTime, opts.recordingEndTime);
+  const durationSeconds = Math.max(0, endTime - startTime);
+
+  let segments = buildRecordingTimelineSegments(
+    opts.prompts,
+    startTime,
+    endTime
+  );
+
+  if (!segments.length) {
+    const fallback = opts.fallbackPromptItems
+      .filter(p => typeof p.text === "string" && p.text.trim())
+      .map(p => ({ text: p.text, weight: p.weight }));
+
+    if (fallback.length) {
+      const minDuration = 1e-3;
+      segments = [
+        {
+          startTime: 0,
+          endTime: Math.max(minDuration, durationSeconds),
+          prompts: fallback,
+        },
+      ];
+    }
+  }
+
+  return {
+    prompts: segments,
+    settings: buildTimelineSettingsExport(opts.settings),
+    version: "2.1",
+    exportedAt: new Date().toISOString(),
+    recording: { startTime, endTime, durationSeconds },
+  };
 }
 
 export function StreamPage() {
@@ -161,12 +356,71 @@ export function StreamPage() {
     sendParameterUpdate,
   } = useWebRTC();
 
+  const recordingTimelineStartRef = useRef<number | null>(null);
+  const pendingRecordingTimelineExportRef = useRef<
+    ReturnType<typeof buildRecordingTimelineExport> | null
+  >(null);
+
+  const handleRecordingSaved = useCallback(
+    (info: {
+      filenameBase: string;
+      filename: string;
+      extension: "webm" | "mp4";
+      mimeType?: string;
+    }) => {
+      const timelineData = pendingRecordingTimelineExportRef.current;
+      if (!timelineData) return;
+
+      const timelineFilename = `${info.filenameBase}.timeline.json`;
+      downloadJsonFile(timelineFilename, timelineData);
+      pendingRecordingTimelineExportRef.current = null;
+      recordingTimelineStartRef.current = null;
+
+      toast.success("Timeline saved", { description: timelineFilename });
+    },
+    []
+  );
+
   const {
     canRecord,
     isRecording,
     recordingDuration,
-    toggleRecording,
-  } = useStreamRecorder(remoteStream, { filenameBase: timelineFileBase });
+    startRecording,
+    stopRecording,
+  } = useStreamRecorder(remoteStream, {
+    filenameBase: timelineFileBase,
+    onRecordingSaved: handleRecordingSaved,
+  });
+
+  const handleRecordToggle = useCallback(() => {
+    if (isRecording) {
+      const recordingStartTime = recordingTimelineStartRef.current ?? 0;
+      const recordingEndTime = timelineCurrentTime;
+
+      pendingRecordingTimelineExportRef.current = buildRecordingTimelineExport({
+        prompts: timelinePrompts,
+        settings,
+        recordingStartTime,
+        recordingEndTime,
+        fallbackPromptItems: promptItems,
+      });
+
+      stopRecording();
+      return;
+    }
+
+    recordingTimelineStartRef.current = timelineCurrentTime;
+    pendingRecordingTimelineExportRef.current = null;
+    startRecording();
+  }, [
+    isRecording,
+    promptItems,
+    settings,
+    startRecording,
+    stopRecording,
+    timelineCurrentTime,
+    timelinePrompts,
+  ]);
 
   // Computed loading state - true when downloading models, loading pipeline, or connecting WebRTC
   const isLoading = isDownloading || isPipelineLoading || isConnecting;
@@ -997,7 +1251,7 @@ export function StreamPage() {
               canRecord={canRecord}
               isRecording={isRecording}
               recordingDuration={recordingDuration}
-              onRecordToggle={toggleRecording}
+              onRecordToggle={handleRecordToggle}
               onTimelineFileNameChange={fileName =>
                 setTimelineFileBase(getTimelineBaseName(fileName))
               }
