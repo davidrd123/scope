@@ -355,8 +355,12 @@ def playlist_nav(ctx):
         o               Toggle autoplay (default 5s interval)
         h/H             Toggle hard cut mode (reset cache on each transition)
         s               Toggle soft cut mode (temporary KV-bias override)
+        t               Toggle embedding transition mode (temporal interpolation)
+        T               Toggle transition method (linear ↔ slerp)
+        x               One-shot hard cut (doesn't change mode)
         1-5             Set soft cut bias (when soft cut active)
         !@#$%           Set soft cut duration in chunks (when soft cut active)
+        6-0             Set transition chunks (1-5) (when transition active)
         +/-             Adjust autoplay speed (1-30s)
         g               Go to index (prompts for number)
         a               Apply current prompt
@@ -366,6 +370,9 @@ def playlist_nav(ctx):
     Changes are auto-applied by default.
     Hard cut mode resets the KV cache on each prompt change for clean scene transitions.
     Soft cut mode temporarily lowers kv_cache_attention_bias for faster adaptation without a full reset.
+    Embedding transition mode interpolates embeddings over N chunks for smoother prompt morphs.
+    Hard cut and embedding transition are mutually exclusive (hard cut resets state).
+    One-shot hard cut (x) does a single cache reset without changing your current mode.
     """
     import os
     import select
@@ -405,6 +412,9 @@ def playlist_nav(ctx):
         soft_cut=False,
         soft_cut_bias=0.1,
         soft_cut_chunks=2,
+        transition=False,
+        transition_chunks=4,
+        transition_method="linear",
     ):
         """Fetch and display preview."""
         import shutil
@@ -425,8 +435,11 @@ def playlist_nav(ctx):
             status += f"  [▶ AUTO {interval}s]"
         if hard_cut:
             status += "  [✂ HARD CUT]"
-        elif soft_cut:
+        if soft_cut:
             status += f"  [~ SOFT b={soft_cut_bias:.2f} c={soft_cut_chunks}]"
+        if transition:
+            method_label = "SLERP" if transition_method == "slerp" else "LERP"
+            status += f"  [⟷ {method_label} c={transition_chunks}]"
         click.echo(status)
         click.echo("=" * term_width)
 
@@ -446,7 +459,7 @@ def playlist_nav(ctx):
 
         click.echo("=" * term_width)
         click.echo(
-            "  ←/→ nav | o auto | +/- speed | g goto | a apply | h hard | s soft [1-5 bias, !-% chunks] | r refresh | q quit"
+            "  ←/→ nav | o auto | +/- speed | g goto | a apply | x cut! | h hard | s soft [1-5 bias, !-% chunks] | t trans [6-0, T] | q quit"
         )
         click.echo("=" * term_width + "\n")
         return data
@@ -467,9 +480,16 @@ def playlist_nav(ctx):
     soft_cut_bias = 0.1  # Default temp bias
     soft_cut_chunks = 2  # Default duration
 
+    # Transition (embedding interpolation) state
+    transition = False
+    transition_chunks = 4  # Default number of chunks to interpolate over
+    transition_method = "linear"  # linear or slerp
+
     with get_client(ctx) as client:
         if display_preview(
-            client, autoplay, autoplay_interval, hard_cut, soft_cut, soft_cut_bias, soft_cut_chunks
+            client, autoplay, autoplay_interval, hard_cut,
+            soft_cut, soft_cut_bias, soft_cut_chunks,
+            transition, transition_chunks, transition_method
         ) is None:
             return
 
@@ -492,7 +512,8 @@ def playlist_nav(ctx):
                         last_advance = time.time()
                         display_preview(
                             client, autoplay, autoplay_interval, hard_cut,
-                            soft_cut, soft_cut_bias, soft_cut_chunks
+                            soft_cut, soft_cut_bias, soft_cut_chunks,
+                            transition, transition_chunks, transition_method
                         )
 
                     # Toggle hard cut mode (mutually exclusive with soft cut)
@@ -500,11 +521,13 @@ def playlist_nav(ctx):
                         hard_cut = not hard_cut
                         if hard_cut:
                             soft_cut = False  # Mutually exclusive
+                            transition = False  # Transition requires continuity
                         status = "ON - transitions will reset cache" if hard_cut else "OFF"
                         click.echo(f"  ✂ Hard cut: {status}")
                         display_preview(
                             client, autoplay, autoplay_interval, hard_cut,
-                            soft_cut, soft_cut_bias, soft_cut_chunks
+                            soft_cut, soft_cut_bias, soft_cut_chunks,
+                            transition, transition_chunks, transition_method
                         )
 
                     # Toggle soft cut mode (mutually exclusive with hard cut)
@@ -519,7 +542,8 @@ def playlist_nav(ctx):
                         click.echo(f"  ~ Soft cut: {status}")
                         display_preview(
                             client, autoplay, autoplay_interval, hard_cut,
-                            soft_cut, soft_cut_bias, soft_cut_chunks
+                            soft_cut, soft_cut_bias, soft_cut_chunks,
+                            transition, transition_chunks, transition_method
                         )
 
                     # Bias adjustment (1-5 keys when soft_cut active)
@@ -529,7 +553,8 @@ def playlist_nav(ctx):
                         click.echo(f"  ~ Soft cut bias: {soft_cut_bias}")
                         display_preview(
                             client, autoplay, autoplay_interval, hard_cut,
-                            soft_cut, soft_cut_bias, soft_cut_chunks
+                            soft_cut, soft_cut_bias, soft_cut_chunks,
+                            transition, transition_chunks, transition_method
                         )
 
                     # Chunk adjustment (Shift+1-5 = !, @, #, $, % when soft_cut active)
@@ -539,7 +564,44 @@ def playlist_nav(ctx):
                         click.echo(f"  ~ Soft cut chunks: {soft_cut_chunks}")
                         display_preview(
                             client, autoplay, autoplay_interval, hard_cut,
-                            soft_cut, soft_cut_bias, soft_cut_chunks
+                            soft_cut, soft_cut_bias, soft_cut_chunks,
+                            transition, transition_chunks, transition_method
+                        )
+
+                    # Toggle transition (embedding interpolation) mode
+                    elif ch == "t":
+                        transition = not transition
+                        if transition:
+                            hard_cut = False  # Transition requires continuity
+                            status = f"ON (chunks={transition_chunks}, method={transition_method})"
+                        else:
+                            status = "OFF"
+                        click.echo(f"  ⟷ Transition: {status}")
+                        display_preview(
+                            client, autoplay, autoplay_interval, hard_cut,
+                            soft_cut, soft_cut_bias, soft_cut_chunks,
+                            transition, transition_chunks, transition_method
+                        )
+
+                    # Toggle transition method (linear/slerp)
+                    elif ch == "T":
+                        transition_method = "slerp" if transition_method == "linear" else "linear"
+                        click.echo(f"  ⟷ Transition method: {transition_method}")
+                        display_preview(
+                            client, autoplay, autoplay_interval, hard_cut,
+                            soft_cut, soft_cut_bias, soft_cut_chunks,
+                            transition, transition_chunks, transition_method
+                        )
+
+                    # Transition chunks adjustment (6-0 when transition active)
+                    elif transition and ch in "67890":
+                        chunk_map = {"6": 1, "7": 2, "8": 3, "9": 4, "0": 5}
+                        transition_chunks = chunk_map[ch]
+                        click.echo(f"  ⟷ Transition chunks: {transition_chunks}")
+                        display_preview(
+                            client, autoplay, autoplay_interval, hard_cut,
+                            soft_cut, soft_cut_bias, soft_cut_chunks,
+                            transition, transition_chunks, transition_method
                         )
 
                     # Adjust speed
@@ -555,15 +617,20 @@ def playlist_nav(ctx):
                         params = {"apply": True}
                         if hard_cut:
                             params["hard_cut"] = True
-                        elif soft_cut:
+                        if soft_cut:
                             params["soft_cut"] = True
                             params["soft_cut_bias"] = soft_cut_bias
                             params["soft_cut_chunks"] = soft_cut_chunks
+                        if transition:
+                            params["transition"] = True
+                            params["transition_chunks"] = transition_chunks
+                            params["transition_method"] = transition_method
                         r = client.post("/api/v1/realtime/playlist/next", params=params)
                         if r.status_code == 200:
                             display_preview(
                                 client, autoplay, autoplay_interval, hard_cut,
-                                soft_cut, soft_cut_bias, soft_cut_chunks
+                                soft_cut, soft_cut_bias, soft_cut_chunks,
+                                transition, transition_chunks, transition_method
                             )
                         last_advance = time.time()
 
@@ -572,15 +639,20 @@ def playlist_nav(ctx):
                         params = {"apply": True}
                         if hard_cut:
                             params["hard_cut"] = True
-                        elif soft_cut:
+                        if soft_cut:
                             params["soft_cut"] = True
                             params["soft_cut_bias"] = soft_cut_bias
                             params["soft_cut_chunks"] = soft_cut_chunks
+                        if transition:
+                            params["transition"] = True
+                            params["transition_chunks"] = transition_chunks
+                            params["transition_method"] = transition_method
                         r = client.post("/api/v1/realtime/playlist/prev", params=params)
                         if r.status_code == 200:
                             display_preview(
                                 client, autoplay, autoplay_interval, hard_cut,
-                                soft_cut, soft_cut_bias, soft_cut_chunks
+                                soft_cut, soft_cut_bias, soft_cut_chunks,
+                                transition, transition_chunks, transition_method
                             )
                         last_advance = time.time()
                         if autoplay:
@@ -599,10 +671,14 @@ def playlist_nav(ctx):
                             params = {"apply": True}
                             if hard_cut:
                                 params["hard_cut"] = True
-                            elif soft_cut:
+                            if soft_cut:
                                 params["soft_cut"] = True
                                 params["soft_cut_bias"] = soft_cut_bias
                                 params["soft_cut_chunks"] = soft_cut_chunks
+                            if transition:
+                                params["transition"] = True
+                                params["transition_chunks"] = transition_chunks
+                                params["transition_method"] = transition_method
                             r = client.post(
                                 "/api/v1/realtime/playlist/goto",
                                 json={"index": idx},
@@ -611,7 +687,8 @@ def playlist_nav(ctx):
                             if r.status_code == 200:
                                 display_preview(
                                     client, autoplay, autoplay_interval, hard_cut,
-                                    soft_cut, soft_cut_bias, soft_cut_chunks
+                                    soft_cut, soft_cut_bias, soft_cut_chunks,
+                                    transition, transition_chunks, transition_method
                                 )
                             last_advance = time.time()
                         except ValueError:
@@ -619,29 +696,42 @@ def playlist_nav(ctx):
                         except EOFError:
                             pass
 
-                    # Apply (with hard/soft cut if enabled)
+                    # Apply (with hard/soft cut/transition if enabled)
                     elif ch == "a":
                         params = {}
                         if hard_cut:
                             params["hard_cut"] = True
-                        elif soft_cut:
+                        if soft_cut:
                             params["soft_cut"] = True
                             params["soft_cut_bias"] = soft_cut_bias
                             params["soft_cut_chunks"] = soft_cut_chunks
+                        if transition:
+                            params["transition"] = True
+                            params["transition_chunks"] = transition_chunks
+                            params["transition_method"] = transition_method
                         r = client.post("/api/v1/realtime/playlist/apply", params=params)
                         if r.status_code == 200:
                             msg = "✓ Prompt applied"
                             if hard_cut:
                                 msg += " (hard cut)"
-                            elif soft_cut:
+                            if soft_cut:
                                 msg += f" (soft cut b={soft_cut_bias})"
+                            if transition:
+                                msg += f" (transition c={transition_chunks})"
                             click.echo(f"  {msg}")
+
+                    # One-shot hard cut (doesn't change mode)
+                    elif ch == "x":
+                        r = client.post("/api/v1/realtime/hard-cut")
+                        if r.status_code == 200:
+                            click.echo("  ✂ One-shot hard cut applied")
 
                     # Refresh
                     elif ch == "r":
                         display_preview(
                             client, autoplay, autoplay_interval, hard_cut,
-                            soft_cut, soft_cut_bias, soft_cut_chunks
+                            soft_cut, soft_cut_bias, soft_cut_chunks,
+                            transition, transition_chunks, transition_method
                         )
 
                 # Autoplay advance
@@ -649,10 +739,14 @@ def playlist_nav(ctx):
                     params = {"apply": True}
                     if hard_cut:
                         params["hard_cut"] = True
-                    elif soft_cut:
+                    if soft_cut:
                         params["soft_cut"] = True
                         params["soft_cut_bias"] = soft_cut_bias
                         params["soft_cut_chunks"] = soft_cut_chunks
+                    if transition:
+                        params["transition"] = True
+                        params["transition_chunks"] = transition_chunks
+                        params["transition_method"] = transition_method
                     r = client.post("/api/v1/realtime/playlist/next", params=params)
                     if r.status_code == 200:
                         data = r.json()
@@ -661,7 +755,8 @@ def playlist_nav(ctx):
                             click.echo("  ⏹ End of playlist")
                         display_preview(
                             client, autoplay, autoplay_interval, hard_cut,
-                            soft_cut, soft_cut_bias, soft_cut_chunks
+                            soft_cut, soft_cut_bias, soft_cut_chunks,
+                            transition, transition_chunks, transition_method
                         )
                     last_advance = time.time()
 

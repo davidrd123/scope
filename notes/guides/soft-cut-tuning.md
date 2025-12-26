@@ -48,6 +48,7 @@ In `video-cli playlist nav`:
 |-----|--------|
 | `s` | Toggle soft cut mode ON/OFF |
 | `h` | Toggle hard cut mode (mutually exclusive) |
+| `x` | One-shot hard cut (doesn't change mode) |
 | `1` | Set bias = 0.05 (very aggressive) |
 | `2` | Set bias = 0.10 (aggressive, default) |
 | `3` | Set bias = 0.15 (moderate) |
@@ -58,6 +59,8 @@ In `video-cli playlist nav`:
 | `#` | Set duration = 3 chunks |
 | `$` | Set duration = 4 chunks |
 | `%` | Set duration = 5 chunks |
+
+Use `x` when you need a single hard reset without leaving soft cut mode (e.g., scene got stuck, need to break out).
 
 ## Bias Reference
 
@@ -132,3 +135,83 @@ You'll see:
 - `Soft transition: bias -> X for N chunks (will restore to Y)` - started
 - `Soft transition complete: restored bias to Y` - finished
 - `Soft transition canceled: explicit kv_cache_attention_bias update received` - overridden
+
+## Embedding Transition (LERP/SLERP)
+
+Separate from KV cache bias, there's also **embedding interpolation** (`t` key in TUI). This smoothly morphs the prompt embedding from old→new over N chunks.
+
+Note: embedding transitions rely on continuity. If you do a **hard cut** (cache reset), the transition is effectively suppressed (there’s no “source embedding” to interpolate from). Use **soft cut + transition** for the “in-between” mode.
+
+### How It Works
+
+```
+Prompt A embedding ─────────────────────────────────────────────────▶
+                    │
+                    │ Navigate to Prompt B (with transition=true)
+                    │
+                    │         interpolation over N chunks
+                    │    ┌──────────────────────────────────┐
+                    ▼    │  A      A→B    A→B    A→B    B   │
+Prompt B embedding ◀────┴──────────────────────────────────┴────────
+                         chunk 1  chunk 2 chunk 3 chunk 4
+```
+
+The embedding gradually shifts from A to B, causing the scene to smoothly morph.
+
+### Interpolation Methods
+
+| Method | Key | Description |
+|--------|-----|-------------|
+| **Linear (LERP)** | default | Straight-line path: `(1-t) * A + t * B` |
+| **Spherical (SLERP)** | `T` toggle | Arc path on unit sphere, preserves angular relationships |
+
+**SLERP** often produces smoother semantic transitions but only works with exactly 2 embeddings. Press `T` to toggle between methods.
+
+### TUI Controls
+
+| Key | Action |
+|-----|--------|
+| `t` | Toggle transition mode ON/OFF |
+| `T` | Toggle interpolation method (linear ↔ slerp) |
+| `6` | Set transition chunks = 1 |
+| `7` | Set transition chunks = 2 |
+| `8` | Set transition chunks = 3 |
+| `9` | Set transition chunks = 4 (default) |
+| `0` | Set transition chunks = 5 |
+
+## Combining Soft Cut + Transition
+
+The **combo effect** layers both mechanisms:
+
+```
+           ┌─────────────────────────────────────────────────┐
+           │                COMBO EFFECT                     │
+           │                                                 │
+           │   SOFT CUT: Lower KV bias → scene is "loose"   │
+           │   TRANSITION: Embedding morphs A → B            │
+           │                                                 │
+           │   Together: Scene is receptive while prompt     │
+           │             gradually shifts = smooth change    │
+           └─────────────────────────────────────────────────┘
+```
+
+**Best practice**: Align durations for optimal effect:
+- `soft_cut_chunks = 4` + `transition_chunks = 4`
+- Soft cut opens the "plasticity window" while transition morphs the embedding
+
+### Recommended Combo Settings
+
+| Scenario | Soft Cut | Transition | Notes |
+|----------|----------|------------|-------|
+| Fast scene changes | bias=0.10, chunks=2 | chunks=2 | Quick, responsive |
+| Smooth morphs | bias=0.15, chunks=4 | chunks=4 | Balanced, cinematic |
+| Dramatic shifts | bias=0.05, chunks=3 | chunks=3 | Very malleable |
+
+### API Reference
+
+```bash
+# With both soft_cut and transition
+curl -X POST "http://localhost:8000/api/v1/realtime/playlist/next?\
+soft_cut=true&soft_cut_bias=0.15&soft_cut_chunks=4&\
+transition=true&transition_chunks=4&transition_method=linear"
+```

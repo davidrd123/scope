@@ -1411,6 +1411,9 @@ def _apply_playlist_prompt(
     soft_cut: bool = False,
     soft_cut_bias: float | None = None,
     soft_cut_chunks: int | None = None,
+    transition: bool = False,
+    transition_chunks: int | None = None,
+    transition_method: str = "linear",
 ) -> bool:
     """Apply the current playlist prompt to the session.
 
@@ -1421,10 +1424,29 @@ def _apply_playlist_prompt(
         soft_cut: If True, temporarily lower KV cache bias (soft transition)
         soft_cut_bias: Temporary bias value during soft transition (default 0.1)
         soft_cut_chunks: Number of chunks for soft transition (default 2)
+        transition: If True, use embedding interpolation to new prompt
+        transition_chunks: Number of chunks to interpolate over (default 4)
+        transition_method: Interpolation method - "linear" (lerp) or "slerp"
     """
     try:
         session = get_active_session(webrtc_manager)
-        msg: dict = {"prompts": [{"text": prompt, "weight": 1.0}]}
+
+        # Build the prompt payload
+        prompt_payload = [{"text": prompt, "weight": 1.0}]
+
+        # If transition enabled, use transition dict instead of direct prompt
+        if transition and not hard_cut:
+            num_steps = transition_chunks if transition_chunks is not None else 4
+            method = transition_method if transition_method in ("linear", "slerp") else "linear"
+            msg: dict = {
+                "transition": {
+                    "target_prompts": prompt_payload,
+                    "num_steps": num_steps,
+                    "temporal_interpolation_method": method,
+                }
+            }
+        else:
+            msg = {"prompts": prompt_payload}
 
         # Hard cut takes precedence over soft cut
         if hard_cut:
@@ -1521,6 +1543,9 @@ async def playlist_next(
     soft_cut: bool = Query(default=False, description="Temporarily lower KV cache bias"),
     soft_cut_bias: float | None = Query(default=None, ge=0.01, le=1.0, description="Temp bias during soft cut"),
     soft_cut_chunks: int | None = Query(default=None, ge=1, le=10, description="Chunks for soft cut duration"),
+    transition: bool = Query(default=False, description="Use embedding interpolation"),
+    transition_chunks: int | None = Query(default=None, ge=1, le=10, description="Chunks to interpolate over"),
+    transition_method: str = Query(default="linear", description="Interpolation method: linear or slerp"),
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
     """Move to the next prompt in the playlist, optionally applying it.
@@ -1530,10 +1555,16 @@ async def playlist_next(
 
     Use soft_cut=true to temporarily lower the KV cache bias for faster adaptation
     while maintaining some continuity.
+
+    Use transition=true to interpolate embeddings from old to new prompt over N chunks.
+    Combine with soft_cut for best results: soft_cut opens plasticity, transition morphs embedding.
     """
     global _prompt_playlist
     if _prompt_playlist is None:
         raise HTTPException(400, "No playlist loaded")
+
+    # Transition relies on preserving state; it is intentionally ignored when hard_cut is active.
+    transition = transition and not hard_cut
 
     prompt = _prompt_playlist.next()
     applied = (
@@ -1544,16 +1575,24 @@ async def playlist_next(
             soft_cut=soft_cut,
             soft_cut_bias=soft_cut_bias,
             soft_cut_chunks=soft_cut_chunks,
+            transition=transition,
+            transition_chunks=transition_chunks,
+            transition_method=transition_method,
         )
         if apply
         else False
     )
 
-    status = "next"
+    # Build status string based on active modes
+    status_parts = []
     if hard_cut:
-        status = "hard_cut_next"
-    elif soft_cut:
-        status = "soft_cut_next"
+        status_parts.append("hard_cut")
+    if soft_cut:
+        status_parts.append("soft_cut")
+    if transition:
+        status_parts.append("transition")
+    status_parts.append("next")
+    status = "_".join(status_parts)
 
     return PlaylistResponse(
         status=status,
@@ -1575,6 +1614,9 @@ async def playlist_prev(
     soft_cut: bool = Query(default=False, description="Temporarily lower KV cache bias"),
     soft_cut_bias: float | None = Query(default=None, ge=0.01, le=1.0, description="Temp bias during soft cut"),
     soft_cut_chunks: int | None = Query(default=None, ge=1, le=10, description="Chunks for soft cut duration"),
+    transition: bool = Query(default=False, description="Use embedding interpolation"),
+    transition_chunks: int | None = Query(default=None, ge=1, le=10, description="Chunks to interpolate over"),
+    transition_method: str = Query(default="linear", description="Interpolation method: linear or slerp"),
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
     """Move to the previous prompt in the playlist, optionally applying it.
@@ -1584,10 +1626,16 @@ async def playlist_prev(
 
     Use soft_cut=true to temporarily lower the KV cache bias for faster adaptation
     while maintaining some continuity.
+
+    Use transition=true to interpolate embeddings from old to new prompt over N chunks.
+    Combine with soft_cut for best results: soft_cut opens plasticity, transition morphs embedding.
     """
     global _prompt_playlist
     if _prompt_playlist is None:
         raise HTTPException(400, "No playlist loaded")
+
+    # Transition relies on preserving state; it is intentionally ignored when hard_cut is active.
+    transition = transition and not hard_cut
 
     prompt = _prompt_playlist.prev()
     applied = (
@@ -1598,16 +1646,24 @@ async def playlist_prev(
             soft_cut=soft_cut,
             soft_cut_bias=soft_cut_bias,
             soft_cut_chunks=soft_cut_chunks,
+            transition=transition,
+            transition_chunks=transition_chunks,
+            transition_method=transition_method,
         )
         if apply
         else False
     )
 
-    status = "prev"
+    # Build status string based on active modes
+    status_parts = []
     if hard_cut:
-        status = "hard_cut_prev"
-    elif soft_cut:
-        status = "soft_cut_prev"
+        status_parts.append("hard_cut")
+    if soft_cut:
+        status_parts.append("soft_cut")
+    if transition:
+        status_parts.append("transition")
+    status_parts.append("prev")
+    status = "_".join(status_parts)
 
     return PlaylistResponse(
         status=status,
@@ -1630,6 +1686,9 @@ async def playlist_goto(
     soft_cut: bool = Query(default=False, description="Temporarily lower KV cache bias"),
     soft_cut_bias: float | None = Query(default=None, ge=0.01, le=1.0, description="Temp bias during soft cut"),
     soft_cut_chunks: int | None = Query(default=None, ge=1, le=10, description="Chunks for soft cut duration"),
+    transition: bool = Query(default=False, description="Use embedding interpolation"),
+    transition_chunks: int | None = Query(default=None, ge=1, le=10, description="Chunks to interpolate over"),
+    transition_method: str = Query(default="linear", description="Interpolation method: linear or slerp"),
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
     """Go to a specific index in the playlist, optionally applying it.
@@ -1639,10 +1698,16 @@ async def playlist_goto(
 
     Use soft_cut=true to temporarily lower the KV cache bias for faster adaptation
     while maintaining some continuity.
+
+    Use transition=true to interpolate embeddings from old to new prompt over N chunks.
+    Combine with soft_cut for best results: soft_cut opens plasticity, transition morphs embedding.
     """
     global _prompt_playlist
     if _prompt_playlist is None:
         raise HTTPException(400, "No playlist loaded")
+
+    # Transition relies on preserving state; it is intentionally ignored when hard_cut is active.
+    transition = transition and not hard_cut
 
     prompt = _prompt_playlist.goto(request.index)
     applied = (
@@ -1653,16 +1718,24 @@ async def playlist_goto(
             soft_cut=soft_cut,
             soft_cut_bias=soft_cut_bias,
             soft_cut_chunks=soft_cut_chunks,
+            transition=transition,
+            transition_chunks=transition_chunks,
+            transition_method=transition_method,
         )
         if apply
         else False
     )
 
-    status = "goto"
+    # Build status string based on active modes
+    status_parts = []
     if hard_cut:
-        status = "hard_cut_goto"
-    elif soft_cut:
-        status = "soft_cut_goto"
+        status_parts.append("hard_cut")
+    if soft_cut:
+        status_parts.append("soft_cut")
+    if transition:
+        status_parts.append("transition")
+    status_parts.append("goto")
+    status = "_".join(status_parts)
 
     return PlaylistResponse(
         status=status,
@@ -1683,6 +1756,9 @@ async def playlist_apply(
     soft_cut: bool = Query(default=False, description="Temporarily lower KV cache bias"),
     soft_cut_bias: float | None = Query(default=None, ge=0.01, le=1.0, description="Temp bias during soft cut"),
     soft_cut_chunks: int | None = Query(default=None, ge=1, le=10, description="Chunks for soft cut duration"),
+    transition: bool = Query(default=False, description="Use embedding interpolation"),
+    transition_chunks: int | None = Query(default=None, ge=1, le=10, description="Chunks to interpolate over"),
+    transition_method: str = Query(default="linear", description="Interpolation method: linear or slerp"),
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
     """Re-apply the current playlist prompt without changing position.
@@ -1692,10 +1768,16 @@ async def playlist_apply(
 
     Use soft_cut=true to temporarily lower the KV cache bias for faster adaptation
     while maintaining some continuity.
+
+    Use transition=true to interpolate embeddings from old to new prompt over N chunks.
+    Combine with soft_cut for best results: soft_cut opens plasticity, transition morphs embedding.
     """
     global _prompt_playlist
     if _prompt_playlist is None:
         raise HTTPException(400, "No playlist loaded")
+
+    # Transition relies on preserving state; it is intentionally ignored when hard_cut is active.
+    transition = transition and not hard_cut
 
     applied = _apply_playlist_prompt(
         webrtc_manager,
@@ -1704,13 +1786,21 @@ async def playlist_apply(
         soft_cut=soft_cut,
         soft_cut_bias=soft_cut_bias,
         soft_cut_chunks=soft_cut_chunks,
+        transition=transition,
+        transition_chunks=transition_chunks,
+        transition_method=transition_method,
     )
 
-    status = "applied"
+    # Build status string based on active modes
+    status_parts = []
     if hard_cut:
-        status = "hard_cut_applied"
-    elif soft_cut:
-        status = "soft_cut_applied"
+        status_parts.append("hard_cut")
+    if soft_cut:
+        status_parts.append("soft_cut")
+    if transition:
+        status_parts.append("transition")
+    status_parts.append("applied")
+    status = "_".join(status_parts)
 
     return PlaylistResponse(
         status=status,

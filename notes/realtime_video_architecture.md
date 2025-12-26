@@ -456,6 +456,35 @@ class PromptCompiler:
 
 The immediate control surface for the generator. Updated by PromptCompiler or directly via Dev Console.
 
+#### Negative prompts: why there’s no UI field (current status)
+
+**Short version:** we *track* `negative_prompt` in the control plane, but the current Scope/KREA realtime pipeline does **not** consume it, so the frontend does not expose it.
+
+Where this shows up in code:
+
+- Control-plane state includes the field but documents it as unused:
+  - `src/scope/realtime/control_state.py` (`ControlState.negative_prompt`)
+- The adapter explicitly does **not** forward it to pipeline kwargs:
+  - `src/scope/realtime/pipeline_adapter.py` (`kwargs_for_call()`)
+- The pipeline text-conditioning path only encodes **positive** prompts:
+  - `src/scope/core/pipelines/wan2_1/blocks/text_conditioning.py` (`prompts` → embeddings)
+  - `src/scope/core/pipelines/wan2_1/components/text_encoder.py` (no negative/uncond concept)
+- Frontend request schema has no `negative_prompt` field:
+  - `frontend/src/lib/api.ts` (`WebRTCOfferRequest.initialParameters`)
+
+Implication: adding a negative prompt text box today would be misleading because it wouldn’t change generation.
+
+#### Would adding “CFG-style negative prompts” slow things down?
+
+Yes, in the classic diffusion interpretation, negative prompts are implemented via **classifier-free guidance (CFG)**, which typically requires **two model evaluations per denoising step**:
+
+- conditional (positive prompt) pass
+- unconditional/negative pass
+
+Even if you batch them together (better kernel utilization), you’re still doing ~2× the dominant compute. So enabling true CFG would likely reduce end-to-end FPS substantially unless compensated elsewhere (fewer steps, smaller model, distillation, etc.).
+
+If/when we add this, it should be an **explicit opt-in feature** (and treated as a perf experiment), not a default control.
+
 ```python
 from dataclasses import dataclass, field
 from typing import Optional
