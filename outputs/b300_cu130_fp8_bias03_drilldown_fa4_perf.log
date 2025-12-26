@@ -1,0 +1,58 @@
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 for torchao version 0.13.0
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Fetching 6 files: 100%|██████████| 6/6 [00:00<00:00, 22389.52it/s]
+/root/scope/.venv-b300-cu130-decode/lib/python3.12/site-packages/torch/__init__.py:1617: UserWarning: Please use the new API settings to control TF32 behavior, such as torch.backends.cudnn.conv.fp32_precision = 'tf32' or torch.backends.cuda.matmul.fp32_precision = 'ieee'. Old settings, e.g, torch.backends.cuda.matmul.allow_tf32 = True, torch.backends.cudnn.allow_tf32 = True, allowTF32CuDNN() and allowTF32CuBLAS() will be deprecated after Pytorch 2.9. Please see https://pytorch.org/docs/main/notes/cuda.html#tensorfloat-32-tf32-on-ampere-and-later-devices (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:80.)
+  _C._set_float32_matmul_precision(precision)
+=== Attention Profiling Report ===
+  self_attn: 6526.1ms (46.0%) [1000 calls, 6.53ms/call]
+  self_attn_kv_bias_fa4: 5072.9ms (35.8%) [840 calls, 6.04ms/call]
+  ffn: 761.6ms (5.4%) [1000 calls, 0.76ms/call]
+  cross_attn: 617.5ms (4.4%) [1000 calls, 0.62ms/call]
+  qkv_projection: 514.3ms (3.6%) [1000 calls, 0.51ms/call]
+  rope_apply: 310.1ms (2.2%) [840 calls, 0.37ms/call]
+  output_projection: 272.6ms (1.9%) [1000 calls, 0.27ms/call]
+  cache_update: 62.4ms (0.4%) [840 calls, 0.07ms/call]
+  self_attn_block_mask: 47.6ms (0.3%) [160 calls, 0.30ms/call]
+  TOTAL: 14185.1ms
+=== p_bias vs p_recompute ===
+  p_bias (Kernel B):     99.1%
+  p_recompute (Kernel A): 0.9%
+  p_plain (FA path):     0.0%
+Warning: Could not load sageattention: No module named 'sageattention'
+sageattention package is not installed
+SAGEATTN_AVAILABLE: False
+TRITON_ROTARY_AVAILABLE: True, USE_TRITON_ROTARY: True
+TRITON_ROPE_FUSED_AVAILABLE: True, USE_TRITON_ROPE_FUSED: True
+CUDA device: NVIDIA B300 SXM6 AC
+Compute capability: (10, 3)
+torch: 2.9.0+cu130 (cuda=13.0)
+cudnn.benchmark: True
+Loaded diffusion model in 0.077111s
+Quantized diffusion model to fp8 in 2.317s
+Loaded text encoder in 0.305731s
+Loaded VAE in 0.133s
+Warmed up (3 runs) in 8.89s
+iter=000 frames=  9 seconds=0.8347 fps=10.78
+iter=001 frames= 12 seconds=0.9140 fps=13.13
+iter=002 frames= 12 seconds=0.9493 fps=12.64
+iter=003 frames= 12 seconds=0.9458 fps=12.69
+iter=004 frames= 12 seconds=0.9443 fps=12.71
+iter=005 frames= 12 seconds=0.9440 fps=12.71
+
+Avg FPS (skip=2): 12.69
+Wrote per-iter JSON: outputs/b300_cu130_fp8_bias03_drilldown_fa4_perf.json
+=== Attention Profiling Report ===
+  self_attn: 7625.7ms (44.4%) [1720 calls, 4.43ms/call]
+  self_attn_kv_bias_fa4: 5326.5ms (31.0%) [1440 calls, 3.70ms/call]
+  ffn: 1304.9ms (7.6%) [1720 calls, 0.76ms/call]
+  cross_attn: 1030.1ms (6.0%) [1720 calls, 0.60ms/call]
+  qkv_projection: 880.2ms (5.1%) [1720 calls, 0.51ms/call]
+  output_projection: 464.1ms (2.7%) [1720 calls, 0.27ms/call]
+  rope_apply: 380.8ms (2.2%) [1440 calls, 0.26ms/call]
+  cache_update: 92.4ms (0.5%) [1440 calls, 0.06ms/call]
+  self_attn_block_mask: 83.0ms (0.5%) [280 calls, 0.30ms/call]
+  TOTAL: 17187.6ms
+=== p_bias vs p_recompute ===
+  p_bias (Kernel B):     98.5%
+  p_recompute (Kernel A): 1.5%
+  p_plain (FA path):     0.0%

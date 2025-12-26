@@ -1,0 +1,152 @@
+{
+  "chunks": [
+    {
+      "chunk_index": 1,
+      "timing_ms": 1791.5183309996792,
+      "frames_shape": [
+        9,
+        512,
+        512,
+        3
+      ]
+    },
+    {
+      "chunk_index": 2,
+      "timing_ms": 818.2210739978473,
+      "frames_shape": [
+        12,
+        512,
+        512,
+        3
+      ]
+    },
+    {
+      "chunk_index": 3,
+      "timing_ms": 940.8513929993205,
+      "frames_shape": [
+        12,
+        512,
+        512,
+        3
+      ]
+    },
+    {
+      "chunk_index": 4,
+      "timing_ms": 898.0623169991304,
+      "frames_shape": [
+        12,
+        512,
+        512,
+        3
+      ]
+    }
+  ],
+  "continuity_snapshots": [
+    {
+      "after_chunk": 1,
+      "state": {
+        "continuity_keys": {
+          "current_start_frame": {
+            "type": "int",
+            "value": "3"
+          },
+          "first_context_frame": {
+            "type": "Tensor",
+            "shape": [
+              1,
+              1,
+              16,
+              64,
+              64
+            ],
+            "dtype": "torch.bfloat16"
+          },
+          "context_frame_buffer": {
+            "type": "Tensor",
+            "shape": [
+              1,
+              2,
+              16,
+              64,
+              64
+            ],
+            "dtype": "torch.bfloat16"
+          },
+          "decoded_frame_buffer": {
+            "type": "Tensor",
+            "shape": [
+              1,
+              9,
+              3,
+              512,
+              512
+            ],
+            "dtype": "torch.bfloat16"
+          },
+          "context_frame_buffer_max_size": {
+            "type": "int",
+            "value": "2"
+          },
+          "decoded_frame_buffer_max_size": {
+            "type": "int",
+            "value": "9"
+          }
+        },
+        "other_state_keys": []
+      }
+    },
+    {
+      "after_chunk": 4,
+      "state": {
+        "continuity_keys": {
+          "current_start_frame": {
+            "type": "int",
+            "value": "12"
+          },
+          "first_context_frame": {
+            "type": "Tensor",
+            "shape": [
+              1,
+              1,
+              16,
+              64,
+              64
+            ],
+            "dtype": "torch.bfloat16"
+          },
+          "context_frame_buffer": {
+            "type": "Tensor",
+            "shape": [
+              1,
+              2,
+              16,
+              64,
+              64
+            ],
+            "dtype": "torch.bfloat16"
+          },
+          "decoded_frame_buffer": {
+            "type": "Tensor",
+            "shape": [
+              1,
+              9,
+              3,
+              512,
+              512
+            ],
+            "dtype": "torch.bfloat16"
+          },
+          "context_frame_buffer_max_size": {
+            "type": "int",
+            "value": "2"
+          },
+          "decoded_frame_buffer_max_size": {
+            "type": "int",
+            "value": "9"
+          }
+        },
+        "other_state_keys": []
+      }
+    }
+  ]
+}

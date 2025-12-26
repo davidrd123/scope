@@ -1,0 +1,30 @@
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+/root/scope/.venv-b300-cu130-decode/lib/python3.12/site-packages/torch/cuda/__init__.py:182: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 304: OS call failed or operation not supported on this OS (Triggered internally at /pytorch/c10/cuda/CUDAFunctions.cpp:119.)
+  return torch._C._cuda_getDeviceCount() > 0
+Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 for torchao version 0.13.0
+/root/scope/.venv-b300-cu130-decode/lib/python3.12/site-packages/torch/cuda/__init__.py:827: UserWarning: Can't initialize NVML
+  warnings.warn("Can't initialize NVML")
+Traceback (most recent call last):
+  File "/root/scope/scripts/profile_krea_pipeline_blocks.py", line 237, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/root/scope/scripts/profile_krea_pipeline_blocks.py", line 77, in main
+    from scope.core.pipelines.krea_realtime_video.pipeline import KreaRealtimeVideoPipeline
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/__init__.py", line 1, in <module>
+    from .pipeline import KreaRealtimeVideoPipeline
+  File "/root/scope/src/scope/core/pipelines/krea_realtime_video/pipeline.py", line 21, in <module>
+    from ..wan2_1.components import WanDiffusionWrapper, WanTextEncoderWrapper
+  File "/root/scope/src/scope/core/pipelines/wan2_1/components/__init__.py", line 2, in <module>
+    from .text_encoder import WanTextEncoderWrapper
+  File "/root/scope/src/scope/core/pipelines/wan2_1/components/text_encoder.py", line 8, in <module>
+    from ..modules.t5 import umt5_xxl
+  File "/root/scope/src/scope/core/pipelines/wan2_1/modules/t5.py", line 523, in <module>
+    class T5EncoderModel:
+  File "/root/scope/src/scope/core/pipelines/wan2_1/modules/t5.py", line 528, in T5EncoderModel
+    device=torch.cuda.current_device(),
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/scope/.venv-b300-cu130-decode/lib/python3.12/site-packages/torch/cuda/__init__.py", line 1069, in current_device
+    _lazy_init()
+  File "/root/scope/.venv-b300-cu130-decode/lib/python3.12/site-packages/torch/cuda/__init__.py", line 410, in _lazy_init
+    torch._C._cuda_init()
+RuntimeError: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 304: OS call failed or operation not supported on this OS

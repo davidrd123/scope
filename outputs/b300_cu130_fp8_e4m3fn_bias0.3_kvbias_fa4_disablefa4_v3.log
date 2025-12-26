@@ -1,0 +1,28 @@
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 for torchao version 0.13.0
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Fetching 6 files: 100%|██████████| 6/6 [00:00<00:00, 131072.00it/s]
+/root/scope/.venv-b300-cu130-decode/lib/python3.12/site-packages/torch/__init__.py:1617: UserWarning: Please use the new API settings to control TF32 behavior, such as torch.backends.cudnn.conv.fp32_precision = 'tf32' or torch.backends.cuda.matmul.fp32_precision = 'ieee'. Old settings, e.g, torch.backends.cuda.matmul.allow_tf32 = True, torch.backends.cudnn.allow_tf32 = True, allowTF32CuDNN() and allowTF32CuBLAS() will be deprecated after Pytorch 2.9. Please see https://pytorch.org/docs/main/notes/cuda.html#tensorfloat-32-tf32-on-ampere-and-later-devices (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:80.)
+  _C._set_float32_matmul_precision(precision)
+Warning: Could not load sageattention: No module named 'sageattention'
+sageattention package is not installed
+SAGEATTN_AVAILABLE: False
+TRITON_ROTARY_AVAILABLE: True, USE_TRITON_ROTARY: True
+TRITON_ROPE_FUSED_AVAILABLE: True, USE_TRITON_ROPE_FUSED: True
+CUDA device: NVIDIA B300 SXM6 AC
+Compute capability: (10, 3)
+torch: 2.9.0+cu130 (cuda=13.0)
+cudnn.benchmark: True
+Loaded diffusion model in 0.077861s
+Quantized diffusion model to fp8 in 2.354s
+Loaded text encoder in 0.305623s
+Loaded VAE in 0.133s
+Warmed up (3 runs) in 8.44s
+iter=000 frames=  9 seconds=0.7535 fps=11.94
+iter=001 frames= 12 seconds=0.7669 fps=15.65
+iter=002 frames= 12 seconds=0.8007 fps=14.99
+iter=003 frames= 12 seconds=0.7988 fps=15.02
+iter=004 frames= 12 seconds=0.7978 fps=15.04
+iter=005 frames= 12 seconds=0.7963 fps=15.07
+
+Avg FPS (skip=2): 15.03
+Wrote per-iter JSON: outputs/b300_cu130_fp8_e4m3fn_bias0.3_kvbias_fa4_disablefa4_v3.json

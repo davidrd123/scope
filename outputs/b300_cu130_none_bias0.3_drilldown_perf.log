@@ -1,0 +1,49 @@
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 for torchao version 0.15.0+cu130             Please see https://github.com/pytorch/ao/issues/2919 for more info
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Fetching 6 files: 100%|██████████| 6/6 [00:00<00:00, 145467.19it/s]
+Warning: Could not load sageattention: No module named 'sageattention'
+sageattention package is not installed
+SAGEATTN_AVAILABLE: False
+TRITON_ROTARY_AVAILABLE: True, USE_TRITON_ROTARY: True
+TRITON_ROPE_FUSED_AVAILABLE: True, USE_TRITON_ROPE_FUSED: True
+CUDA device: NVIDIA B300 SXM6 AC
+Compute capability: (10, 3)
+torch: 2.9.0+cu130 (cuda=13.0)
+cudnn.benchmark: True
+Loaded diffusion model in 0.078549s
+Loaded text encoder in 0.317306s
+Loaded VAE in 0.133s
+Warmed up (3 runs) in 8.71s
+iter=000 frames=  9 seconds=0.7198 fps=12.50
+iter=001 frames= 12 seconds=0.7859 fps=15.27
+iter=002 frames= 12 seconds=0.8180 fps=14.67
+iter=003 frames= 12 seconds=0.8170 fps=14.69
+iter=004 frames= 12 seconds=0.8152 fps=14.72
+iter=005 frames= 12 seconds=0.8128 fps=14.76
+
+Avg FPS (skip=2): 14.71
+Wrote per-iter JSON: outputs/b300_cu130_none_bias0.3_drilldown_perf.json
+=== Attention Profiling Report ===
+  self_attn: 1037.5ms (39.4%) [800 calls, 1.30ms/call]
+  ffn: 412.3ms (15.7%) [800 calls, 0.52ms/call]
+  qkv_projection: 368.8ms (14.0%) [800 calls, 0.46ms/call]
+  cross_attn: 311.3ms (11.8%) [800 calls, 0.39ms/call]
+  self_attn_kv_bias_fa4: 265.5ms (10.1%) [640 calls, 0.41ms/call]
+  output_projection: 88.9ms (3.4%) [800 calls, 0.11ms/call]
+  rope_apply: 71.1ms (2.7%) [640 calls, 0.11ms/call]
+  self_attn_block_mask: 46.6ms (1.8%) [160 calls, 0.29ms/call]
+  cache_update: 31.9ms (1.2%) [640 calls, 0.05ms/call]
+  TOTAL: 2633.7ms
+=== Transformer Block Split (top-level) ===
+  self_attn: 1037.5ms (58.9%)
+  cross_attn: 311.3ms (17.7%)
+  ffn: 412.3ms (23.4%)
+=== p_bias vs p_recompute ===
+  p_bias (Kernel B):     85.1%
+  p_recompute (Kernel A): 14.9%
+  p_plain (FA path):     0.0%
+=== self_attn Breakdown (nested) ===
+  kv_bias_total:   265.5ms (25.6% of self_attn)
+  block_mask:      46.6ms (4.5% of self_attn)
+  plain_kv:        0.0ms (0.0% of self_attn)
+  other_in_self:   725.4ms (69.9% of self_attn)
