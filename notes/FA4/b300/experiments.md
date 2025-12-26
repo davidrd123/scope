@@ -182,16 +182,18 @@ WANVAE_STREAM_DECODE_MODE=chunk \
 **Result:**  
 `--quantization fp8_e4m3fn` ≈ **~15.2 FPS** (this run: `15.22 FPS`)
 
-**Additional result (compile interaction):**  
-`--compile` + `--quantization fp8_e4m3fn` failed with:
-- `NotImplementedError: Float8Tensor dispatch ... aten.as_strided ...` (torchao float8 workflow)
+**Additional result (compile interaction):**
+- Without the PerTensor-only TorchAO workaround, `--compile` + `--quantization fp8_e4m3fn` fails with:
+  - `NotImplementedError: Float8Tensor dispatch ... aten.as_strided ...` (torchao quantization Float8Tensor workflow)
+- With the PerTensor-only workaround (applied automatically by `KreaRealtimeVideoPipeline` unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`), `--compile + fp8_e4m3fn` runs and is **~20.8 FPS** on B300/cu130 with `SCOPE_KV_BIAS_BACKEND=fa4` (see `notes/FA4/b300/session-state.md` for the current command).
 
 **Decision:**  
-Use `--quantization none` as the canonical B300/cu130 baseline for perf work until fp8 fastpaths are verified (torchao extensions were being skipped in this env).
+- If not compiling: use `--quantization none` as the canonical B300/cu130 baseline for perf work (fp8 is slower on this stack unless compile is enabled).
+- If compiling: fp8 becomes viable again (still pending upstream TorchAO fix; we currently rely on a PerTensor-only monkeypatch).
 
-**Lessons:**  
-- On SM103, fp8 can be *slower* than BF16 if the intended fp8 kernels aren’t actually active.  
-- Treat `--compile + fp8` as a separate compatibility axis (torchao Float8Tensor dispatch) and record failures explicitly (don’t assume “compile just works”).
+**Lessons:**
+- On SM103, fp8 can be *slower* than BF16 if the intended fp8 kernels aren’t actually active (and/or conversion overhead dominates).
+- Treat `--compile + fp8` as a separate compatibility axis (TorchAO tensor-subclass dispatch) and record failures explicitly (don’t assume “compile just works”).
 
 ---
 

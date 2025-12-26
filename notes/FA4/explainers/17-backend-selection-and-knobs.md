@@ -39,6 +39,7 @@ If you only remember one rule: **always record which backend actually ran** (to 
 | `SCOPE_ENABLE_FA4_VARLEN` | `0|1` | `0` | Allows FA4 varlen for *plain* attention even when `SCOPE_KV_BIAS_BACKEND=fa4` | Opt-in because mixing CuTe module sources can break |
 | `SCOPE_COMPILE_KREA_PIPELINE` | `0|1` | (auto: Hopper only) | Enables `torch.compile` of diffusion blocks in the server pipeline | On B200 (SM100), compile is typically a big steady-state win |
 | `SCOPE_COMPILE_KREA_PIPELINE_ALLOW_QUANTIZATION` | `0|1` | `0` | Allows `torch.compile` even when FP8 quantization is enabled | On SM100 we allow compile+FP8 without this; elsewhere this is an explicit experiment override |
+| `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED` | `0|1` | `1` | Applies a PerTensor-only TorchAO monkeypatch so `--compile + fp8` can run | Workaround for upstream TorchAO missing `aten.as_strided.default`; disable to reproduce the upstream failure |
 | `SCOPE_TORCH_COMPILE_MODE` | string | unset | Controls `torch.compile(..., mode=...)` | Some modes are footguns on SM103 |
 | `SCOPE_CUDAGRAPH_MARK_STEP_BEGIN` | `0|1` | `0` | Calls `torch.compiler.cudagraph_mark_step_begin()` before each generator model call | Helpful when experimenting with CUDA-graph compile modes; still not a guarantee on SM103 |
 | `TRITON_PTXAS_PATH` | path | unset | Points Triton/Inductor to a newer `ptxas` | **SM103:** often required for correct codegen/autotune |

@@ -91,14 +91,14 @@ Knobs map: `notes/FA4/explainers/17-backend-selection-and-knobs.md`.
 ## ✅ YOU ARE HERE: Between Level 4 and 5
 
 Current state:
-- B300: **~15 FPS** in typical cu130 end-to-end runs, with **best-case ~19 FPS** in the benchmark when `--compile` is viable (config-dependent)
+- B300: **~15 FPS** in typical cu130 end-to-end runs, with **best-case ~20–21 FPS** in the benchmark when `--compile` is viable (config-dependent)
 - Solved the “white whale” mystery: the original ~8.8 FPS wasn’t an attention backend cap; it was dominated by runtime stack + decode/cuDNN behavior and SM103 backend pitfalls
 - Have documented, reproducible optimizations
 
 What's missing for Level 5:
 - RoPE is still separate from attention, and attention-adjacent glue (casts/copies/layout fixes) is still sizable
 - Not exploiting Blackwell-specific features (TMA, warp specialization)
-- torch.compile integration is partial (some modes abort on SM103; `--compile + fp8_e4m3fn` *used* to be blocked by a TorchAO `Float8Tensor` missing `aten.as_strided.default`, but is now unblocked locally via a PerTensor-only monkeypatch: `scripts/patch_float8_as_strided.py`; upstream issue text is paste-ready at `notes/issues/torchao-as-strided-dispatch.md`; some cudagraph-heavy modes can still hit “output overwritten”) — see `notes/FA4/b300/session-state.md`
+- torch.compile integration is partial (some modes abort on SM103; `--compile + fp8_e4m3fn` is blocked upstream by TorchAO `Float8Tensor` missing `aten.as_strided.default`, but is unblocked locally via a PerTensor-only monkeypatch applied by the realtime pipeline: `src/scope/core/compat/torchao_float8_as_strided.py` (disable with `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`); upstream issue text is paste-ready at `notes/issues/torchao-as-strided-dispatch.md`; some cudagraph-heavy modes can still hit “output overwritten”) — see `notes/FA4/b300/session-state.md`
 
 ---
 
