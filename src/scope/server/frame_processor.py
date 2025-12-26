@@ -1118,9 +1118,19 @@ class FrameProcessor:
             elif event.type == EventType.SET_SEED:
                 self.parameters["base_seed"] = event.payload["base_seed"]
             elif event.type == EventType.SET_DENOISE_STEPS:
-                self.parameters["denoising_step_list"] = event.payload[
-                    "denoising_step_list"
-                ]
+                denoising_step_list = event.payload.get("denoising_step_list")
+                if (
+                    not isinstance(denoising_step_list, list)
+                    or not denoising_step_list
+                    or not all(isinstance(step, int) for step in denoising_step_list)
+                ):
+                    logger.warning(
+                        "Ignoring invalid denoising_step_list=%r",
+                        denoising_step_list,
+                    )
+                else:
+                    self.parameters["denoising_step_list"] = denoising_step_list
+                    logger.info("Set denoising_step_list=%s", denoising_step_list)
 
         # Check if paused after applying events (step overrides pause)
         if self.paused and not step_requested:

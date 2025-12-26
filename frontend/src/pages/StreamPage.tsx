@@ -276,6 +276,20 @@ export function StreamPage() {
     spoutAvailable,
   } = useStreamState();
 
+  const resolveDenoisingSteps = useCallback(
+    (pipelineId: PipelineId, mode?: InputMode): number[] => {
+      const stepsFromSettings =
+        pipelineId === settings.pipelineId ? settings.denoisingSteps : undefined;
+      if (stepsFromSettings && stepsFromSettings.length) return stepsFromSettings;
+
+      const stepsFromDefaults = getDefaults(pipelineId, mode).denoisingSteps;
+      if (stepsFromDefaults && stepsFromDefaults.length) return stepsFromDefaults;
+
+      return [1000, 750, 500, 250];
+    },
+    [getDefaults, settings.denoisingSteps, settings.pipelineId]
+  );
+
   // Prompt state - use unified default prompts based on mode
   const initialMode =
     settings.inputMode || getPipelineDefaultMode(settings.pipelineId);
@@ -841,7 +855,10 @@ export function StreamPage() {
     sendParameterUpdate({
       prompts,
       prompt_interpolation_method: interpolationMethod,
-      denoising_step_list: settings.denoisingSteps || [700, 500],
+      denoising_step_list: resolveDenoisingSteps(
+        settings.pipelineId,
+        settings.inputMode
+      ),
     });
   };
 
@@ -1092,9 +1109,10 @@ export function StreamPage() {
       if (pipelineIdToUse !== "passthrough") {
         initialParameters.prompts = promptItems;
         initialParameters.prompt_interpolation_method = interpolationMethod;
-        initialParameters.denoising_step_list = settings.denoisingSteps || [
-          700, 500,
-        ];
+        initialParameters.denoising_step_list = resolveDenoisingSteps(
+          pipelineIdToUse,
+          currentMode
+        );
       }
 
       // Cache management for krea_realtime_video, longlive, and reward-forcing
@@ -1283,7 +1301,10 @@ export function StreamPage() {
                   sendParameterUpdate({
                     prompts,
                     prompt_interpolation_method: interpolationMethod,
-                    denoising_step_list: settings.denoisingSteps || [700, 500],
+                    denoising_step_list: resolveDenoisingSteps(
+                      settings.pipelineId,
+                      settings.inputMode
+                    ),
                   });
                 }
               }}
@@ -1327,7 +1348,10 @@ export function StreamPage() {
                   sendParameterUpdate({
                     prompts,
                     prompt_interpolation_method: interpolationMethod,
-                    denoising_step_list: settings.denoisingSteps || [700, 500],
+                    denoising_step_list: resolveDenoisingSteps(
+                      settings.pipelineId,
+                      settings.inputMode
+                    ),
                   });
                 }
               }}
@@ -1381,10 +1405,8 @@ export function StreamPage() {
             onResolutionChange={handleResolutionChange}
             seed={settings.seed ?? 42}
             onSeedChange={handleSeedChange}
-            denoisingSteps={
-              settings.denoisingSteps ||
-              getDefaults(settings.pipelineId, settings.inputMode)
-                .denoisingSteps || [750, 250]
+              denoisingSteps={
+              resolveDenoisingSteps(settings.pipelineId, settings.inputMode)
             }
             onDenoisingStepsChange={handleDenoisingStepsChange}
             defaultDenoisingSteps={
