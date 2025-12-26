@@ -235,17 +235,12 @@ PyTorch 2.7 added Blackwell SDPA support with cuDNN 9.7.0+. The backend is enabl
 
 ### How to enable cuDNN SDPA
 
-**Environment variable**:
-```bash
-export TORCH_CUDNN_SDPA_ENABLED=1
-```
-
-**Python API**:
+**Python API (Torch 2.9)**:
 ```python
 import torch
 from torch.nn.attention import SDPBackend, sdpa_kernel
 
-# Global enable
+# Global enable/disable
 torch.backends.cuda.enable_cudnn_sdp(True)
 
 # Check availability
@@ -255,6 +250,8 @@ torch.backends.cuda.can_use_cudnn_attention(params, debug=True)
 with sdpa_kernel(SDPBackend.CUDNN_ATTENTION):
     output = F.scaled_dot_product_attention(query, key, value)
 ```
+
+**Note:** We did not find a `TORCH_CUDNN_SDPA_ENABLED` env var in torch 2.9’s Python/C++ distribution. Prefer the explicit Python toggles above so we don’t bake incorrect spellings into docs.
 
 ### Performance vs FlashAttention
 

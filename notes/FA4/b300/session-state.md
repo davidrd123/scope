@@ -45,6 +45,7 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
 - **Triton/Inductor SM103 tcgen05 LLVM abort (“tcgen05.wait.st”)**
   - This can hard-abort the process during compilation on B300/SM103 for some Triton/TensorCore codegen paths.
   - Upstream: `triton-lang/triton#8473` / `triton-lang/triton#8481` (see `notes/issues/triton-sm103-tcgen05-llvm-abort.md`).
+  - **Version note:** our cu130 env currently has `triton==3.5.0`; Triton **v3.5.1** includes the SM103 fix (release notes: https://github.com/triton-lang/triton/releases/tag/v3.5.1). Treat “upgrade Triton” as a first-class experiment before spending more time on SM103 compile hazards.
 
 ## Current Status
 

@@ -129,6 +129,12 @@ Triton SM103 support depends on using a new-enough `ptxas`:
 - “release 3.4 did support sm103 as long as ptxas shipped with CUDA 12.9 or newer is used.”
 Source: https://github.com/triton-lang/triton/issues/8473
 
+### Update (Triton 3.5.1)
+
+Triton **v3.5.1** includes the SM103 fix for the `tcgen05.wait.st` LLVM abort:
+- Fix PR: https://github.com/triton-lang/triton/pull/8045
+- Release notes: https://github.com/triton-lang/triton/releases/tag/v3.5.1
+
 ### External excerpt (FlexAttention defaults to compile in common usage)
 
 From a PyTorch forum thread discussing FlexAttention performance:

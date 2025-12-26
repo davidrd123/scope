@@ -1,6 +1,6 @@
 # Issue Note: Triton/Inductor tcgen05 LLVM abort on SM103 (B300/GB300)
 
-**Status:** Upstream (not something we can “monkeypatch” in this repo).
+**Status:** Fixed upstream in Triton **v3.5.1**, but still a local hazard until our environments upgrade.
 
 ## Symptom
 
@@ -12,9 +12,20 @@ This is a *fatal abort*, not a Python exception we can catch/recover from.
 
 ## Upstream tracking (primary)
 
-- `triton-lang/triton#8473` (open as of 2025-12-26): **“Release 3.5 broke sm103 (GB300) support”**
+- `triton-lang/triton#8473` (opened 2025-10-17): **“Release 3.5 broke sm103 (GB300) support”**
   - Key detail from the issue body: Triton **3.4** supported SM103 (with `ptxas` from CUDA **12.9+**), a later change regressed SM103, and the fix on main involved an **LLVM bump**.
 - `triton-lang/triton#8481` (closed): contains the exact `tcgen05.wait.st` LLVM abort text and links back to #8473.
+
+## Update: fixed in Triton v3.5.1
+
+Triton **v3.5.0** shipped between the regression and the fix. Triton **v3.5.1** includes the SM103 fix for the `tcgen05.wait.st` abort:
+
+- Fix PR: https://github.com/triton-lang/triton/pull/8045
+- Release notes: https://github.com/triton-lang/triton/releases/tag/v3.5.1
+
+Practical implication for this repo:
+- If your environment is on **`triton==3.5.0`**, assume SM103 tcgen05 compilation is **unsafe** and keep using the mitigations below.
+- If we upgrade to **`triton==3.5.1`** (or a PyTorch build that vendors it), we should re-test the previously “known-bad” compile paths and update `notes/FA4/b300/session-state.md`.
 
 ## Where it shows up in this repo
 
@@ -33,9 +44,11 @@ This is a *fatal abort*, not a Python exception we can catch/recover from.
 
 ## Research TODOs (high value)
 
-1. Identify the **first Triton release** that restores SM103 support after the LLVM bump (or a 3.5.x hotfix), and the **first PyTorch release** that vendors it.
+1. Validate `triton==3.5.1` (or a newer vendor bundle) in an *isolated* env and record:
+   - whether the `tcgen05.wait.st` abort disappears,
+   - whether any new failures appear (regressions),
+   - and whether any “previously disabled” compile paths become safe enough to reconsider.
 2. Capture a smallest-on-our-stack repro (ideally a `torch.compile` + Triton matmul/attention snippet) that triggers the abort on SM103.
 3. Decide whether we want to:
    - pin an older/newer Triton in an *isolated* experimental env, or
    - wait for a PyTorch+Triton combo that includes the fix.
-
