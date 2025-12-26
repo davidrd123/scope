@@ -338,3 +338,34 @@ Keep. This is a large end-to-end win and moves the “remaining glue” story fr
 **Lessons:**  
 - Huge `aten::copy_` / `aten::fill_` counts can be a **slow Conv3d fallback** problem, not an attention problem.  
 - When a Conv3d has temporal kernel `1`, it may be worth rewriting as a per-frame Conv2d (especially on SM103).
+
+### 2025-12-26 — WanVAE decode: avoid BF16 → FP32 → BF16 in `Upsample`
+
+**Status:** Done (small cleanup; not a big lever)
+
+**Question:**  
+Is VAE decode spending meaningful time doing dtype roundtrips in upsample (`x.float().type_as(x)`), and can we remove them safely?
+
+**Hypothesis:**  
+Yes: nearest-exact upsample used to require FP32 on some stacks, but if BF16/FP16 upsample works on SM103 we should prefer it to reduce `aten::to`/`aten::copy_` noise in decode.
+
+**Change (one thing):**  
+In `src/scope/core/pipelines/wan2_1/vae/modules/vae.py`, `class Upsample.forward` now:
+- Tries `super().forward(x)` in BF16/FP16 on CUDA
+- Falls back to FP32 only if the kernel errors due to dtype support
+- Adds `WANVAE_UPSAMPLE_FORCE_FP32=1` to force legacy behavior for A/B testing
+
+**Correctness sanity check:**  
+Directly verified BF16 upsample works on CUDA (B300) and matches even-grid samples (`max_diff_even_grid == 0.0`) on a small test tensor.
+
+**Result (stack-attributed op profile):**  
+The upsample frames disappear from the `aten::copy_` grouped-by-stack output (as expected), but overall `aten::copy_` GPU self time was essentially unchanged (decode is dominated by other work, mostly conv3d).
+
+**Artifacts:**  
+- Baseline (no change): `outputs/observe_b300_2025-12-26_qnone/ops_profile_qnone_fa4_bias0.3_nocompile_withstack.md`  
+- After change: `outputs/observe_b300_2025-12-26_qnone/ops_profile_qnone_fa4_bias0.3_nocompile_withstack_upsamplefix_s12.md`  
+- Baseline (compile): `outputs/observe_b300_2025-12-26_qnone/ops_profile_qnone_fa4_bias0.3_compile_withstack.md`  
+- After change (compile): `outputs/observe_b300_2025-12-26_qnone/ops_profile_qnone_fa4_bias0.3_compile_withstack_upsamplefix_s12.md`
+
+**Decision:**  
+Keep (it removes a suspicious dtype roundtrip and adds an escape hatch), but don’t expect a large end-to-end FPS gain from this alone.

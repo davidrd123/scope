@@ -29,6 +29,7 @@ _wanvae_decode_inner_gpu_ms = defaultdict(float)
 _wanvae_decode_inner_counts = defaultdict(int)
 _wanvae_decode_inner_meta: dict[str, object] = {}
 _WANVAE_STREAM_DECODE_MODE = os.getenv("WANVAE_STREAM_DECODE_MODE", "chunk").lower()
+_WANVAE_UPSAMPLE_FORCE_FP32 = os.getenv("WANVAE_UPSAMPLE_FORCE_FP32", "0") == "1"
 
 
 def _should_profile_wanvae_decode_inner() -> bool:
@@ -194,10 +195,56 @@ class RMS_norm(nn.Module):
 
 
 class Upsample(nn.Upsample):
+    _supports_cuda_bf16: bool | None = None
+    _supports_cuda_f16: bool | None = None
+
     def forward(self, x):
         """
-        Fix bfloat16 support for nearest neighbor interpolation.
+        Prefer BF16/FP16 upsample when supported.
+
+        Historically we forced `x.float()` to work around missing BF16 support for
+        nearest-exact interpolation, but that introduces large `aten::to`/`aten::copy_`
+        overhead in the VAE decode path. Try the native dtype first and fall back
+        to FP32 only if the kernel errors.
         """
+        if _WANVAE_UPSAMPLE_FORCE_FP32:
+            return super().forward(x.float()).type_as(x)
+
+        if x.dtype == torch.float32:
+            return super().forward(x)
+
+        if x.is_cuda and x.dtype in (torch.bfloat16, torch.float16):
+            cache_attr = "_supports_cuda_bf16" if x.dtype is torch.bfloat16 else "_supports_cuda_f16"
+            supported = getattr(Upsample, cache_attr)
+            if supported is not False:
+                try:
+                    y = super().forward(x)
+                except RuntimeError as e:
+                    message = str(e).lower()
+                    is_dtype_support_error = any(
+                        needle in message
+                        for needle in (
+                            "not implemented for",
+                            "does not support",
+                            "unsupported",
+                        )
+                    ) and any(
+                        needle in message
+                        for needle in (
+                            "bfloat16",
+                            "bf16",
+                            "float16",
+                            "half",
+                            "fp16",
+                        )
+                    )
+                    if not is_dtype_support_error:
+                        raise
+                    setattr(Upsample, cache_attr, False)
+                else:
+                    setattr(Upsample, cache_attr, True)
+                    return y
+
         return super().forward(x.float()).type_as(x)
 
 
