@@ -185,7 +185,7 @@ WANVAE_STREAM_DECODE_MODE=chunk \
 **Additional result (compile interaction):**
 - Without the PerTensor-only TorchAO workaround, `--compile` + `--quantization fp8_e4m3fn` fails with:
   - `NotImplementedError: Float8Tensor dispatch ... aten.as_strided ...` (torchao quantization Float8Tensor workflow)
-- With the PerTensor-only workaround (applied automatically by `KreaRealtimeVideoPipeline` unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`), `--compile + fp8_e4m3fn` runs and is **~20.8 FPS** on B300/cu130 with `SCOPE_KV_BIAS_BACKEND=fa4` (see `notes/FA4/b300/session-state.md` for the current command).
+- With the PerTensor-only workaround (applied automatically by `KreaRealtimeVideoPipeline` unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`), `--compile + fp8_e4m3fn` runs and is **~25 FPS** on B300/cu130 with `SCOPE_KV_BIAS_BACKEND=fa4` (see `notes/FA4/b300/session-state.md` for the current command).
 
 **Decision:**  
 - If not compiling: use `--quantization none` as the canonical B300/cu130 baseline for perf work (fp8 is slower on this stack unless compile is enabled).
@@ -286,3 +286,48 @@ Reuse denoise-loop buffers:
 **Suggested measurement:**  
 - `scripts/profile_krea_pipeline_blocks.py` for FPS (canonical settings)  
 - `scripts/profile_krea_pipeline_ops.py --json ...` to check whether `aten::to`/`aten::copy_`/`aten::fill_` counts/time move
+
+---
+
+### 2025-12-26 — Patch embedding: use Conv2d fastpath when `patch_size[0]==1`
+
+**Status:** Done (big win)
+
+**Question:**  
+Why do op profiles show enormous `aten::copy_` / `aten::fill_` call counts on B300 even with `--compile`?
+
+**Finding (via stack-aware op profiler):**  
+`scripts/profile_krea_pipeline_ops.py --with-stack` showed the majority of `aten::copy_` / `aten::fill_` came from the **Conv3d patch embedding** inside the diffusion model (`CausalWanModel.patch_embedding`, `kernel_size=(1,2,2)`, `stride=(1,2,2)`), which was taking a slow path that triggers a big copy/fill storm.
+
+**Hypothesis:**  
+For `patch_size=(1,2,2)`, Conv3d is mathematically equivalent to running a Conv2d per-frame. If we compute it as Conv2d, we should get a faster cuDNN path and avoid the slow Conv3d implementation on SM103.
+
+**Change (one thing):**  
+In `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`, add `CausalWanModel._patch_embed()` and use it everywhere we previously did:
+- `self.patch_embedding(u.unsqueeze(0))`
+
+When `patch_size[0]==1`, `_patch_embed()` reshapes `[B,C,F,H,W] → [B*F,C,H,W]`, calls `torch.nn.functional.conv2d(...)` with `weight.squeeze(2)`, then reshapes back to `[B,C_out,F,H',W']`. Otherwise it falls back to Conv3d.
+
+**Benchmark config:**  
+- GPU: B300 (SM103)  
+- Env: cu130 decode env (`.venv-b300-cu130-decode`)  
+- Settings: `320x576`, steps=`4`, bias=`0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`
+
+**Result (FPS):**
+- No compile:
+  - `--quantization none`: **~19.7 FPS**
+  - `--quantization fp8_e4m3fn`: **~17.3 FPS**
+- With compile:
+  - `--compile --quantization none`: **~22.8 FPS**
+  - `--compile --quantization fp8_e4m3fn`: **~25.1 FPS** (requires TorchAO PerTensor `as_strided` monkeypatch; applied automatically unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`)
+
+**Result (op profile evidence):**
+- Before: `aten::copy_` / `aten::fill_` were ~`35k` calls each (`outputs/b300_cu130_ops_profile_fa4_qnone_compile.json`)
+- After: `aten::copy_` / `aten::fill_` dropped to ~`9.6k` calls each (`outputs/b300_cu130_ops_profile_fa4_qnone_compile_post_patch_embed.json`)
+
+**Decision:**  
+Keep. This is a large end-to-end win and moves the “remaining glue” story from “mysterious copy/fill” to specific remaining hotspots (mostly VAE conv3d / other ops).
+
+**Lessons:**  
+- Huge `aten::copy_` / `aten::fill_` counts can be a **slow Conv3d fallback** problem, not an attention problem.  
+- When a Conv3d has temporal kernel `1`, it may be worth rewriting as a per-frame Conv2d (especially on SM103).

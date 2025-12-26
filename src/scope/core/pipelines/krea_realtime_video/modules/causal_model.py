@@ -2027,6 +2027,42 @@ class CausalWanModel(ModelMixin, ConfigMixin):
 
         return block_mask
 
+    def _patch_embed(self, u: torch.Tensor) -> torch.Tensor:
+        """
+        Apply the patch embedding to a single video sample.
+
+        The model defines `patch_embedding` as a Conv3d with `patch_size=(t,h,w)`.
+        When `t==1` (the default), this is equivalent to applying a Conv2d to each
+        frame independently. On B300/SM103, the Conv3d path can fall back to a slow
+        implementation that launches many tiny copy/fill kernels; the Conv2d
+        formulation is typically much faster.
+        """
+        u = u.unsqueeze(0)  # [1, C, F, H, W]
+
+        try:
+            t_patch, h_patch, w_patch = self.patch_size
+        except Exception:
+            return self.patch_embedding(u)
+
+        if int(t_patch) != 1:
+            return self.patch_embedding(u)
+
+        b, c, f, h, w = u.shape
+        u2 = u.permute(0, 2, 1, 3, 4).reshape(b * f, c, h, w)  # [B*F, C, H, W]
+
+        out2 = torch.nn.functional.conv2d(
+            u2,
+            self.patch_embedding.weight.squeeze(2),
+            bias=self.patch_embedding.bias,
+            stride=(int(h_patch), int(w_patch)),
+            padding=0,
+        )
+
+        out = out2.reshape(b, f, out2.shape[1], out2.shape[2], out2.shape[3]).permute(
+            0, 2, 1, 3, 4
+        )
+        return out
+
     def _forward_inference(
         self,
         x,
@@ -2077,7 +2113,7 @@ class CausalWanModel(ModelMixin, ConfigMixin):
             x = [torch.cat([u, v], dim=0) for u, v in zip(x, y, strict=False)]
 
         # embeddings
-        x = [self.patch_embedding(u.unsqueeze(0)) for u in x]
+        x = [self._patch_embed(u) for u in x]
         grid_sizes = torch.stack(
             [torch.tensor(u.shape[2:], dtype=torch.long) for u in x]
         )
@@ -2250,7 +2286,7 @@ class CausalWanModel(ModelMixin, ConfigMixin):
             x = [torch.cat([u, v], dim=0) for u, v in zip(x, y, strict=False)]
 
         # embeddings
-        x = [self.patch_embedding(u.unsqueeze(0)) for u in x]
+        x = [self._patch_embed(u) for u in x]
 
         grid_sizes = torch.stack(
             [torch.tensor(u.shape[2:], dtype=torch.long) for u in x]
@@ -2296,7 +2332,7 @@ class CausalWanModel(ModelMixin, ConfigMixin):
             context = torch.concat([context_clip, context], dim=1)
 
         if clean_x is not None:
-            clean_x = [self.patch_embedding(u.unsqueeze(0)) for u in clean_x]
+            clean_x = [self._patch_embed(u) for u in clean_x]
             clean_x = [u.flatten(2).transpose(1, 2) for u in clean_x]
 
             seq_lens_clean = torch.tensor(

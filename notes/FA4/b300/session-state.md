@@ -41,14 +41,14 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
 **Baseline (repo default stack): B300 is ~8.8 FPS at `320x576` (reference resolution) and the number is stable across iterations.**
 
 **Update (cu130 + FlashAttention + FA4 KV-bias):**
-- Daydream end-to-end (cu130 env): **~14.8–15.0 FPS** at `320x576` (canonical; measured before defaulting to FA4 KV-bias)
+- Daydream end-to-end (cu130 env): **TBD re-measure** (previously ~`14.8–15.0 FPS` at `320x576`, but that was measured before the Conv2d patch-embedding fastpath landed)
 - `scripts/profile_krea_pipeline_blocks.py` benchmark (cu130 env, quantization none, bias=0.3):
-  - `SCOPE_KV_BIAS_BACKEND=flash`: **~15.1 FPS**
-  - `SCOPE_KV_BIAS_BACKEND=flash` + `--compile`: **~18.4 FPS**
-  - `SCOPE_KV_BIAS_BACKEND=fa4`: **~17.0 FPS**
-  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile`: **~19.5 FPS**
-  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--quantization fp8_e4m3fn` (no compile): **~15.2 FPS**
-  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile` + `--quantization fp8_e4m3fn`: **~20.8 FPS** (requires the PerTensor-only TorchAO `as_strided` monkeypatch; applied automatically by the pipeline unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`).
+  - `SCOPE_KV_BIAS_BACKEND=flash`: **~17.2 FPS**
+  - `SCOPE_KV_BIAS_BACKEND=flash` + `--compile`: **~21.4 FPS**
+  - `SCOPE_KV_BIAS_BACKEND=fa4`: **~19.7 FPS**
+  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile`: **~22.8 FPS**
+  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--quantization fp8_e4m3fn` (no compile): **~17.3 FPS**
+  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile` + `--quantization fp8_e4m3fn`: **~25.1 FPS** (requires the PerTensor-only TorchAO `as_strided` monkeypatch; applied automatically by the pipeline unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`).
   - Note: on SM103 we default flash segment-combine to the stable FA2 varlen op; opt in to FA4 `return_lse` experiments with `SCOPE_FLASH_COMBINE_USE_FA4_LSE=1`.
 - `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, `scripts/b300_env_fix_cu130.sh` now tries `torchao==0.15.0+cu130` from the cu130 index (then PyPI as fallback). **As of 2025-12-26**, `torchao==0.15.0+cu130` still prints `Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 ...` (likely upstream; no FPS change observed).
 
@@ -146,25 +146,25 @@ Latest B300 `PROFILE_ATTENTION=1` signal (cu130, `kv_cache_attention_bias=0.3`, 
 Interpretation: the biggest denoise win is still reducing `self_attn` time. FA4 score_mod materially reduces the KV-bias slice, but the remaining `other_in_self` (QKV projections + non-bias attention) is still the majority.
 
 KV-bias backend A/B (B300, cu130, `320x576`, `kv_cache_attention_bias=0.3`, fp8):
-- `SCOPE_KV_BIAS_BACKEND=flash`: **~13.47 FPS** (`outputs/b300_cu130_fp8_e4m3fn_bias0.3_kvbias_flash.log`)
-- `SCOPE_KV_BIAS_BACKEND=fa4`: **~15.01 FPS** (`outputs/b300_cu130_fp8_e4m3fn_bias0.3_kvbias_fa4.log`)
-- `SCOPE_KV_BIAS_BACKEND=triton`: **~1.07 FPS** (`outputs/b300_cu130_fp8_e4m3fn_bias0.3_kvbias_triton.log`)
+- `SCOPE_KV_BIAS_BACKEND=flash`: **~15.2 FPS**
+- `SCOPE_KV_BIAS_BACKEND=fa4`: **~17.3 FPS**
+- `SCOPE_KV_BIAS_BACKEND=triton`: **~1 FPS** (still unusable on SM103 + triton 3.5)
 
 Interpretation: do **not** use the Triton Kernel B backend on SM103 right now. It is forced into a slow scalar kernel on SM103+triton 3.5 to avoid a tcgen05 LLVM hard-abort, and the end-to-end result is unusable. Prefer `SCOPE_KV_BIAS_BACKEND=fa4` when it works, otherwise keep the SM103 default on the flash backend (segment-combine).
 
 KV-bias backend A/B (B300, cu130, `320x576`, `kv_cache_attention_bias=0.3`, quantization none):
-- `SCOPE_KV_BIAS_BACKEND=flash`: **~14.9 FPS**
-- `SCOPE_KV_BIAS_BACKEND=fa4`: **~16.7 FPS**
+- `SCOPE_KV_BIAS_BACKEND=flash`: **~17.2 FPS**
+- `SCOPE_KV_BIAS_BACKEND=fa4`: **~19.7 FPS**
 
 ### Quantization Note (B300)
 
 On B300, FP8 quantization via torchao is not automatically a win *unless* you're also using `torch.compile`. In direct A/B runs (same settings, FA4 backend):
 - No compile:
-  - `--quantization fp8_e4m3fn`: **~15.0 FPS**
-  - `--quantization none` (bf16 weights): **~16.7 FPS**
+  - `--quantization fp8_e4m3fn`: **~17.3 FPS**
+  - `--quantization none` (bf16 weights): **~19.7 FPS**
 - With compile:
-  - `--compile --quantization fp8_e4m3fn`: **~20.8 FPS** (requires PerTensor-only TorchAO `as_strided` monkeypatch; see above)
-  - `--compile --quantization none`: **~19.5 FPS**
+  - `--compile --quantization fp8_e4m3fn`: **~25.1 FPS** (requires PerTensor-only TorchAO `as_strided` monkeypatch; see above)
+  - `--compile --quantization none`: **~22.8 FPS**
 
 Interpretation: without compile, FP8 introduces extra conversion/scaling overhead on this stack. With compile, FP8 can become a net win (at least on our current B300/cu130 setup). If you have ample VRAM (B300), BF16 is still the simplest dependency story.
 
@@ -198,7 +198,7 @@ Takeaway: the `SCOPE_KV_BIAS_BACKEND=fa4` safety disable can cost ~1 FPS **when 
 As of 2025-12-26:
 
 - **Quantization none:** `scripts/profile_krea_pipeline_blocks.py --compile` now works on B300 and improves throughput.
-  - Example (B300, cu130 env, `320x576`, bias `0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`): **~16.7 FPS → ~19.0 FPS**
+  - Example (B300, cu130 env, `320x576`, bias `0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`): **~19.7 FPS → ~22.8 FPS**
   - Tradeoff: longer warmup due to compilation (expect ~10–30s depending on cache state).
 - **FP8 (torchao):** runs under `--compile` with the PerTensor-only `aten.as_strided.default` monkeypatch (applied automatically by `KreaRealtimeVideoPipeline` unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`). Patch code: `src/scope/core/compat/torchao_float8_as_strided.py` (upstream issue: `notes/issues/torchao-as-strided-dispatch.md`).
 

@@ -79,6 +79,30 @@ def _parse_args() -> argparse.Namespace:
         help="Rows to print in the profiler table output.",
     )
     parser.add_argument(
+        "--with-stack",
+        action="store_true",
+        help="Capture call stacks in the trace (Kineto verbose mode). This can add overhead.",
+    )
+    parser.add_argument(
+        "--stack-n",
+        type=int,
+        default=5,
+        help="Stack depth for grouped-by-stack summaries (used with --with-stack).",
+    )
+    parser.add_argument(
+        "--stack-key",
+        action="append",
+        default=None,
+        help="Repeatable: print a grouped-by-stack summary for this op key (e.g. --stack-key aten::copy_). "
+        "Defaults to aten::copy_ and aten::fill_.",
+    )
+    parser.add_argument(
+        "--stack-limit",
+        type=int,
+        default=15,
+        help="How many stack groups to print per --stack-key.",
+    )
+    parser.add_argument(
         "--chrome-trace",
         type=Path,
         default=None,
@@ -177,6 +201,8 @@ def main() -> int:
     print(f"DISABLE_FLEX_ATTENTION_COMPILE={os.getenv('DISABLE_FLEX_ATTENTION_COMPILE')}")
     print(f"WANVAE_STREAM_DECODE_MODE={os.getenv('WANVAE_STREAM_DECODE_MODE')}")
     print(f"TRITON_PTXAS_PATH={os.getenv('TRITON_PTXAS_PATH')}")
+    if args.with_stack:
+        print(f"with_stack=True (stack_n={args.stack_n})")
 
     quantization = Quantization.FP8_E4M3FN if args.quantization == "fp8_e4m3fn" else None
 
@@ -219,7 +245,17 @@ def main() -> int:
     torch.cuda.synchronize()
     t0 = time.perf_counter()
 
-    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
+    experimental_config = None
+    if args.with_stack:
+        # `with_stack=True` alone isn't enough in some Kineto builds; verbose mode
+        # ensures stack frames are recorded in the trace.
+        experimental_config = torch._C._profiler._ExperimentalConfig(verbose=True)
+
+    with profile(
+        activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+        with_stack=bool(args.with_stack),
+        experimental_config=experimental_config,
+    ) as prof:
         for _ in range(args.iters):
             pipeline(prompts=prompts, kv_cache_attention_bias=args.kv_cache_attention_bias)
         torch.cuda.synchronize()
@@ -230,6 +266,37 @@ def main() -> int:
     # On newer PyTorch versions the profiler exposes GPU time as `device_time_total`
     # (not `cuda_time_total`). The table renderer will label it as CUDA for CUDA devices.
     print(prof.key_averages().table(sort_by="device_time_total", row_limit=args.row_limit))
+
+    if args.with_stack:
+        stack_keys = (
+            args.stack_key
+            if args.stack_key is not None
+            else [
+                "aten::copy_",
+                "aten::fill_",
+            ]
+        )
+        stack_avgs = prof.key_averages(group_by_stack_n=int(args.stack_n))
+
+        print("")
+        print(f"Grouped-by-stack summary (group_by_stack_n={args.stack_n}):")
+        for key in stack_keys:
+            rows = [evt for evt in stack_avgs if evt.key == key]
+            if not rows:
+                print(f"- {key}: (no events)")
+                continue
+
+            rows.sort(
+                key=lambda e: getattr(e, "device_time_total", 0.0),
+                reverse=True,
+            )
+            print(f"- {key}: top {min(len(rows), args.stack_limit)}")
+            for evt in rows[: args.stack_limit]:
+                device_ms = getattr(evt, "device_time_total", 0.0) / 1e3
+                cpu_ms = evt.cpu_time_total / 1e3
+                print(f"  count={evt.count:<7} device_ms={device_ms:>8.3f} cpu_ms={cpu_ms:>8.3f}")
+                for frame in getattr(evt, "stack", [])[: int(args.stack_n)]:
+                    print(f"    {frame}")
 
     if args.json is not None:
         events = []

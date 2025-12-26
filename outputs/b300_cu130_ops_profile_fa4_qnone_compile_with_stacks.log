@@ -1,0 +1,318 @@
+Warning: Could not load sageattention: No module named 'sageattention'
+sageattention package is not installed
+SAGEATTN_AVAILABLE: False
+TRITON_ROTARY_AVAILABLE: True, USE_TRITON_ROTARY: True
+TRITON_ROPE_FUSED_AVAILABLE: True, USE_TRITON_ROPE_FUSED: True
+CUDA device: NVIDIA B300 SXM6 AC
+Compute capability: (10, 3)
+torch: 2.9.0+cu130 (cuda=13.0)
+cudnn.benchmark: True
+compile=True
+SCOPE_KV_BIAS_BACKEND=fa4
+DISABLE_FLEX_ATTENTION_COMPILE=1
+WANVAE_STREAM_DECODE_MODE=chunk
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
+with_stack=True (stack_n=8)
+Loaded diffusion model in 0.076236s
+Loaded text encoder in 0.300763s
+Loaded VAE in 0.136s
+Warmed up (3 runs) in 12.58s
+Pre-warm (outside profiler): 1 iteration(s)
+Profiling: 1 iteration(s)
+Profiled wall time: 8.963s
+
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                             Torch-Compiled Region: 0/3         1.10%       6.991ms        41.18%     262.672ms       1.642ms       0.000us         0.00%     199.732ms       1.248ms           160  
+## Call CompiledFxGraph flnrd5evynma3zs3nkygl7f2usrv...         0.00%       0.000us         0.00%       0.000us       0.000us     138.547ms        44.90%     138.547ms     692.733us           200  
+                            Torch-Compiled Region: 12/1         0.98%       6.266ms        10.11%      64.458ms     322.292us       0.000us         0.00%     135.020ms     675.098us           200  
+## Call CompiledFxGraph flnrd5evynma3zs3nkygl7f2usrv...         4.10%      26.161ms         8.78%      55.978ms     279.891us       0.000us         0.00%     135.020ms     675.098us           200  
+                                               aten::mm         1.02%       6.495ms         1.37%       8.716ms      10.895us     100.178ms        32.46%     100.178ms     125.223us           800  
+                             Torch-Compiled Region: 1/2         0.89%       5.661ms        29.13%     185.810ms       1.161ms       0.000us         0.00%      88.190ms     551.186us           160  
+                                            aten::addmm         1.11%       7.086ms         1.38%       8.818ms      20.507us      55.025ms        17.83%      55.025ms     127.966us           430  
+                                      aten::convolution         0.02%     109.519us        49.89%     318.247ms       7.233ms       0.000us         0.00%      52.997ms       1.204ms            44  
+                                     aten::_convolution         0.03%     175.884us        49.87%     318.138ms       7.230ms       0.000us         0.00%      52.997ms       1.204ms            44  
+                                           aten::conv3d         0.01%      47.947us        49.85%     318.005ms       8.154ms       0.000us         0.00%      52.941ms       1.357ms            39  
+                              aten::slow_conv_dilated3d         7.74%      49.349ms        49.76%     317.427ms       8.817ms       1.974ms         0.64%      52.833ms       1.468ms            36  
+                                            aten::fill_         5.75%      36.671ms        31.63%     201.762ms       5.741us       1.054ms         0.34%      51.913ms       1.477us         35144  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+Self CPU time total: 637.886ms
+Self CUDA time total: 308.584ms
+
+
+Grouped-by-stack summary (group_by_stack_n=8):
+- aten::copy_: top 15
+  count=25605   device_ms=  43.762 cpu_ms= 106.231
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: Conv3d_0
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2030): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2367): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.660 cpu_ms=   1.545
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_9
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.660 cpu_ms=   1.536
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_1
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(600): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.659 cpu_ms=   1.578
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_2
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.659 cpu_ms=   1.566
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_8
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.659 cpu_ms=   1.555
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_3
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.658 cpu_ms=   1.526
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_5
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.657 cpu_ms=   1.539
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_10
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.656 cpu_ms=   1.552
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_6
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.655 cpu_ms=   1.574
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_7
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.654 cpu_ms=   1.548
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_11
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=768     device_ms=   0.540 cpu_ms=   3.938
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_12
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(245): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=16      device_ms=   0.067 cpu_ms=   0.084
+    <built-in method double of Tensor object at 0x7a142036cb90>
+    scope/core/pipelines/wan2_1/components/generator.py(261): _convert_flow_pred_to_x0
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: WanDiffusionWrapper_0
+    scope/core/pipelines/wan2_1/blocks/denoise.py(258): __call__
+    torch/utils/_contextlib.py(117): decorate_context
+    scope/core/pipelines/krea_realtime_video/modular_blocks.py(173): __call__
+  count=80      device_ms=   0.063 cpu_ms=   1.254
+    <built-in method tensor of type object at 0x7a17fb7d6c40>
+    scope/core/pipelines/wan2_1/utils.py(7): initialize_kv_cache
+    scope/core/pipelines/krea_realtime_video/blocks/recompute_kv_cache.py(133): __call__
+    torch/utils/_contextlib.py(117): decorate_context
+    scope/core/pipelines/krea_realtime_video/modular_blocks.py(173): __call__
+    torch/utils/_contextlib.py(117): decorate_context
+    scope/core/pipelines/krea_realtime_video/pipeline.py(235): _generate
+    scope/core/pipelines/krea_realtime_video/pipeline.py(229): __call__
+  count=1       device_ms=   0.042 cpu_ms=   0.005
+    <built-in method contiguous of Tensor object at 0x7a14200bc550>
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(399): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: AttentionBlock_0
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(600): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: Decoder3d_0
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(809): stream_decode
+- aten::fill_: top 15
+  count=25600   device_ms=  43.743 cpu_ms= 132.531
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: Conv3d_0
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2030): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2367): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=80      device_ms=   0.993 cpu_ms=   0.332
+    <built-in method zero_ of Tensor object at 0x7a149c0a4190>
+    scope/core/pipelines/wan2_1/utils.py(7): initialize_kv_cache
+    scope/core/pipelines/krea_realtime_video/blocks/recompute_kv_cache.py(133): __call__
+    torch/utils/_contextlib.py(117): decorate_context
+    scope/core/pipelines/krea_realtime_video/modular_blocks.py(173): __call__
+    torch/utils/_contextlib.py(117): decorate_context
+    scope/core/pipelines/krea_realtime_video/pipeline.py(235): _generate
+    scope/core/pipelines/krea_realtime_video/pipeline.py(229): __call__
+  count=384     device_ms=   0.660 cpu_ms=   1.952
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_9
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.660 cpu_ms=   1.930
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_1
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(600): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.659 cpu_ms=   1.971
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_2
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.659 cpu_ms=   1.957
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_8
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.659 cpu_ms=   1.971
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_3
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.658 cpu_ms=   1.972
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_5
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.657 cpu_ms=   1.933
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_10
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.656 cpu_ms=   1.955
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_6
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.655 cpu_ms=   2.004
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_7
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=384     device_ms=   0.654 cpu_ms=   1.960
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_11
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(357): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=768     device_ms=   0.540 cpu_ms=   4.727
+    <built-in method conv3d of type object at 0x7a17fb7d6c40>
+    torch/nn/modules/conv.py(699): _conv_forward
+    torch/nn/modules/conv.py(716): forward
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(165): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalConv3d_12
+    scope/core/pipelines/wan2_1/vae/modules/vae.py(245): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=7       device_ms=   0.009 cpu_ms=   0.045
+    <built-in method fill_ of Tensor object at 0x7a142021bc00>
+    scope/core/pipelines/wan2_1/blocks/denoise.py(258): __call__
+    torch/utils/_contextlib.py(117): decorate_context
+    scope/core/pipelines/krea_realtime_video/modular_blocks.py(173): __call__
+    torch/utils/_contextlib.py(117): decorate_context
+    scope/core/pipelines/krea_realtime_video/pipeline.py(235): _generate
+    scope/core/pipelines/krea_realtime_video/pipeline.py(229): __call__
+    profile_krea_pipeline_ops.py(254): main
+  count=5       device_ms=   0.006 cpu_ms=   0.030
+    <built-in method pow of type object at 0x7a17fb7d6c40>
+    scope/core/pipelines/krea_realtime_video/modules/model.py(56): sinusoidal_embedding_1d
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2030): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2367): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+
+Wrote JSON: outputs/b300_cu130_ops_profile_fa4_qnone_compile_with_stacks.json

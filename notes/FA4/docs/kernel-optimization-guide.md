@@ -6,7 +6,8 @@ This guide documents the journey of optimizing the KREA Realtime Video Pipeline'
 
 - Bottleneck: self-attention was ~51% of the pipeline, but the KV-bias attention kernel was only ~27% of self-attn time (QKV + RoPE were another ~37%).
 - Biggest wins: FA4/CUTE `score_mod` for the KV-bias path (0.54ms vs 1.02ms Triton) plus RoPE cleanup/fusion (0.48ms → 0.38ms).
-- End-to-end: ~15 FPS → ~20 FPS on B200 and 8.8 FPS → 15 FPS on B300 (cu130), measured at `320x576` with quality-preserving settings.
+- Other major win (B300): avoid the slow Conv3d patch-embedding path by using an equivalent per-frame Conv2d fastpath when `patch_size[0]==1`; this eliminates a large `aten::copy_`/`aten::fill_` storm from `slow_conv_dilated3d`.
+- End-to-end: ~15 FPS → ~20 FPS on B200 and 8.8 FPS → 15 FPS on B300 (cu130) in daydream-style runs; the `scripts/profile_krea_pipeline_blocks.py` benchmark now reaches **~25 FPS** on B300 with `--compile + fp8 + SCOPE_KV_BIAS_BACKEND=fa4` at `320x576`.
 - Compile/FP8 note (B300): `torch.compile` is high-upside but has known SM103 footguns (cudagraph “output overwritten” in `reduce-overhead`). TorchAO FP8 + compile is **blocked upstream** by `torchao.quantization.Float8Tensor` missing `aten.as_strided.default`, but is unblocked locally via a PerTensor-only monkeypatch (`src/scope/core/compat/torchao_float8_as_strided.py`; disable with `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`). See `notes/issues/torchao-as-strided-dispatch.md`.
 - SM103 note: avoid “silent fallback” benchmarking. On B300, some toolchain/backends can be *catastrophically* slow; prefer `fa4` when available, otherwise `flash`, and treat `triton` as an explicit experiment.
 
