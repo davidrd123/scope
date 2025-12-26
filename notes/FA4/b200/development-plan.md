@@ -51,22 +51,28 @@ Where:
 
 ---
 
-### 2) Make the Best KV-bias Backend Automatic (1–2 days)
+### 2) Torch Compile: Make It a Reliable, Opt-In Win on B200 (1–3 days)
 
-**Why:** On B200 we shouldn’t require `SCOPE_KV_BIAS_BACKEND=fa4` manually when FA4 score_mod is available; the code can choose.
+**Why:** On B200, `torch.compile` of the diffusion blocks is already a large steady-state win; the work is making it reliable and operational (warmup expectations, failure modes, recommended settings).
+
+**Status (this repo / this machine):**
+- `scripts/profile_krea_pipeline_blocks.py --compile` is a **large steady-state win** on B200 with FP8 quantization (measured `~18.36 FPS → ~29.98 FPS` at canonical settings).
+- The server path supports opt-in via `SCOPE_COMPILE_KREA_PIPELINE=1`; on SM100 we allow compile to remain enabled even when FP8 quantization is on (other architectures default-disable unless explicitly overridden).
 
 **Work**
-- Change backend selection to:
-  - prefer FA4 `score_mod` when it’s importable and supports the needed signature
-  - otherwise fall back to the current stable default
-- Keep `SCOPE_KV_BIAS_BACKEND` as an override for experiments.
+- Keep compilation **regional** (compile only repeated submodules).
+- Sweep `SCOPE_TORCH_COMPILE_MODE` options as experiment cards.
+- Reduce recompiles (prefer `dynamic=True` / `mark_dynamic` where appropriate).
+- Ensure custom kernels (CuTe) stay opaque to Dynamo tracing.
 
 **Acceptance**
-- With no env vars set, B200 uses the fastest available KV-bias backend.
-- With `SCOPE_KV_BIAS_BACKEND=<x>`, we can still force a backend for experiments.
+- `--compile` improves steady-state FPS after warmup without crashes or repeated recompiles.
+- Failure modes are documented as “known bad modes” (so future workers don’t rediscover them).
 
-Code touchpoints:
-- `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
+Touchpoints:
+- `src/scope/core/pipelines/krea_realtime_video/pipeline.py` (`SCOPE_TORCH_COMPILE_MODE`)
+- `src/scope/server/pipeline_manager.py` (`SCOPE_COMPILE_KREA_PIPELINE*`)
+- `notes/FA4/b200/experiments.md`
 
 ---
 
@@ -90,27 +96,22 @@ Touchpoints:
 
 ---
 
-### 4) Torch Compile: Make It a Reliable, Opt-In Win on B200 (3–10 days)
+### 4) Make the Best KV-bias Backend Automatic (1–2 days)
 
-**Why:** B200 is a good place to make `--compile` work consistently (SM103 has more compiler/toolchain landmines).
-
-**Status (this repo / this machine):**
-- `scripts/profile_krea_pipeline_blocks.py --compile` is a **large steady-state win** on B200 with FP8 quantization (measured `~18.36 FPS → ~29.98 FPS` at canonical settings).
-- The server path supports opt-in via `SCOPE_COMPILE_KREA_PIPELINE=1`; on SM100 we allow compile to remain enabled even when FP8 quantization is on (other architectures default-disable unless explicitly overridden).
+**Why:** On B200 we shouldn’t require `SCOPE_KV_BIAS_BACKEND=fa4` manually when FA4 score_mod is available; the code can choose.
 
 **Work**
-- Use **regional compilation** (compile only repeated submodules).
-- Sweep `SCOPE_TORCH_COMPILE_MODE` options as experiment cards.
-- Reduce recompiles (prefer `dynamic=True` / `mark_dynamic` where appropriate).
-- Ensure custom kernels (CuTe) stay opaque to Dynamo tracing.
+- Change backend selection to:
+  - prefer FA4 `score_mod` when it’s importable and supports the needed signature
+  - otherwise fall back to the current stable default
+- Keep `SCOPE_KV_BIAS_BACKEND` as an override for experiments.
 
 **Acceptance**
-- `--compile` improves steady-state FPS after warmup without crashes or repeated recompiles.
-- Failure modes are documented as “known bad modes” (so future workers don’t rediscover them).
+- With no env vars set, B200 uses the fastest available KV-bias backend.
+- With `SCOPE_KV_BIAS_BACKEND=<x>`, we can still force a backend for experiments.
 
-Touchpoints:
-- `src/scope/core/pipelines/krea_realtime_video/pipeline.py` (`SCOPE_TORCH_COMPILE_MODE`)
-- `notes/FA4/b200/experiments.md`
+Code touchpoints:
+- `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
 
 ---
 
@@ -136,15 +137,16 @@ References:
 - baseline card exists in `notes/FA4/b200/experiments.md`
 - session-state has the single blessed command
 
-2) **Automatic KV-bias Backend Selection**
-- no-env-var run uses best available backend on B200
-- override still works for experiments
+2) **Compile Win (Operationalized)**
+- one documented compile mode (or default) that improves steady-state FPS (and doesn’t regress correctness)
+- warmup + caching expectations are documented for operators
 
 3) **Glue Reduction Round 1**
 - at least 2 experiment cards that each remove or materially reduce a copy/to hotspot
 
-4) **Compile Win (Optional)**
-- one documented compile mode that improves steady-state FPS (and doesn’t regress correctness)
+4) **Automatic KV-bias Backend Selection (Optional)**
+- no-env-var run uses best available backend on B200
+- override still works for experiments
 
 ---
 

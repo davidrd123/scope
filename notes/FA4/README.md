@@ -77,23 +77,38 @@ notes/FA4/
 
 ## Current Status (Dec 2025)
 
-- **B200**: ~20 FPS at 320x576, 4 steps (working well)
+- **B200** (SM100): eager is ~`18–19 FPS` at `320x576`, 4 steps, bias `0.3`; `--compile` is a large steady-state win (~`30 FPS` after warmup).
 - **B300**:
   - ~8.8 FPS on the repo-default cu128 stack
   - ~14.8–15.0 FPS at 320x576 on a cu130 env with FlashAttention installed (see `b300/session-state.md`)
 - **H100**: Fallback option for hackathon (Jan 9 deadline)
 
-## Quick Commands
+## Run Options (Quick Reference)
+
+For the full knobs map (env vars + what they control), see:
+- `notes/FA4/explainers/17-backend-selection-and-knobs.md`
+
+### Benchmark / Profiling
+
+| Goal | Command |
+|------|---------|
+| Canonical FPS (eager) | `uv run python scripts/profile_krea_pipeline_blocks.py --height 320 --width 576 --iters 6 --skip 2 --kv-cache-attention-bias 0.3` |
+| Canonical FPS (compiled diffusion blocks) | `uv run python scripts/profile_krea_pipeline_blocks.py --height 320 --width 576 --iters 6 --skip 2 --kv-cache-attention-bias 0.3 --compile` |
+| Attention bucket breakdown (eager attribution) | `PROFILE_ATTENTION=1 uv run python scripts/profile_krea_pipeline_blocks.py --height 320 --width 576 --iters 6 --skip 2 --kv-cache-attention-bias 0.3` |
+| Block-level timing split (writes optional JSON) | `uv run python scripts/profile_krea_pipeline_blocks.py --height 320 --width 576 --iters 6 --skip 2 --kv-cache-attention-bias 0.3 --profile-blocks` |
+| Op-level CUDA profile (works with `--compile`) | `uv run python scripts/profile_krea_pipeline_ops.py --height 320 --width 576 --iters 1 --pre-iters 0 --kv-cache-attention-bias 0.3` |
+
+### Running Daydream (server / realtime)
+
+| GPU | Command | Notes |
+|-----|---------|-------|
+| B200 (SM100) | `scripts/run_daydream_b200.sh <daydream-scope args...>` | defaults `SCOPE_COMPILE_KREA_PIPELINE=1` |
+| B300 (SM103) | `scripts/run_daydream_b300.sh <daydream-scope args...>` | uses the isolated cu130 env + sets SM103-safe defaults |
 
 ```bash
-# Run block profiler for investigation
-uv run python scripts/profile_krea_pipeline_blocks.py \
-  --iters 20 --skip 3 --profile-blocks
+# Test FA4 KV-bias wiring (useful sanity check on Blackwell)
+uv run python scripts/test_fa4_kv_bias.py
 
-# Next denoise step (split transformer time: self_attn vs cross_attn vs ffn)
-PROFILE_ATTENTION=1 \
-uv run python scripts/profile_krea_pipeline_blocks.py --iters 6 --skip 2
-
-# Test FA4 on B300
+# If you’re on SM103 and Triton/Inductor complains about ptxas support:
 TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas uv run python scripts/test_fa4_kv_bias.py
 ```

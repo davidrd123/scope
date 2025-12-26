@@ -16,6 +16,35 @@ If you only remember one rule: **always record which backend actually ran** (to 
 
 ---
 
+## Quick Tables (Copy/Paste Friendly)
+
+### Runtime knobs (server / playlist params)
+
+| Knob | Default | What it does | Notes |
+|------|---------|--------------|-------|
+| `kv_cache_attention_bias` | `0.3` | `<1.0` enables KV-bias attention path; `1.0` disables bias path (plain attention) | Must be in `(0, 1]` (log-bias math); `1.0` is “no bias” |
+| `hard_cut` / `reset_cache` | `false` | Full cache reset at next chunk boundary | Jarring but clean |
+| `soft_cut` | `false` | Temporary bias override for `N` chunks | Implemented in `FrameProcessor` (worker-thread state machine) |
+| `soft_cut_bias` | (UI default) | Bias value used during soft cut | Lower = forget past faster |
+| `soft_cut_chunks` | (UI default) | Number of chunks to hold the soft bias before auto-restore | Avoids manual “undo” |
+
+### Env var knobs (backend selection + toolchain)
+
+| Env var | Values | Default | What it controls | Notes |
+|--------|--------|---------|------------------|-------|
+| `SCOPE_KV_CACHE_ATTENTION_BIAS` | float | `0.3` | Default `kv_cache_attention_bias` when the runtime doesn’t override it | `1.0` disables bias path |
+| `SCOPE_KV_BIAS_BACKEND` | `fa4|flash|triton|flex` | SM100→`triton`, SM103→`flash` | KV-bias backend when bias is enabled | **Read at import time**; restart process when changing |
+| `DISABLE_FLASH_ATTENTION_4` | `0|1` | `0` | Disables FA4 varlen selection for plain attention | Useful to avoid CuTe mixing on SM103 |
+| `SCOPE_ENABLE_FA4_VARLEN` | `0|1` | `0` | Allows FA4 varlen for *plain* attention even when `SCOPE_KV_BIAS_BACKEND=fa4` | Opt-in because mixing CuTe module sources can break |
+| `SCOPE_COMPILE_KREA_PIPELINE` | `0|1` | (auto: Hopper only) | Enables `torch.compile` of diffusion blocks in the server pipeline | On B200 (SM100), compile is typically a big steady-state win |
+| `SCOPE_COMPILE_KREA_PIPELINE_ALLOW_QUANTIZATION` | `0|1` | `0` | Allows `torch.compile` even when FP8 quantization is enabled | On SM100 we allow compile+FP8 without this; elsewhere this is an explicit experiment override |
+| `SCOPE_TORCH_COMPILE_MODE` | string | unset | Controls `torch.compile(..., mode=...)` | Some modes are footguns on SM103 |
+| `TRITON_PTXAS_PATH` | path | unset | Points Triton/Inductor to a newer `ptxas` | **SM103:** often required for correct codegen/autotune |
+| `DISABLE_FLEX_ATTENTION_COMPILE` | `0|1` | unset | Prevents flex_attention compilation in known-bad modes | **SM103:** set to `1` to avoid tcgen05 LLVM aborts |
+| `WANVAE_STREAM_DECODE_MODE` | `chunk|full|...` | unset | VAE streaming decode mode | Mostly affects B300 decode throughput |
+
+---
+
 ## 1) Plain Attention Backend Selection (Bias Disabled)
 
 When `kv_cache_attention_bias == 1.0`, `CausalWanSelfAttention` uses:

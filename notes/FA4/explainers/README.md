@@ -14,6 +14,13 @@ Each explainer should:
 3. Highlight key design decisions
 4. Note opportunities or questions that arise
 
+## Quick Reference (Running + Knobs)
+
+- **Bench / run options:** `notes/FA4/README.md` (tables + canonical commands)
+- **B200 “what to run today”:** `notes/FA4/b200/session-state.md`
+- **B300 “what to run today”:** `notes/FA4/b300/session-state.md`
+- **Env var knobs map (backend selection, compile, SM103 hazards):** `notes/FA4/explainers/17-backend-selection-and-knobs.md`
+
 ### Phase 1 (Complete): Forward-Pass Mental Model
 
 | # | Topic | Source Files | Status |
