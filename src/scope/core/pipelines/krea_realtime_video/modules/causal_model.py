@@ -196,6 +196,7 @@ except Exception:
 
 _flash_bias_fa4_fwd = None
 _flash_bias_tripped = False
+_kv_bias_backend_logged = False
 
 
 def _get_fa4_fwd():
@@ -1195,6 +1196,17 @@ class CausalWanSelfAttention(nn.Module):
                 # Use flex_attention with bias to mitigate error accumulation in past frames
                 # log_scale in (0, 1]: smaller values = less attention to past frame tokens
                 log_scale = math.log(kv_cache_attention_bias)
+
+                global _kv_bias_backend_logged
+                if not _kv_bias_backend_logged:
+                    logger.info(
+                        "KV-bias enabled (bias=%s) using backend=%s (fa4_available=%s, triton_kernel_b=%s)",
+                        kv_cache_attention_bias,
+                        _KV_BIAS_BACKEND,
+                        _fa4_available,
+                        USE_TRITON_KERNEL_B,
+                    )
+                    _kv_bias_backend_logged = True
 
                 # Exclude first frame and current block from bias
                 cache_len = local_end_index - kv_start_idx
