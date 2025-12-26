@@ -1,8 +1,56 @@
 # Daydream Scope Notes Index
 
 > **Purpose:** Navigate this notes directory quickly
-> **Updated:** 2025-12-25
+> **Updated:** 2025-12-26
 > **Context:** Daydream Interactive AI Video Program (Dec 22 - Jan 9)
+
+---
+
+## ⚠️ Incoming Material (79 files - Needs Permanent Home)
+
+**Location:** `research/2025-12-24/incoming/` + `FA4/explainers/15-18`
+
+### Performance (22 files) → FA4 docs
+| Path | Contents |
+|------|----------|
+| `perf/blogs/` | 15 blog posts: torch-compile, flexattn, thunderkittens-blackwell, warp-specialization, verda-b200-b300, etc. |
+| `perf/chat/` | 3 ChatGPT exports: CuTe DSL guide, chunk padding fix, B300 SM103 perf |
+| `perf/ref/` | 7 reference docs: torchao-compat, SM103, CUDA 12.9/13.1, Blackwell arch |
+| `perf/` | ACTIONABLE_ITEMS_SUMMARY.md, NVFP4.md, cuda_repoprompt_req.md |
+
+### Style Assets (~35 files) → guides/ or assets/
+| Path | Contents |
+|------|----------|
+| `style/Akira/` | Prompting guide, captioning (v4 + lexicon), prompts (videodrome, FightClub chapters, 2001) |
+| `style/Kaiju/` | Prompting guidelines (v5.4), captioning, prompts (alice wonderland, kant ufo) |
+| `style/RAT/` | Prompting guidelines, captioning, prompts (wild, fury road, percy) |
+| `style/TMNT/` | Prompting guidelines, captioning |
+| `style/General/` | WanPromptingSpec.md, Creative Briefs, PCM interaction paradigm |
+
+### Skills (5 files) → managed skill or daydream/
+| Path | Contents |
+|------|----------|
+| `skills/RAT/` | Skill.md + Pillars I-IV (Constitution, Cast, Art Direction, Story Engine) |
+
+### Specs (4 files) → plans/ or reference/
+| Path | Contents |
+|------|----------|
+| Top-level | project_knowledge.md, context_editing_and_console_spec.md, interface_specifications.md, gemini-integration.md |
+
+### REST Endpoint (4 files) → close out or archive
+| Path | Contents |
+|------|----------|
+| `rest_endpoint/` | testing_cmds.md, 5pro_rest_feedback.md, test images |
+
+### FA4 Explainers (4 files) → update refs in this index + FA4/README.md
+| File | Topic |
+|------|-------|
+| `FA4/explainers/15-scope-to-fa4-call-path.md` | End-to-end call path from TUI to kernel |
+| `FA4/explainers/16-numerics-and-fp8.md` | KV-bias math, exp2, FP8 tradeoffs |
+| `FA4/explainers/17-backend-selection-and-knobs.md` | Complete knobs reference |
+| `FA4/explainers/18-debugging-cookbook.md` | Symptom → cause → fix guide |
+
+**Process:** See [research/PROCESS.md](research/PROCESS.md) for raw → distilled → integrated workflow.
 
 ---
 
