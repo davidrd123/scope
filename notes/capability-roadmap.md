@@ -8,13 +8,17 @@
 
 ## Executive Summary
 
-Three capability features in the pipeline:
+Capability features in the pipeline:
 
-| Feature | Status | Blocking? | ETA |
-|---------|--------|-----------|-----|
-| **Style Layer (Phase 6a)** | In Progress | No | Now |
-| **VACE-14B Integration** | Ready to Implement | No | Next |
-| **Context Editing** | Speculative | Needs validation spike | TBD |
+| Feature | Status | Blocking? | Proposal |
+|---------|--------|-----------|----------|
+| **Style Layer (Phase 6a)** | In Progress | No | Below |
+| **VACE-14B Integration** | Ready to Implement | No | Below |
+| **Server-Side Session Recorder** | Ready to Implement | No | `proposals/server-side-session-recorder.md` |
+| **Style Swap Mode** | Ready to Implement | No | `proposals/style-swap-mode.md` |
+| **VLM Frame Analysis** | Ready to Implement | No | `proposals/vlm-integration.md` |
+| **VLM-Mediated V2V** | Speculative | Needs VLM first | Below |
+| **Context Editing** | Speculative | Needs validation spike | Below |
 
 ---
 
@@ -263,28 +267,176 @@ decoded_buffer[:, :1] = anchor_frame
 
 ---
 
+## 4. Server-Side Session Recorder — READY TO IMPLEMENT
+
+**What:** Capture all control events at the server level (CLI, API, frontend) for timeline export and offline re-rendering.
+
+**Status:** Proposal hardened, ready for implementation.
+
+**Proposal:** `notes/proposals/server-side-session-recorder.md`
+
+### Key Features
+
+- Records: prompt changes, transitions, hard cuts, soft cuts
+- Timebase: chunk_index (primary) + wall_clock (secondary)
+- Output: `~/.daydream-scope/recordings/session_*.timeline.json`
+- Compatible with `render_timeline.py` for offline re-rendering
+
+### Implementation Summary
+
+1. `SessionRecorder` class in `src/scope/server/session_recorder.py`
+2. Integration via reserved keys (`_rcp_session_recording_start/stop`)
+3. API endpoints: `POST /start`, `POST /stop`, `GET /status`
+4. CLI: `R` key in playlist nav
+
+---
+
+## 5. Style Swap Mode — READY TO IMPLEMENT
+
+**What:** Enable instant style/LoRA switching without pipeline reload by preloading all LoRAs at startup.
+
+**Status:** Proposal hardened, ready for implementation.
+
+**Proposal:** `notes/proposals/style-swap-mode.md`
+
+### Key Features
+
+- Preload all style LoRAs at pipeline load time
+- Force `runtime_peft` merge strategy (required for scale updates)
+- Switch styles by setting `lora_scales` (active=1.0, others=0.0)
+- ~50% FPS tradeoff for instant switching capability
+
+### Environment Variables
+
+- `STYLE_SWAP_MODE=1` — Enable preloading
+- `STYLE_DEFAULT=<name>` — Initial active style
+- `SCOPE_STYLES_DIRS=/path` — Additional style directories
+
+---
+
+## 6. VLM Frame Analysis — READY TO IMPLEMENT
+
+**What:** Analyze generated frames with Gemini Vision to get descriptions for agent loops / monitoring.
+
+**Status:** Ready to implement (gemini_client.py exists).
+
+**Proposal:** `notes/proposals/vlm-integration.md`
+
+### API
+
+- Model: `gemini-2.0-flash` or `gemini-2.5-flash`
+- Endpoint: `GET/POST /api/v1/realtime/frame/describe`
+- CLI: `video-cli describe-frame`
+
+### Use Cases
+
+- Agent feedback loop (evaluate if prompt is being followed)
+- Monitoring / quality checks
+- Input for VLM-Mediated V2V (see below)
+
+---
+
+## 7. VLM-Mediated Video-to-Video — SPECULATIVE
+
+**What:** Use an external video source (webcam, screen capture) as input, run VLM captioning on it continuously, and use those captions to drive generative video output.
+
+**Status:** Speculative — depends on VLM Frame Analysis being implemented first.
+
+### The Concept
+
+```
+External Video → VLM Caption → Prompt Stream → Generative Model → Styled Output
+   (webcam)      (Gemini)      (continuous)      (Krea/WAN)       (LoRA style)
+```
+
+The VLM acts as a **semantic bridge** — it "watches" the input and "describes" it, and that description drives generation. This is **indirect V2V via text captioning mediation**.
+
+### Creative Applications
+
+| Use Case | Description |
+|----------|-------------|
+| Style mirroring | Mirror yourself in anime/Rooster&Terry style |
+| Movement visualization | Abstract interpretations of live movement |
+| Performance art | Live performance → styled reimagining |
+| Screen → art | Screen capture → artistic reinterpretation |
+
+### Architecture (Sketch)
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Video Source   │────▶│  VLM Captioner  │────▶│  Prompt Stream  │
+│  (webcam/OBS)   │     │  (Gemini Flash) │     │  (continuous)   │
+└─────────────────┘     └─────────────────┘     └────────┬────────┘
+                                                         │
+                        ┌─────────────────┐              │
+                        │  Generative     │◀─────────────┘
+                        │  Pipeline       │
+                        │  (Krea + LoRA)  │
+                        └────────┬────────┘
+                                 │
+                        ┌────────▼────────┐
+                        │  Styled Output  │
+                        │  (WebRTC)       │
+                        └─────────────────┘
+```
+
+### Open Questions
+
+- [ ] How to ingest external video? (OBS virtual camera? NDI? RTMP?)
+- [ ] VLM caption rate? (1 FPS? 4 FPS? On-demand?)
+- [ ] Caption → prompt transformation (direct use? template?)
+- [ ] Latency budget for real-time feel
+
+### Dependencies
+
+- VLM Frame Analysis (section 6) must be implemented first
+- External video capture integration
+
+---
+
 ## Dependency Graph
 
 ```
-Style Layer (Phase 6a)
-    │
-    ├── [independent] VACE-14B Integration
-    │
-    └── [independent] Context Editing
-                         │
-                         └── depends on: nano-banana / image edit model
-                         └── depends on: VLM for agent loop
+Style Layer (Phase 6a) ─────────────────────────────────────────────┐
+    │                                                               │
+    ├── [independent] VACE-14B Integration                          │
+    │                                                               │
+    ├── [independent] Server-Side Session Recorder                  │
+    │                                                               │
+    ├── [independent] Style Swap Mode                               │
+    │                                                               │
+    ├── [independent] VLM Frame Analysis ───────────────────────────┤
+    │                        │                                      │
+    │                        └──▶ VLM-Mediated V2V                  │
+    │                                  │                            │
+    │                                  └── depends on: external     │
+    │                                      video capture            │
+    │                                                               │
+    └── [independent] Context Editing                               │
+                         │                                          │
+                         ├── depends on: nano-banana / image edit   │
+                         └── depends on: VLM for agent loop ────────┘
 ```
 
-All three features are independent of each other. Style Layer is in progress; VACE-14B is ready; Context Editing needs validation first.
+**Ready now:** Style Layer (in progress), VACE-14B, Session Recorder, Style Swap, VLM Frame Analysis
+**Speculative:** VLM-Mediated V2V, Context Editing
 
 ---
 
 ## Priority Recommendation
 
-1. **Style Layer** — In progress, let it complete
-2. **VACE-14B** — Next up, straightforward engineering work
-3. **Context Editing** — Run validation spike before committing to full implementation
+### Tier 1: In Progress
+1. **Style Layer (Phase 6a)** — Let it complete
+
+### Tier 2: Ready Now (pick based on need)
+2. **Server-Side Session Recorder** — Enables offline re-rendering workflow
+3. **Style Swap Mode** — Enables live style switching for performances
+4. **VACE-14B Integration** — Reference image conditioning
+5. **VLM Frame Analysis** — Foundation for agent loops + V2V
+
+### Tier 3: Speculative (needs validation/dependencies)
+6. **VLM-Mediated V2V** — Depends on VLM Frame Analysis + video capture
+7. **Context Editing** — Run validation spike first
 
 ---
 
