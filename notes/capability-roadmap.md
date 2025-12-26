@@ -21,6 +21,7 @@ Capability features in the pipeline:
 | **Context Editing** | Speculative | Needs validation spike | Below |
 | **Tidal Cycles Integration** | Speculative | Needs Tidal setup | `proposals/tidal-cycles-integration.md` |
 | **NDI / Pub-Sub Video Output** | Ready to Implement | No | `proposals/ndi-pubsub-video-output.md` |
+| **Real-Time Voice Integration** | Speculative | No | `proposals/realtime-voice-integration.md` |
 
 ---
 
@@ -549,6 +550,109 @@ The video system emits "cue + intent" events; the music system translates them i
 
 ---
 
+## 10. Real-Time Voice Integration — SPECULATIVE
+
+**What:** Add real-time voice input for controlling video generation — either voice-to-prompt (STT) or full voice chat (audio-in/audio-out).
+
+**Status:** Speculative — research complete, needs architecture decision.
+
+**Proposal:** `notes/proposals/realtime-voice-integration.md`
+
+**Research:** `notes/research/2025-12-26/voice_integration/oai_5pro_01.md`
+
+### The Concept
+
+```
+Voice Input → [ STT or Voice Chat ] → Prompt/Command → Video Pipeline
+  (mic)        (OpenAI/Gemini)         (text)          (generation)
+```
+
+Voice as a natural control surface — speak prompts, give commands, have a conversation about what you're seeing.
+
+### Architecture Options
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **Chained STT→Text** | Mic → STT → text prompt → existing pipeline | Simple, full transcript control | Higher latency, no audio out |
+| **Voice Chat (OpenAI)** | WebRTC to OpenAI Realtime API | Low latency, barge-in, audio out | More complex, OpenAI-dependent |
+| **Voice Chat (Gemini)** | WebSocket to Gemini Live API | Multimodal (video+audio), Google ecosystem | Preview status, Vertex AI |
+
+### Use Cases
+
+| Use Case | Description | Implementation |
+|----------|-------------|----------------|
+| **Voice prompting** | "Show me a cyberpunk city at sunset" | STT → prompt update |
+| **Voice commands** | "Hard cut", "Next scene", "Save this" | STT → command parser |
+| **Conversational control** | "Make it more dramatic" / "What am I looking at?" | Voice chat + VLM |
+| **Buddy collaboration** | Voice notes during live session | STT → session recorder |
+
+### Integration Points
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      VOICE INTEGRATION                          │
+│                                                                 │
+│   Mic Input ──▶ [ Voice Engine ] ──▶ Text/Commands              │
+│                       │                    │                    │
+│                       │              ┌─────┴─────┐              │
+│                       │              │           │              │
+│                       ▼              ▼           ▼              │
+│                  Audio Out      Prompt API   Control API        │
+│                  (optional)     (text gen)   (hard cut, etc)    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Platform Options (from Research)
+
+**OpenAI Realtime API:**
+- WebRTC (browser/mobile) or WebSocket (server-to-server)
+- Model: `gpt-realtime`
+- Supports barge-in, tool calling, streaming audio out
+- Server control channel for backend monitoring
+
+**Google Gemini Live:**
+- WebSocket to Vertex AI
+- Model: `gemini-live-2.5-flash-native-audio`
+- Supports video + audio input (multimodal)
+- Partners (Daily, LiveKit) for WebRTC integration
+
+**Simpler Option — Chained Pipeline:**
+- OpenAI: `audio/transcriptions` (Whisper) → text LLM → TTS
+- Google: Cloud Speech-to-Text → Gemini → TTS
+- More predictable, guaranteed transcript
+
+### Implementation Phases
+
+1. **Phase 1: Voice-to-Prompt (MVP)**
+   - Browser-based STT (Web Speech API or OpenAI Whisper)
+   - Transcribed text → prompt API
+   - No audio out, just text input
+
+2. **Phase 2: Voice Commands**
+   - Command parser for "hard cut", "next", "record", etc.
+   - Keyword detection or simple NLU
+
+3. **Phase 3: Voice Chat**
+   - Full OpenAI Realtime or Gemini Live integration
+   - Audio in/out, conversational control
+   - "What am I looking at?" → VLM → spoken response
+
+### Dependencies
+
+- **Phase 1:** Browser STT (built-in) or OpenAI Whisper API
+- **Phase 2:** Command parser (simple regex or NLU)
+- **Phase 3:** OpenAI Realtime API or Gemini Live API, VLM integration
+
+### Open Questions
+
+- [ ] Which vendor? OpenAI vs Google vs browser-native STT
+- [ ] Audio out needed? Or text-only output is fine?
+- [ ] Client-side or server-side STT?
+- [ ] How to handle ambient noise during live performance?
+
+---
+
 ## Dependency Graph
 
 ```
@@ -576,14 +680,20 @@ Style Layer (Phase 6a) ───────────────────
     │                        ├── depends on: Tidal + SuperDirt      │
     │                        └── depends on: OSC bridge             │
     │                                                               │
-    └── [independent] Context Editing                               │
+    ├── [independent] Context Editing                               │
+    │                    │                                          │
+    │                    ├── depends on: nano-banana / image edit   │
+    │                    └── depends on: VLM for agent loop ────────┤
+    │                                                               │
+    └── [independent] Real-Time Voice Integration                   │
                          │                                          │
-                         ├── depends on: nano-banana / image edit   │
-                         └── depends on: VLM for agent loop ────────┘
+                         ├── Phase 1: browser STT (no deps)         │
+                         ├── Phase 2: command parser                │
+                         └── Phase 3: VLM for "what am I seeing?" ──┘
 ```
 
 **Ready now:** Style Layer (in progress), VACE-14B, Session Recorder, Style Swap, VLM Frame Analysis, NDI Output
-**Speculative:** VLM-Mediated V2V, Context Editing, Tidal Cycles Integration
+**Speculative:** VLM-Mediated V2V, Context Editing, Tidal Cycles, Voice Integration
 
 ---
 
@@ -603,6 +713,7 @@ Style Layer (Phase 6a) ───────────────────
 7. **VLM-Mediated V2V** — Depends on VLM Frame Analysis + video capture
 8. **Context Editing** — Run validation spike first
 9. **Tidal Cycles Integration** — Depends on Tidal setup + OSC bridge
+10. **Real-Time Voice Integration** — Phase 1 (browser STT) has no deps; Phase 3 needs VLM
 
 ---
 
