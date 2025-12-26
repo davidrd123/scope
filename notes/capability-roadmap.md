@@ -20,6 +20,7 @@ Capability features in the pipeline:
 | **VLM-Mediated V2V** | Speculative | Needs VLM first | Below |
 | **Context Editing** | Speculative | Needs validation spike | Below |
 | **Tidal Cycles Integration** | Speculative | Needs Tidal setup | `proposals/tidal-cycles-integration.md` |
+| **NDI / Pub-Sub Video Output** | Ready to Implement | No | `proposals/ndi-pubsub-video-output.md` |
 
 ---
 
@@ -395,7 +396,56 @@ The VLM acts as a **semantic bridge** — it "watches" the input and "describes"
 
 ---
 
-## 8. Tidal Cycles Integration — SPECULATIVE
+## 8. NDI / Pub-Sub Video Output — READY TO IMPLEMENT
+
+**What:** Add NDI (Network Device Interface) output for network-based video streaming with multiple subscribers.
+
+**Status:** Ready to implement — straightforward addition using `ndi-python`.
+
+**Proposal:** `notes/proposals/ndi-pubsub-video-output.md`
+
+### Why NDI
+
+- **Network streaming** — Stream from remote GPU to local TouchDesigner/OBS
+- **Multi-consumer** — Multiple apps subscribe to same stream (unlike WebRTC queue)
+- **Cross-platform** — Mac ↔ Windows ↔ Linux
+- **Low latency** — 1-2 frames over LAN (designed for live production)
+- **Native support** — TouchDesigner, OBS, Resolume, vMix all have NDI built-in
+
+### Current Limitation
+
+```
+Pipeline → output_queue (destructive) → WebRTC → Single Browser
+                ↓
+          Spout (Windows, local only)
+```
+
+### Proposed Addition
+
+```
+Pipeline → output_queue → WebRTC
+    ↓
+    ├── Spout (local, Windows)
+    └── NDI (network, cross-platform)  ← NEW
+```
+
+### Use Cases
+
+1. **Remote GPU → Local TouchDesigner** — NDI over LAN
+2. **V2V Secondary Pass** — Feed to another GPU running refinement model
+3. **Multi-display** — Same stream to browser, TD, OBS simultaneously
+4. **Tidal Integration** — TouchDesigner as audio-reactive effects layer
+
+### Implementation Summary
+
+1. Add `NDISender` class (similar to existing `SpoutSender`)
+2. Add `NDIConfig` to schema
+3. Clone frames to NDI queue in `_output_frame()`
+4. Add REST/CLI controls
+
+---
+
+## 9. Tidal Cycles Integration — SPECULATIVE
 
 **What:** Synchronize live-coded music (Tidal Cycles) with video generation by routing "music intent" from video cues to Tidal parameters.
 
@@ -510,6 +560,10 @@ Style Layer (Phase 6a) ───────────────────
     │                                                               │
     ├── [independent] Style Swap Mode                               │
     │                                                               │
+    ├── [independent] NDI / Pub-Sub Video Output ───────────────────┤
+    │                        │                                      │
+    │                        └──▶ V2V Secondary Pass                │
+    │                                                               │
     ├── [independent] VLM Frame Analysis ───────────────────────────┤
     │                        │                                      │
     │                        └──▶ VLM-Mediated V2V                  │
@@ -528,7 +582,7 @@ Style Layer (Phase 6a) ───────────────────
                          └── depends on: VLM for agent loop ────────┘
 ```
 
-**Ready now:** Style Layer (in progress), VACE-14B, Session Recorder, Style Swap, VLM Frame Analysis
+**Ready now:** Style Layer (in progress), VACE-14B, Session Recorder, Style Swap, VLM Frame Analysis, NDI Output
 **Speculative:** VLM-Mediated V2V, Context Editing, Tidal Cycles Integration
 
 ---
@@ -543,11 +597,12 @@ Style Layer (Phase 6a) ───────────────────
 3. **Style Swap Mode** — Enables live style switching for performances
 4. **VACE-14B Integration** — Reference image conditioning
 5. **VLM Frame Analysis** — Foundation for agent loops + V2V
+6. **NDI / Pub-Sub Video Output** — Network streaming to TouchDesigner/OBS
 
 ### Tier 3: Speculative (needs validation/dependencies)
-6. **VLM-Mediated V2V** — Depends on VLM Frame Analysis + video capture
-7. **Context Editing** — Run validation spike first
-8. **Tidal Cycles Integration** — Depends on Tidal setup + OSC bridge
+7. **VLM-Mediated V2V** — Depends on VLM Frame Analysis + video capture
+8. **Context Editing** — Run validation spike first
+9. **Tidal Cycles Integration** — Depends on Tidal setup + OSC bridge
 
 ---
 
