@@ -19,7 +19,7 @@ Capability features in the pipeline:
 | **VLM Frame Analysis** | Ready to Implement | No | `proposals/vlm-integration.md` |
 | **VLM-Mediated V2V** | Speculative | Needs VLM first | Below |
 | **Context Editing** | Speculative | Needs validation spike | Below |
-| **Tidal Cycles Integration** | Speculative | Needs Tidal setup | Below |
+| **Tidal Cycles Integration** | Speculative | Needs Tidal setup | `proposals/tidal-cycles-integration.md` |
 
 ---
 
@@ -400,6 +400,8 @@ The VLM acts as a **semantic bridge** — it "watches" the input and "describes"
 **What:** Synchronize live-coded music (Tidal Cycles) with video generation by routing "music intent" from video cues to Tidal parameters.
 
 **Status:** Speculative — requires Tidal setup, MCP server, and OSC bridge.
+
+**Proposal:** `notes/proposals/tidal-cycles-integration.md`
 
 **Research:** `notes/research/2025-12-26/tidal/aoi_5pro_01.md`
 
