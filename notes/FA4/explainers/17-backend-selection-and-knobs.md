@@ -40,6 +40,7 @@ If you only remember one rule: **always record which backend actually ran** (to 
 | `SCOPE_COMPILE_KREA_PIPELINE` | `0|1` | (auto: Hopper only) | Enables `torch.compile` of diffusion blocks in the server pipeline | On B200 (SM100), compile is typically a big steady-state win |
 | `SCOPE_COMPILE_KREA_PIPELINE_ALLOW_QUANTIZATION` | `0|1` | `0` | Allows `torch.compile` even when FP8 quantization is enabled | On SM100 we allow compile+FP8 without this; elsewhere this is an explicit experiment override |
 | `SCOPE_TORCH_COMPILE_MODE` | string | unset | Controls `torch.compile(..., mode=...)` | Some modes are footguns on SM103 |
+| `SCOPE_CUDAGRAPH_MARK_STEP_BEGIN` | `0|1` | `0` | Calls `torch.compiler.cudagraph_mark_step_begin()` before each generator model call | Helpful when experimenting with CUDA-graph compile modes; still not a guarantee on SM103 |
 | `TRITON_PTXAS_PATH` | path | unset | Points Triton/Inductor to a newer `ptxas` | **SM103:** often required for correct codegen/autotune |
 | `DISABLE_FLEX_ATTENTION_COMPILE` | `0|1` | unset | Prevents flex_attention compilation in known-bad modes | **SM103:** set to `1` to avoid tcgen05 LLVM aborts |
 | `WANVAE_STREAM_DECODE_MODE` | `chunk|full|...` | unset | VAE streaming decode mode | Mostly affects B300 decode throughput |
@@ -126,6 +127,9 @@ These don’t “choose a kernel” directly, but they decide whether compilatio
 
 - `SCOPE_TORCH_COMPILE_MODE=...`  
   Changes `torch.compile` behavior; some modes are high-upside, some are “footgun on SM103”.
+
+- `SCOPE_CUDAGRAPH_MARK_STEP_BEGIN=1`  
+  Some `torch.compile` modes use CUDA graphs. This env var calls `torch.compiler.cudagraph_mark_step_begin()` in the generator wrapper before each model invocation to avoid “overwritten CUDAGraph output” errors. Treat as an experiment knob; some modes can still be unstable on SM103.
 
 ---
 

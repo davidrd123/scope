@@ -19,6 +19,7 @@
   - `SCOPE_KV_BIAS_BACKEND=flash` + `--compile`: **~18.4 FPS**
   - `SCOPE_KV_BIAS_BACKEND=fa4`: **~17.0 FPS**
   - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile`: **~19.5 FPS**
+  - `SCOPE_KV_BIAS_BACKEND=fa4` + `--quantization fp8_e4m3fn` (no compile): **~15.2 FPS**; `--compile + fp8_e4m3fn` currently fails (torchao Float8Tensor dispatch / `aten.as_strided`).
   - Note: on SM103 we default flash segment-combine to the stable FA2 varlen op; opt in to FA4 `return_lse` experiments with `SCOPE_FLASH_COMBINE_USE_FA4_LSE=1`.
 - `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, `scripts/b300_env_fix_cu130.sh` now tries `torchao==0.15.0+cu130` from the cu130 index (then PyPI as fallback). **As of 2025-12-25**, `torchao==0.15.0+cu130` still prints `Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 ...` (likely upstream; no FPS change observed).
 

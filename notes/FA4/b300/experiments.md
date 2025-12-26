@@ -131,9 +131,9 @@ Keep FA4 `score_mod` as the preferred KV-bias backend on B300 when the cu130 sta
 - The KV-bias microkernel can be meaningfully faster with `score_mod`, but end-to-end wins are still bounded by the remaining `self_attn` work (`other_in_self`) + GEMMs + copies.  
 - Once decode is fixed (cu130), attention backend selection becomes “worth doing,” but it’s not the only lever; profiling still matters.
 
-### 2025-12-26 — Baseline choice: `--quantization none` vs `fp8` (planned)
+### 2025-12-26 — Baseline choice: `--quantization none` vs `fp8_e4m3fn` (B300 cu130)
 
-**Status:** Planned (no results recorded yet)
+**Status:** Done
 
 **Question:**  
 Is fp8 actually a win on B300 for our canonical settings, or do conversions/scales dominate (making `quantization none` faster)?
@@ -146,28 +146,73 @@ Switch quantization mode (keep everything else fixed).
 
 **Benchmark config:**  
 - GPU: B300 (SM103)  
-- Env: <record actual env here>  
+- Env: cu130 decode env (`.venv-b300-cu130-decode`)  
+- torch / cuda: `2.9.0+cu130` / `13.0`  
 - Settings: `320x576`, steps=`4`, bias=`0.3`  
+- Notes: `SCOPE_KV_BIAS_BACKEND=fa4`, `WANVAE_STREAM_DECODE_MODE=chunk`, `DISABLE_FLEX_ATTENTION_COMPILE=1`, `--cudnn-benchmark`
 
 **Command(s):**
 ```bash
-# Use your active Python env; avoid hardcoding venv paths in the long term.
-
-python scripts/profile_krea_pipeline_blocks.py \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
   --height 320 --width 576 \
   --iters 6 --skip 2 \
   --kv-cache-attention-bias 0.3 \
-  --quantization none
+  --quantization none \
+  --cudnn-benchmark
 
-python scripts/profile_krea_pipeline_blocks.py \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
   --height 320 --width 576 \
   --iters 6 --skip 2 \
   --kv-cache-attention-bias 0.3 \
-  --quantization fp8
+  --quantization fp8_e4m3fn \
+  --cudnn-benchmark
 ```
 
-**Baseline / Result / Decision / Artifacts / Lessons:**  
-TBD (fill in after the first run).
+**Baseline:**  
+`--quantization none` ≈ **~17.0 FPS** (this run: `16.99 FPS`)
+
+**Result:**  
+`--quantization fp8_e4m3fn` ≈ **~15.2 FPS** (this run: `15.22 FPS`)
+
+**Additional result (compile interaction):**  
+`--compile` + `--quantization fp8_e4m3fn` failed with:
+- `NotImplementedError: Float8Tensor dispatch ... aten.as_strided ...` (torchao float8 workflow)
+
+**Decision:**  
+Use `--quantization none` as the canonical B300/cu130 baseline for perf work until fp8 fastpaths are verified (torchao extensions were being skipped in this env).
+
+**Lessons:**  
+- On SM103, fp8 can be *slower* than BF16 if the intended fp8 kernels aren’t actually active.  
+- Treat `--compile + fp8` as a separate compatibility axis (torchao Float8Tensor dispatch) and record failures explicitly (don’t assume “compile just works”).
+
+---
+
+### 2025-12-26 — torch.compile mode `reduce-overhead` is unstable on SM103
+
+**Status:** Done (failed)
+
+**Question:**  
+Can `SCOPE_TORCH_COMPILE_MODE=reduce-overhead` improve B300 steady-state FPS (via CUDA graphs / lower overhead)?
+
+**Result:**  
+On B300/cu130 with `SCOPE_KV_BIAS_BACKEND=fa4`, `--compile` + `SCOPE_TORCH_COMPILE_MODE=reduce-overhead` failed with CUDAGraph overwrite errors:
+- `RuntimeError: accessing tensor output of CUDAGraphs that has been overwritten by a subsequent run`
+
+Attempted mitigation:
+- `SCOPE_CUDAGRAPH_MARK_STEP_BEGIN=1` (calls `torch.compiler.cudagraph_mark_step_begin()` in the generator wrapper)
+
+Still failed (internal Dynamo error referencing CUDAGraph overwrite).
+
+**Decision:**  
+Treat `reduce-overhead` as **known-bad** on SM103 for now; stick to default compile mode unless/until this is resolved upstream or via a targeted workaround.
 
 ---
 
