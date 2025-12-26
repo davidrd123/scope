@@ -149,13 +149,15 @@ When you see ~`8.8 FPS` again, it’s almost always one of these:
 
 High-level takeaway from those profiles: a large fraction of GPU time shows up as `aten::copy_` / `aten::to` / elementwise kernels and FP8 GEMMs (`aten::_scaled_mm`), with attention kernels still significant but not the only lever.
 
+Collab note: profiling work is intentionally biased toward **adding measurement scripts + notes** (like `scripts/profile_krea_pipeline_ops.py`) and avoiding core pipeline changes until we have data. If you see churn in profiling scripts, that’s expected.
+
 Latest B300 `PROFILE_ATTENTION=1` signal (cu130, `kv_cache_attention_bias=0.3`, `--iters 6 --skip 2`):
 - Transformer Block Split (top-level): `self_attn` ~`56%`, `cross_attn` ~`22%`, `ffn` ~`22%` (with `SCOPE_KV_BIAS_BACKEND=flash`)
 - self_attn Breakdown (nested): KV-bias is ~`38%` of `self_attn` (~`0.91ms/call`) on `flash`, and drops to ~`22%` (~`0.42ms/call`) on `fa4`
 
 Interpretation: the biggest denoise win is still reducing `self_attn` time. FA4 score_mod materially reduces the KV-bias slice, but the remaining `other_in_self` (QKV projections + non-bias attention) is still the majority.
 
-KV-bias backend A/B (B300, cu130, `320x576`, `kv_cache_attention_bias=0.3`, fp8):
+KV-bias backend A/B (**perf-only**; fp8 output quality broken) (B300, cu130, `320x576`, `kv_cache_attention_bias=0.3`, fp8):
 - `SCOPE_KV_BIAS_BACKEND=flash`: **~15.2 FPS**
 - `SCOPE_KV_BIAS_BACKEND=fa4`: **~17.3 FPS**
 - `SCOPE_KV_BIAS_BACKEND=triton`: **~1 FPS** (still unusable on SM103 + triton 3.5)

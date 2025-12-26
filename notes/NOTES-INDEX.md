@@ -76,6 +76,11 @@
 | What others are building | [ecosystem.md](ecosystem.md) |
 | Pipeline architecture explainer | [../src/scope/core/pipelines/krea_realtime_video/docs/architecture-guide.md](../src/scope/core/pipelines/krea_realtime_video/docs/architecture-guide.md) |
 
+## Current Workstreams (Meta)
+
+- **Perf profiling support (no core changes):** We’re actively improving measurement tooling to produce clearer data without touching the core pipeline (e.g. `scripts/profile_krea_pipeline_ops.py`, `scripts/profile_krea_pipeline_blocks.py`).
+- **Feature/proposal consolidation:** Drafts and implementation candidates live under `notes/proposals/` (many were co-developed with Claude while iterating on requirements).
+
 ---
 
 ## 1. Performance Optimization (FA4/)

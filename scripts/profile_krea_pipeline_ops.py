@@ -14,7 +14,7 @@ Typical B300 usage (cu130 env):
   WANVAE_STREAM_DECODE_MODE=chunk \
   PYTHONPATH=src .venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_ops.py \
     --height 320 --width 576 \
-    --quantization fp8_e4m3fn \
+    --quantization none \
     --kv-cache-attention-bias 0.3 \
     --iters 1 \
     --json outputs/b300_cu130_ops_profile.json
@@ -64,7 +64,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--quantization",
         choices=["fp8_e4m3fn", "none"],
-        default="fp8_e4m3fn",
+        default="none",
     )
     parser.add_argument("--prompt", type=str, default="a majestic sunset")
     parser.add_argument(
