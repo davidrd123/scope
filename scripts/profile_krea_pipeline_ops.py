@@ -95,6 +95,18 @@ def _parse_args() -> argparse.Namespace:
 
 def _maybe_set_default_env() -> None:
     # Conservative defaults for SM103 (B300).
+    try:
+        import torch
+
+        is_sm103 = (
+            torch.cuda.is_available() and torch.cuda.get_device_capability(0) == (10, 3)
+        )
+    except Exception:
+        is_sm103 = False
+
+    if not is_sm103:
+        return
+
     os.environ.setdefault("DISABLE_FLEX_ATTENTION_COMPILE", "1")
     os.environ.setdefault("WANVAE_STREAM_DECODE_MODE", "chunk")
     os.environ.setdefault("TRITON_PTXAS_PATH", "/usr/local/cuda-12.9/bin/ptxas")

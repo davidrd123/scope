@@ -94,6 +94,10 @@ Touchpoints:
 
 **Why:** B200 is a good place to make `--compile` work consistently (SM103 has more compiler/toolchain landmines).
 
+**Status (this repo / this machine):**
+- `scripts/profile_krea_pipeline_blocks.py --compile` is a **large steady-state win** on B200 with FP8 quantization (measured `~18.36 FPS → ~29.98 FPS` at canonical settings).
+- The server path supports opt-in via `SCOPE_COMPILE_KREA_PIPELINE=1`; on SM100 we allow compile to remain enabled even when FP8 quantization is on (other architectures default-disable unless explicitly overridden).
+
 **Work**
 - Use **regional compilation** (compile only repeated submodules).
 - Sweep `SCOPE_TORCH_COMPILE_MODE` options as experiment cards.
@@ -149,4 +153,3 @@ References:
 - Experiments: `notes/FA4/b200/experiments.md`
 - “What to run today”: `notes/FA4/b200/session-state.md`
 - High-level map: `notes/FA4/optimization-map.md`
-

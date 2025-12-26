@@ -148,7 +148,7 @@ Implementation note: we keep CuTe/FA4 calls **opaque** to Dynamo during compilat
 
 Noise note: if you previously saw `torch/_dynamo` “Backend compiler exception … aten._local_scalar_dense” spam from `triton_rope_fused.py`, it should now be gone (we disable Dynamo for `_as_int3()` which does `.tolist()` scalar extraction).
 
-Server opt-in: set `SCOPE_COMPILE_KREA_PIPELINE=1` before launching. `scripts/run_daydream_b300.sh` defaults it to `1` but the server auto-disables compile when quantization is enabled.
+Server opt-in: set `SCOPE_COMPILE_KREA_PIPELINE=1` before launching. `scripts/run_daydream_b300.sh` defaults it to `1`; the server still disables compile by default when quantization is enabled (override for experiments with `SCOPE_COMPILE_KREA_PIPELINE_ALLOW_QUANTIZATION=1`).
 
 **Compile mode experiments:** `src/scope/core/pipelines/krea_realtime_video/pipeline.py` supports `SCOPE_TORCH_COMPILE_MODE`, but on B300/SM103:
 - `max-autotune-no-cudagraphs` can hard-abort with a tcgen05 LLVM intrinsic error.

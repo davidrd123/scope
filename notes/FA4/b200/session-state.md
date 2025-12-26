@@ -14,7 +14,9 @@
 
 **B200 (SM100) is the “happy path” for FA4/CuTe.** Most of the B300-specific runtime/toolchain workarounds are not needed.
 
-At the canonical benchmark settings (`320x576`, 4 denoise steps, KV-bias `0.3`, quality-preserving), we generally expect **~`20 FPS`** class performance (exact number varies with quantization, compile, and backend choices).
+At the canonical benchmark settings (`320x576`, 4 denoise steps, KV-bias `0.3`, quality-preserving):
+- Eager mode is currently **~`18–19 FPS`** class (this machine measured `18.36 FPS`).
+- `torch.compile` of the diffusion attention blocks is a **large steady-state win** on B200 (this machine measured `~30 FPS` after warmup).
 
 ---
 
@@ -28,6 +30,15 @@ uv run python scripts/profile_krea_pipeline_blocks.py \
   --kv-cache-attention-bias 0.3
 ```
 
+**End-to-end FPS (canonical, compiled diffusion blocks):**
+```bash
+uv run python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 6 --skip 2 \
+  --kv-cache-attention-bias 0.3 \
+  --compile
+```
+
 **Get a breakdown (attention buckets):**
 ```bash
 PROFILE_ATTENTION=1 \
@@ -39,6 +50,8 @@ uv run python scripts/profile_krea_pipeline_blocks.py \
 
 **Notes:**
 - `scripts/profile_b300_denoise_drilldown.sh` also works on B200 (name is historical); it writes JSON artifacts under `outputs/`.
+- `PROFILE_ATTENTION=1` is intended for eager-mode attribution; compiled runs won’t emit bucket breakdown (use `scripts/profile_krea_pipeline_ops.py --compile` when you need op-level attribution).
+- To enable compile in the server path on B200, set `SCOPE_COMPILE_KREA_PIPELINE=1` (or run `scripts/run_daydream_b200.sh`).
 
 ---
 
@@ -55,3 +68,4 @@ When you try a change, capture it as a card in `notes/FA4/b200/experiments.md`:
 
 - If you’re comparing against B300 numbers, make sure you’re using the same benchmark settings (especially `320x576`, steps, and bias).
 - If an FA4/CuTe call starts failing with a signature mismatch, it’s usually a version skew issue (installed `flash_attn` vs our vendored CuTe helpers). Record the exact error + versions in an experiment card.
+- If `SCOPE_KV_BIAS_BACKEND=fa4` reports `No module named 'cutlass'`, install the CUTLASS Python package (or use the default `triton` backend) and record the environment in an experiment card.

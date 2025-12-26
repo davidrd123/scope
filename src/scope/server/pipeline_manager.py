@@ -501,7 +501,8 @@ class PipelineManager:
             # startup latency and has architecture-specific sharp edges (especially
             # when quantization is enabled).
             compile_env = os.getenv("SCOPE_COMPILE_KREA_PIPELINE")
-            if compile_env is not None and compile_env != "":
+            compile_explicit = compile_env is not None and compile_env != ""
+            if compile_explicit:
                 compile_enabled = compile_env.lower() in ("1", "true", "yes", "on")
             else:
                 # Only compile diffusion model for hopper by default.
@@ -509,13 +510,24 @@ class PipelineManager:
                     x in torch.cuda.get_device_name(0).lower() for x in ("h100", "hopper")
                 )
 
-            # Known issue: FP8 (torchao) + torch.compile is currently brittle; avoid by default.
+            # Known issue: FP8 (torchao) + torch.compile has been brittle on some architectures;
+            # avoid by default, but allow explicit opt-in (and keep enabled on SM100 where it is
+            # a large steady-state win).
             if compile_enabled and quantization is not None:
-                logger.info(
-                    "Disabling torch.compile for krea-realtime-video (quantization=%s).",
-                    quantization,
-                )
-                compile_enabled = False
+                allow_env = os.getenv("SCOPE_COMPILE_KREA_PIPELINE_ALLOW_QUANTIZATION", "")
+                allow_compile_with_quantization = allow_env.lower() in ("1", "true", "yes", "on")
+                try:
+                    is_sm100 = torch.cuda.get_device_capability(0) == (10, 0)
+                except Exception:
+                    is_sm100 = False
+
+                if not (allow_compile_with_quantization or is_sm100):
+                    logger.info(
+                        "Disabling torch.compile for krea-realtime-video (quantization=%s). "
+                        "Set SCOPE_COMPILE_KREA_PIPELINE_ALLOW_QUANTIZATION=1 to override.",
+                        quantization,
+                    )
+                    compile_enabled = False
 
             pipeline = KreaRealtimeVideoPipeline(
                 config,
