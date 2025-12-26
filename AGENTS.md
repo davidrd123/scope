@@ -30,6 +30,10 @@ These are guardrails for coding agents working in this repo.
 - TorchAO FP8 + compile `aten.as_strided.default` gap:
   - Paste-ready upstream issue: `notes/issues/torchao-as-strided-dispatch.md`
   - Local PerTensor-only monkeypatch (experiments): `scripts/patch_float8_as_strided.py`
+- Other Blackwell/toolchain blockers:
+  - Triton SM103 tcgen05 LLVM abort: `notes/issues/triton-sm103-tcgen05-llvm-abort.md`
+  - CUDAGraph Trees “output overwritten”: `notes/issues/pytorch-cudagraph-output-overwritten.md`
+  - External brief (links + excerpts): `notes/FA4/b300/blackwell-docs.md`
 
 ## Doc Upkeep
 
