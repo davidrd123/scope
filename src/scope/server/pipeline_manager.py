@@ -14,6 +14,25 @@ from omegaconf import OmegaConf
 logger = logging.getLogger(__name__)
 
 
+def _is_env_true(var_name: str) -> bool:
+    return os.getenv(var_name, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _maybe_disable_fp8_quantization(pipeline_id: str, quantization: Any) -> Any:
+    if not _is_env_true("SCOPE_DISABLE_FP8_QUANTIZATION"):
+        return quantization
+
+    if quantization == "fp8_e4m3fn":
+        logger.warning(
+            "FP8 quantization requested for %s but disabled by SCOPE_DISABLE_FP8_QUANTIZATION=1; "
+            "running unquantized.",
+            pipeline_id,
+        )
+        return None
+
+    return quantization
+
+
 def get_device() -> torch.device:
     """Get the appropriate device (CUDA if available, CPU otherwise)."""
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -368,6 +387,8 @@ class PipelineManager:
             quantization = None
             if load_params:
                 quantization = load_params.get("quantization", None)
+                quantization = _maybe_disable_fp8_quantization(pipeline_id, quantization)
+                load_params["quantization"] = quantization
 
             pipeline = StreamDiffusionV2Pipeline(
                 config,
@@ -445,6 +466,8 @@ class PipelineManager:
             quantization = None
             if load_params:
                 quantization = load_params.get("quantization", None)
+                quantization = _maybe_disable_fp8_quantization(pipeline_id, quantization)
+                load_params["quantization"] = quantization
 
             pipeline = LongLivePipeline(
                 config,
@@ -496,6 +519,8 @@ class PipelineManager:
             quantization = None
             if load_params:
                 quantization = load_params.get("quantization", None)
+                quantization = _maybe_disable_fp8_quantization(pipeline_id, quantization)
+                load_params["quantization"] = quantization
 
             # torch.compile is opt-in for non-Hopper GPUs because it can increase
             # startup latency and has architecture-specific sharp edges (especially
@@ -588,6 +613,8 @@ class PipelineManager:
             quantization = None
             if load_params:
                 quantization = load_params.get("quantization", None)
+                quantization = _maybe_disable_fp8_quantization(pipeline_id, quantization)
+                load_params["quantization"] = quantization
 
             pipeline = RewardForcingPipeline(
                 config,

@@ -4,7 +4,7 @@ set -euo pipefail
 # Run Daydream (daydream-scope) on B300 using the isolated cu130 env.
 #
 # Usage:
-#   scripts/run_daydream_b300.sh [--compile-fp8] [daydream-scope args...]
+#   scripts/run_daydream_b300.sh [--compile-fp8] [--allow-fp8] [daydream-scope args...]
 #
 # Env overrides:
 #   B300_ENV_DIR=...   (defaults to .venv-b300-cu130-decode)
@@ -17,20 +17,27 @@ set -euo pipefail
 #     now viable because the pipeline applies a PerTensor-only TorchAO
 #     `aten.as_strided.default` workaround by default (disable with
 #     SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0).
+#   --allow-fp8
+#     Opt back into FP8 quantization on B300 (clears SCOPE_DISABLE_FP8_QUANTIZATION=1).
 
 ENV_DIR="${B300_ENV_DIR:-.venv-b300-cu130-decode}"
 BIN="$ENV_DIR/bin/daydream-scope"
 
 SCRIPT_ARGS=()
 ENABLE_COMPILE_FP8=0
+ALLOW_FP8=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --compile-fp8)
       ENABLE_COMPILE_FP8=1
       shift
       ;;
+    --allow-fp8)
+      ALLOW_FP8=1
+      shift
+      ;;
     --help|-h)
-      echo "Usage: scripts/run_daydream_b300.sh [--compile-fp8] [daydream-scope args...]" >&2
+      echo "Usage: scripts/run_daydream_b300.sh [--compile-fp8] [--allow-fp8] [daydream-scope args...]" >&2
       exit 0
       ;;
     *)
@@ -69,6 +76,18 @@ export DISABLE_FLEX_ATTENTION_COMPILE="${DISABLE_FLEX_ATTENTION_COMPILE:-1}"
 
 # Enable torch.compile for the diffusion blocks on B300 (opt-out via SCOPE_COMPILE_KREA_PIPELINE=0).
 export SCOPE_COMPILE_KREA_PIPELINE="${SCOPE_COMPILE_KREA_PIPELINE:-1}"
+
+# Default to highest-quality output on B300 (disable FP8 quantization unless explicitly allowed).
+if [[ "$ALLOW_FP8" == "1" ]]; then
+  export SCOPE_DISABLE_FP8_QUANTIZATION=0
+else
+  export SCOPE_DISABLE_FP8_QUANTIZATION="${SCOPE_DISABLE_FP8_QUANTIZATION:-1}"
+fi
+
+if [[ "$ENABLE_COMPILE_FP8" == "1" && "$ALLOW_FP8" != "1" ]]; then
+  echo "NOTE: --compile-fp8 set, but FP8 quantization is disabled by default on B300." >&2
+  echo "      Use --allow-fp8 to opt back into FP8 (experimental / may be incorrect)." >&2
+fi
 
 # The server disables compile by default when quantization is enabled on non-SM100
 # GPUs. This flag explicitly opts in.
