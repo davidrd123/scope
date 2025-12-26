@@ -108,6 +108,19 @@ TorchAO documents `unwrap_tensor_subclass(model)` as a workaround to make tensor
 
 This is relevant to our “minimal ask” options (2)/(3): there *is* an existing “unwrap” pattern in TorchAO, and it’s worth checking whether it also helps `torch.compile` with `Float8DynamicActivationFloat8WeightConfig` (or if it only helps export/aot paths).
 
+TorchAO also documents more specific version guidance in its quantization README:
+- PyTorch <= 2.6: call `unwrap_tensor_subclass` before `torch.export.export` / `aot_compile`
+- PyTorch <= 2.4: also call it before `torch.compile`
+- Still required for `torch.compile` with `torch._inductor.config.freezing=True` until https://github.com/pytorch/pytorch/pull/136265 is fixed
+Source: https://github.com/pytorch/ao/blob/v0.15.0/torchao/quantization/README.md
+
+### TorchAO “recommended Inductor config” knob (good to know, not a fix for `as_strided`)
+
+TorchAO’s quantization README states that `quantize_` / `autoquant` now automatically apply “recommended Inductor configuration settings”, and you can:
+- replicate the settings with `torchao.quantization.utils.recommended_inductor_config_setter()`
+- disable the auto-setting via `set_inductor_config=False` to `quantize_` / `autoquant`
+Source: https://github.com/pytorch/ao/blob/v0.15.0/torchao/quantization/README.md
+
 ---
 
 ## cuDNN version matrix for BF16/FP16 Conv3d regression
@@ -158,6 +171,11 @@ pip install nvidia-cudnn-cu12>=9.15
 - [PyTorch #166643](https://github.com/pytorch/pytorch/issues/166643) — 7x memory regression
 - [PyTorch #166122](https://github.com/pytorch/pytorch/issues/166122) — 4x slowdown with AMP
 - [PyTorch #166790](https://github.com/pytorch/pytorch/issues/166790) — OOM on Conv3D
+
+### (Future) TorchAO prototype MXFP/NVFP on Blackwell
+
+TorchAO’s v0.12.0 release notes mention prototype support for NVFP4 and microscaling (MX) formats on Blackwell GPUs, claiming “up to 61% end-to-end performance improvement in vLLM on Qwen3 models” (and “near 2x” for diffusion workloads). This is a separate path from TorchAO’s `Float8DynamicActivationFloat8WeightConfig` and is not validated in this repo yet.
+- Release notes: https://github.com/pytorch/ao/releases/tag/v0.12.0
 
 ---
 

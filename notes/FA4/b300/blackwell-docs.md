@@ -6,6 +6,8 @@ Goal: Collect *external* documentation + short excerpts that explain/justify the
 - TF32 API change in PyTorch 2.9 (new `fp32_precision` knobs)
 - TorchInductor/Triton issues on Blackwell (tcgen05) and why `DISABLE_FLEX_ATTENTION_COMPILE=1` is sometimes required
 - cuDNN 9.13 notes relevant to Blackwell + conv3d-heavy workloads (WanVAE decode)
+- PyTorch 2.9 Conv3d BF16/FP16 regressions + the “install cuDNN 9.15+” workaround
+- CUDAGraph Trees footgun (“output overwritten”) + correct step-marker spellings
 - CUDA 13.x notes + compatibility guidance (ptxas `sm_103`, PTX rules)
 - torchao ↔ torch 2.9 compatibility / C++ extension mismatch (why `torchao` extensions are being skipped)
 
@@ -47,6 +49,18 @@ Goal: Collect *external* documentation + short excerpts that explain/justify the
 ### cuDNN release notes index (find 9.13 entries + Blackwell/conv3d notes)
 - cuDNN release notes index: https://docs.nvidia.com/deeplearning/cudnn/release-notes/index.html
 - cuDNN Backend 9.13.0 release notes: https://docs.nvidia.com/deeplearning/cudnn/backend/v9.13.0/release-notes.html
+
+### PyTorch 2.9 Conv3d BF16/FP16 regressions (and the cuDNN 9.15+ workaround)
+- PyTorch 2.9.1 release notes (explicitly recommends `nvidia-cudnn-cu12>=9.15` if impacted): https://github.com/pytorch/pytorch/releases/tag/v2.9.1
+- Conv3d BF16 memory regression issue: https://github.com/pytorch/pytorch/issues/166643
+- Severe Conv3d BF16 perf regression issue: https://github.com/pytorch/pytorch/issues/168167
+- Conv3d OOM regression (workspace algo selection; includes `nvidia-cudnn-cu12==9.10.2.21` in env): https://github.com/pytorch/pytorch/issues/166790
+- Conv3d AMP regression (includes `nvidia-cudnn-cu12==9.10.2.21` in env): https://github.com/pytorch/pytorch/issues/166122
+
+### CUDAGraph Trees “output overwritten” + step marker spelling
+- CUDAGraph Trees docs: https://docs.pytorch.org/docs/stable/torch.compiler_cudagraph_trees.html
+- Step marker API doc page: https://docs.pytorch.org/docs/stable/generated/torch.compiler.cudagraph_mark_step_begin.html
+- Inductor cudagraph env var (v2.9.1): `TORCHINDUCTOR_CUDAGRAPHS=1` in https://github.com/pytorch/pytorch/blob/v2.9.1/torch/_inductor/config.py
 
 ### CUDA Toolkit release notes + compatibility guide (Blackwell / sm_103 / ptxas)
 - CUDA Toolkit release notes index (13.0 / 13.1 / 13.2+): https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
@@ -162,6 +176,19 @@ From cuDNN 9.13 notes, pull the *specific bullets* about:
 - Blackwell / SM10x / SM103 support
 - 3D convolution / conv3d performance or engine/heuristics changes
 - bf16 performance notes
+
+---
+
+## 3b) PyTorch 2.9 Conv3d BF16/FP16 regressions: the official workaround
+
+### Why this matters (repo evidence)
+Our pipeline is conv3d-heavy in decode (WanVAE). Even if our local B300 improvements primarily came from CUDA 13 / cuDNN 9.13, upstream reports show that Conv3d BF16/FP16 can catastrophically regress depending on the exact PyTorch+cuDNN combo, so we should keep a “known good workaround” link.
+
+### External excerpt (keep short)
+From the PyTorch 2.9.1 release notes (Tracked Regressions section):
+- “If you are impacted please install nvidia-cudnn package version 9.15+ from pypi.”
+
+Source: https://github.com/pytorch/pytorch/releases/tag/v2.9.1
 
 ---
 

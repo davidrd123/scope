@@ -7,6 +7,27 @@
 - **Roadmap / next levers:** `notes/FA4/b300/optimization-vision.md`
 - **Development plan (what to build next):** `notes/FA4/b300/development-plan.md`
 - **Level 5/6 reading list:** `notes/FA4/b300/level5-level6-resources.md`
+- **Deep-research packets (2025-12-26):** `notes/FA4/DeepResearch/2025-12-26/B300_optim_ladder/round02/claude_dr.md` (source-backed links + spellings)
+
+## Upstream refs (source-backed quick links)
+
+These are the three “version/typo landmines” we keep tripping over; keep this section short and prefer upstream links.
+
+- **TorchAO FP8 + `torch.compile` + view-ish ops (`aten.as_strided`)**
+  - We hit: `NotImplementedError: Float8Tensor dispatch ... aten.as_strided.default ...` (see `notes/FA4/b300/experiments.md`).
+  - Root cause (today): `torchao.quantization.Float8Tensor` (quantization workflow used by `quantize_`) does **not** implement `aten.as_strided.default` in torchao **v0.14.1** and **v0.15.0** (so Inductor lowering can trip it).
+    - https://github.com/pytorch/ao/blob/v0.14.1/torchao/quantization/quantize_/workflows/float8/float8_tensor.py
+    - https://github.com/pytorch/ao/blob/v0.15.0/torchao/quantization/quantize_/workflows/float8/float8_tensor.py
+  - TorchAO ↔ torch compatibility table: https://github.com/pytorch/ao/issues/2919
+
+- **Conv3d BF16/FP16 regressions (PyTorch 2.9 era)**
+  - PyTorch **v2.9.1** release notes recommend: install **`nvidia-cudnn-cu12>=9.15`** if impacted by BF16 Conv3d regressions: https://github.com/pytorch/pytorch/releases/tag/v2.9.1
+  - Primary issue thread: https://github.com/pytorch/pytorch/issues/166643
+
+- **CUDAGraph “output overwritten” + correct step-marker / knob names**
+  - Step marker API: `torch.compiler.cudagraph_mark_step_begin()` (docs): https://docs.pytorch.org/docs/stable/generated/torch.compiler.cudagraph_mark_step_begin.html
+  - CUDAGraph Trees doc (error explanation + mitigation): https://docs.pytorch.org/docs/stable/torch.compiler_cudagraph_trees.html
+  - Inductor cudagraph master env var (v2.9.1): `TORCHINDUCTOR_CUDAGRAPHS=1` (see `torch/_inductor/config.py`): https://github.com/pytorch/pytorch/blob/v2.9.1/torch/_inductor/config.py
 
 ## Current Status
 

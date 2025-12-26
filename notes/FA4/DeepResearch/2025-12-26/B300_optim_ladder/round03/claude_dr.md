@@ -2,6 +2,12 @@
 
 TorchAO's Float8 quantization path has **no explicit tracking for `aten.as_strided` support**, requires `torch.compile` for competitive performance (2-3x faster than eager), and faces fundamental blockers around `torch.inference_mode()` due to PyTorch's version counter architecture. For Blackwell B300 optimization, TorchAO v0.12.0+ includes prototype NVFP4/MXFP support with up to **61% e2e speedup** in vLLM on Qwen3 models.
 
+## Quick corrections (verified)
+
+- PyTorch issue `pytorch/pytorch#170419` (“Cannot set version_counter for inference tensor”) exists and is public (milestone: 2.10.0).
+- TorchAO PR `pytorch/ao#3488` (“[float8] fix the transpose error”) exists and is public (currently open).
+- PyTorch issue `pytorch/pytorch#134798` is **closed** (not open).
+
 ---
 
 ## No open issue tracks as_strided for quantization Float8Tensor
@@ -9,8 +15,8 @@ TorchAO's Float8 quantization path has **no explicit tracking for `aten.as_strid
 Extensive searching of pytorch/ao GitHub reveals **no open issues or PRs explicitly requesting `aten.as_strided.default` support** for the quantization-path Float8Tensor. This appears to be an undocumented gap rather than an actively tracked feature.
 
 TorchAO maintains **two distinct Float8Tensor implementations**:
-- **Training path**: `torchao.float8.float8_tensor.Float8Tensor` (used by `convert_to_float8_training()`)
-- **Quantization path**: `torchao.quantization.quantize_.workflows.Float8Tensor` (used by `Float8DynamicActivationFloat8WeightConfig`)
+- **Training path**: `torchao.float8.Float8TrainingTensor` / float8 training workflow (has its own op table; `aten.as_strided.default` is registered in `torchao/float8/float8_ops.py`)
+- **Quantization path**: `torchao.quantization.Float8Tensor` (used by `quantize_` via `Float8DynamicActivationFloat8WeightConfig` / `Float8WeightOnlyConfig`)
 
 The training path's `float8_ops.py` implements various aten ops, but the quantization path's Float8Tensor has a more limited op set. The design rationale is **inferred from code patterns**: per-row/block scaling makes `as_strided` semantically ill-defined because arbitrary views can intermix rows and break scale alignment.
 
@@ -52,21 +58,26 @@ model = torch.compile(model, mode="max-autotune", fullgraph=True)
 ```
 
 **Key resource**: [TorchAO Contributor Guide (Issue #391)](https://github.com/pytorch/ao/issues/391), Quantization README
+Quantization README pointer: https://github.com/pytorch/ao/blob/v0.15.0/torchao/quantization/README.md
 
 ---
 
 ## inference_mode + tensor subclass version_counter blocker status
 
-**PyTorch Issue #170419 and TorchAO PR #3488 were not found** in public GitHub searches. The most relevant tracked issue is **PyTorch Issue #112024**: "torch.inference_mode and tensor subclass: RuntimeError: Cannot set version_counter for inference tensor" — which is now **CLOSED**.
+Relevant tracked issues include:
+
+- **PyTorch Issue #170419**: "Cannot set version_counter for inference tensor" — **OPEN** (milestoned for 2.10.0)
+- **PyTorch Issue #112024**: "torch.inference_mode and tensor subclass: RuntimeError: Cannot set version_counter for inference tensor" — **CLOSED**
+- **TorchAO PR #3488**: "[float8] fix the transpose error" — **OPEN** (draft/ongoing)
 
 The issue was opened by @ezyang (Edward Z. Yang) with this analysis:
 
 > "The proximal cause of the problem is that when we construct T inside the torch dispatch function, it is created as an inference mode tensor, even though the semantics of detach() on a non-inference mode tensor when inference mode is enabled is to create a non-inference tensor. Not entirely sure what the correct fix is."
 
-**Related open issues**:
-- [Issue #134798](https://github.com/pytorch/pytorch/issues/134798): "Cannot set version_counter for inference tensor when get_data_attr is called" (milestone: 2.5.0, affects vLLM with inductor)
-- [Issue #124111](https://github.com/pytorch/pytorch/issues/124111): "torch.compile-ing triton kernels with inputs created under inference mode"
-- [Issue #134249](https://github.com/pytorch/pytorch/issues/134249): "Footgun: Dynamo x tensors created inside or outside of inference_mode"
+**Related issues** (status varies; verify before relying on them):
+- [Issue #134798](https://github.com/pytorch/pytorch/issues/134798): "Cannot set version_counter for inference tensor when get_data_attr is called" (**CLOSED**, milestone: 2.5.0)
+- [Issue #124111](https://github.com/pytorch/pytorch/issues/124111): "torch.compile-ing triton kernels with inputs created under inference mode" (**CLOSED**)
+- [Issue #134249](https://github.com/pytorch/pytorch/issues/134249): "Footgun: Dynamo x tensors created inside or outside of inference_mode" (**OPEN**)
 
 **Workarounds documented**:
 
@@ -133,8 +144,8 @@ recommended_inductor_config_setter()  # Call before torch.compile
 |------|-------------|--------|
 | as_strided gap | No open issue; gap exists between training/quantization paths | Code inspection, [Issue #574](https://github.com/pytorch/ao/issues/574) |
 | unwrap_tensor_subclass | Works with compile for PyTorch 2.5+; required for 2.4- | [Issue #391](https://github.com/pytorch/ao/issues/391), Quantization README |
-| inference_mode blocker | Core issue #112024 CLOSED; related #134798 targets 2.5.0 | [Issue #112024](https://github.com/pytorch/pytorch/issues/112024), [Issue #134798](https://github.com/pytorch/pytorch/issues/134798) |
+| inference_mode blocker | Ongoing tracker + related issues | [Issue #170419](https://github.com/pytorch/pytorch/issues/170419), [PR #3488](https://github.com/pytorch/ao/pull/3488), [Issue #112024](https://github.com/pytorch/pytorch/issues/112024) |
 | Float8 + compile | torch.compile REQUIRED for performance (2-3x faster) | [Issue #574](https://github.com/pytorch/ao/issues/574), [Issue #685](https://github.com/pytorch/ao/issues/685) |
 | Blackwell support | v0.12.0+ has NVFP4/MXFP8 prototype with 61% vLLM speedup | [Releases](https://github.com/pytorch/ao/releases) |
 
-The specific issue numbers **#170419** (PyTorch) and **PR #3488** (TorchAO) mentioned in the query were **not found** in public GitHub. These may be internal tracking numbers, typos, or issues that were never opened publicly. The closest equivalent is PyTorch Issue #112024 for the inference_mode/version_counter blocker.
+Correction: **PyTorch #170419** and **TorchAO PR #3488** are public and linked above; this draft’s earlier “not found” note was incorrect.
