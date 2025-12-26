@@ -74,6 +74,37 @@ The concern that `as_strided` semantics are ill-defined for float8 is strongest 
 2. Provide an officially supported `torch.compile` pattern for `Float8DynamicActivationFloat8WeightConfig` that avoids emitting `as_strided` on the subclass, or
 3. Provide a first-class, documented compile boundary pattern (unwrap/re-wrap) so `torch.compile` can operate on plain tensors while still using float8 kernels internally.
 
+### Local workaround / proposed patch (PerTensor-only)
+
+We were able to unblock `torch.compile + quantize_` in our pipeline by registering a PerTensor-only `aten.as_strided.default` implementation that forwards to `qdata` and reshapes the (scalar) `scale` to match the new rank.
+
+```python
+from torch.utils._python_dispatch import return_and_correct_aliasing
+from torchao.quantization.quantize_.workflows.float8.float8_tensor import Float8Tensor
+
+aten = torch.ops.aten
+implements = Float8Tensor.implements
+
+@implements(aten.as_strided.default)
+def float8_as_strided(func, types, args, kwargs):
+    self, size, stride = args[0], args[1], args[2]
+    storage_offset = args[3] if len(args) > 3 else 0
+    if self.scale.numel() != 1:
+        raise NotImplementedError("as_strided only supported for per-tensor scale")
+    new_qdata = aten.as_strided.default(self.qdata, size, stride, storage_offset)
+    new_scale = self.scale.reshape((1,) * len(size))
+    new = Float8Tensor(
+        new_qdata,
+        new_scale,
+        block_size=list(size),
+        mm_config=self.mm_config,
+        act_quant_kwargs=self.act_quant_kwargs,
+        kernel_preference=self.kernel_preference,
+        dtype=self.dtype,
+    )
+    return return_and_correct_aliasing(func, args, kwargs, new)
+```
+
 Precedent in torchao:
 - The training float8 tensor path already registers `aten.as_strided.default` and asserts tensorwise (per-tensor) scale via `_assert_tensorwise_scale(...)`.
 - `NF4Tensor` registers `aten.as_strided.default` but restricts it to a narrow, “view-like” subset (contiguous strides, same storage_offset, etc.).
@@ -104,4 +135,6 @@ Upstream pointers:
 
 ### Current workaround
 
-We're using BF16 (no quantization) as our baseline when `torch.compile` is enabled, and only enabling FP8 quantization without compile.
+Until this is fixed upstream, we can:
+- Apply the PerTensor-only monkeypatch above, or
+- Use BF16 (no quantization) whenever `torch.compile` is enabled, and only enable FP8 quantization without compile.
