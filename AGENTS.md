@@ -6,6 +6,8 @@ These are guardrails for coding agents working in this repo.
 
 - Do not run destructive git commands (`git restore`, `git reset`, `git checkout --`, `git clean`) on files outside the current task scope without asking first.
 - Do not “clean up” or revert unrelated working-tree changes; instead, scope your edits to the files required for the task and call out unexpected diffs.
+- **Never run `rm -rf` (or delete/move files) without an explicit user request.** If something looks like an artifact, prefer adding an entry to `.gitignore` and ask the user whether they want it removed.
+- Treat **untracked** files/dirs as user-owned workspace state: do not delete or relocate them unless asked.
 - Avoid editing dependency/lock files (`pyproject.toml`, `uv.lock`) unless the user explicitly asks.
 - Avoid touching shared virtualenvs (e.g. `.venv`) unless the user explicitly asks; prefer isolated envs for experiments.
 - If external documentation (blogs/specs/release notes) would materially speed up or de-risk a task, pause and ask the user to fetch/curate it before proceeding; be explicit about exactly what to collect and in what format (links, excerpts, PDFs, etc.).

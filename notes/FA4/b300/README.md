@@ -27,7 +27,7 @@ If you’re trying to answer “is this a us-bug or an upstream landmine?”, th
 - `nvidia-cutlass-dsl` module shadowing `torch._inductor` cutlass utilities (can break `torch.compile` / `flex_attention`): see `notes/FA4/b300/setup-guide.md` and `notes/FA4/b300/investigation.md` (Issue 2).
 - TorchAO FP8 + `torch.compile` + `aten.as_strided` hole: see the “Upstream refs” section in `session-state.md`.
 - Conv3d BF16/FP16 regressions + “install cuDNN 9.15+”: PyTorch v2.9.1 release notes (linked in `session-state.md` and `blackwell-docs.md`).
-- CUDAGraph “output overwritten” + step-marker spelling: `torch.compiler.cudagraph_mark_step_begin()` docs (linked in `session-state.md`).
+- CUDAGraph “output overwritten” + step-marker spelling: `torch.compiler.cudagraph_mark_step_begin()` docs (linked in `session-state.md`); on SM103 we auto-ignore `SCOPE_TORCH_COMPILE_MODE=reduce-overhead` unless `SCOPE_ALLOW_REDUCE_OVERHEAD_SM103=1`.
 
 ## Deep Research Packets (Optional, but source-backed)
 

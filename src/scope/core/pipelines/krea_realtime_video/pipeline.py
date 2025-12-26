@@ -21,6 +21,7 @@ from ..utils import Quantization, load_model_config, validate_resolution
 from ..wan2_1.components import WanDiffusionWrapper, WanTextEncoderWrapper
 from ..wan2_1.lora.mixin import LoRAEnabledPipeline
 from ..wan2_1.vae import WanVAEWrapper
+from ...compat import is_sm103
 from .modular_blocks import KreaRealtimeVideoBlocks
 from .modules.causal_model import CausalWanModel
 
@@ -135,13 +136,25 @@ class KreaRealtimeVideoPipeline(Pipeline, LoRAEnabledPipeline):
 
         if compile:
             compile_mode = os.getenv("SCOPE_TORCH_COMPILE_MODE", "").strip()
+            if (
+                compile_mode == "reduce-overhead"
+                and is_sm103()
+                and os.getenv("SCOPE_ALLOW_REDUCE_OVERHEAD_SM103", "0") != "1"
+            ):
+                logger.warning(
+                    "SCOPE_TORCH_COMPILE_MODE=reduce-overhead is unstable on SM103 (CUDAGraph Trees "
+                    + "can throw \"output overwritten\" at runtime). Falling back to default compile "
+                    + "mode. Set SCOPE_ALLOW_REDUCE_OVERHEAD_SM103=1 to force."
+                )
+                compile_mode = ""
             compile_kwargs = {"fullgraph": False}
             if compile_mode:
                 compile_kwargs["mode"] = compile_mode
             # Default strategy: compile each transformer block (keeps graph breaks localized).
             #
             # Note: `mode="reduce-overhead"` enables CUDAGraph Trees. On SM103 we've seen
-            # "output overwritten" failures when chaining many separately-compiled blocks.
+            # "output overwritten" failures; we ignore `reduce-overhead` on SM103 by default
+            # (see `SCOPE_ALLOW_REDUCE_OVERHEAD_SM103`).
             # As an experiment, compile the whole model in that mode instead of compiling
             # blocks individually.
             if compile_mode == "reduce-overhead":

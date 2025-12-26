@@ -210,11 +210,16 @@ On B300/cu130 with `SCOPE_KV_BIAS_BACKEND=fa4`, `--compile` + `SCOPE_TORCH_COMPI
 
 Attempted mitigation:
 - `SCOPE_CUDAGRAPH_MARK_STEP_BEGIN=1` (calls `torch.compiler.cudagraph_mark_step_begin()` in the generator wrapper)
+- Stabilize KV-cache index tensors across iterations (avoid storing fresh CUDAGraph outputs in a long-lived Python dict slot)
+- Compile the whole diffusion model in `reduce-overhead` mode instead of compiling each transformer block independently
 
 Still failed (internal Dynamo error referencing CUDAGraph overwrite).
 
 **Decision:**  
 Treat `reduce-overhead` as **known-bad** on SM103 for now; stick to default compile mode unless/until this is resolved upstream or via a targeted workaround.
+
+**Guardrail:**  
+On SM103, `KreaRealtimeVideoPipeline` now ignores `SCOPE_TORCH_COMPILE_MODE=reduce-overhead` unless you explicitly set `SCOPE_ALLOW_REDUCE_OVERHEAD_SM103=1`.
 
 ---
 

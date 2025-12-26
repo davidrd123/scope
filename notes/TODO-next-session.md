@@ -15,16 +15,18 @@ The B300 is SM103, but nvidia-cutlass-dsl==4.1.0 only supports sm_100a/sm_100f.
 Run `python scripts/patch_cutlass_sm103.py` after installing fa4 dependencies.
 
 ### ⚠️ CRITICAL: nvidia-cutlass-dsl Conflicts with PyTorch Inductor
-**FA4 deps cannot coexist with normal PyTorch usage on B300.**
+`SCOPE_KV_BIAS_BACKEND=fa4` uses FA4/CuTe `score_mod` and requires `nvidia-cutlass-dsl`
+(top-level `cutlass` module).
 
-The `nvidia-cutlass-dsl` package provides a `cutlass` module that shadows PyTorch's
-internal cutlass utilities in `torch._inductor`. This causes `NoValidChoicesError`
-for `flex_attention` when running the pipeline.
+**Current status (2025-12-26):** FA4 KV-bias + regional `torch.compile` is working on B300/cu130
+by keeping CuTe calls opaque to Dynamo and disabling flex_attention compilation
+(see `notes/FA4/b300/session-state.md`).
 
-**Workarounds:**
-1. Use separate venvs for FA4 testing vs normal pipeline usage
-2. Install FA4 deps only for benchmarks, uninstall before running pipeline
-3. Wait for NVIDIA/PyTorch to fix the module naming conflict
+**Known gotchas:**
+- SM103: compiling `flex_attention` can hard-abort (tcgen05 LLVM) → keep `DISABLE_FLEX_ATTENTION_COMPILE=1`
+- `SCOPE_TORCH_COMPILE_MODE=reduce-overhead` is unstable on SM103
+- Some envs show an ignored atexit error from Inductor’s CUTLASS utils:
+  `AttributeError: module 'cutlass' has no attribute 'CACHE_FILE'`
 
 **To uninstall FA4 deps:**
 ```bash

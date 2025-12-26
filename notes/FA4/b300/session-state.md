@@ -26,9 +26,9 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
   - PyTorch **v2.9.1** release notes recommend: install **`nvidia-cudnn-cu12>=9.15`** if impacted by BF16 Conv3d regressions: https://github.com/pytorch/pytorch/releases/tag/v2.9.1
   - Primary issue thread: https://github.com/pytorch/pytorch/issues/166643
 
-- **`nvidia-cutlass-dsl` module shadowing `torch._inductor`**
-  - Symptom: `torch.compile` can fail with `NoValidChoicesError` for `flex_attention` because `nvidia-cutlass-dsl` installs a top-level `cutlass` module that shadows Inductor cutlass utilities.
-  - Workaround: use a separate venv for FA4/CUTE experiments, and uninstall FA4 deps before running the normal pipeline.
+- **`nvidia-cutlass-dsl` top-level `cutlass` + Inductor**
+  - Can trigger `AttributeError: module 'cutlass' has no attribute 'CACHE_FILE'` from `torch._inductor.codegen.cuda.cutlass_utils` (often ignored at exit), and older stacks also saw compilation failures depending on codepaths.
+  - Current B300/cu130 path runs FA4 score_mod alongside regional `torch.compile` by keeping CuTe calls opaque to Dynamo and disabling flex_attention compilation; see “torch.compile Status (B300)” below.
   - Details: `notes/FA4/b300/investigation.md` (Issue 2) and `notes/FA4/b300/setup-guide.md`.
 
 - **CUDAGraph “output overwritten” + correct step-marker / knob names**
@@ -227,8 +227,10 @@ Server opt-in: set `SCOPE_COMPILE_KREA_PIPELINE=1` before launching. `scripts/ru
 
 **Compile mode experiments:** `src/scope/core/pipelines/krea_realtime_video/pipeline.py` supports `SCOPE_TORCH_COMPILE_MODE`, but on B300/SM103:
 - `max-autotune-no-cudagraphs` can hard-abort with a tcgen05 LLVM intrinsic error.
-- `reduce-overhead` is still failing with a CUDAGraphs “output overwritten” runtime error even after adding a `SCOPE_CUDAGRAPH_MARK_STEP_BEGIN=1` experiment (calls `torch.compiler.cudagraph_mark_step_begin()` before model invocations).
-Recommendation: leave `SCOPE_TORCH_COMPILE_MODE` unset (default).
+- `reduce-overhead` (CUDAGraph Trees) is known-bad: we can hit `RuntimeError: accessing tensor output of CUDAGraphs that has been overwritten by a subsequent run`.
+  - Tried: `SCOPE_CUDAGRAPH_MARK_STEP_BEGIN=1`, stabilizing KV-cache index tensors, compiling the whole model in `reduce-overhead` mode → still unstable.
+  - Guardrail: on SM103 we now ignore `SCOPE_TORCH_COMPILE_MODE=reduce-overhead` unless `SCOPE_ALLOW_REDUCE_OVERHEAD_SM103=1`.
+Recommendation: leave `SCOPE_TORCH_COMPILE_MODE` unset (default) unless you’re explicitly experimenting.
 
 **FA4 varlen opt-in (non-bias attention):** when `SCOPE_KV_BIAS_BACKEND=fa4`, FA4/CuTe varlen attention remains disabled by default (stable FA2 for non-bias attention). You can opt in with `SCOPE_ENABLE_FA4_VARLEN=1`; on B300 this was a small (~1–2%) win but increased warmup/JIT time.
 

@@ -91,7 +91,7 @@ Knobs map: `notes/FA4/explainers/17-backend-selection-and-knobs.md`.
 ## ✅ YOU ARE HERE: Between Level 4 and 5
 
 Current state:
-- B300: **~15 FPS** in typical cu130 end-to-end runs, with **best-case ~25 FPS** in the benchmark when `--compile` is viable (config-dependent)
+- B300: **~15 FPS** in typical cu130 end-to-end runs; **~22–23 FPS** with `--compile` (BF16, config-dependent). FP8+compile can benchmark higher (~25 FPS) but is currently **not a usable win** on B300 because FP8 output quality is broken (see `notes/FA4/b300/session-state.md`).
 - Solved the “white whale” mystery: the original ~8.8 FPS wasn’t an attention backend cap; it was dominated by runtime stack + decode/cuDNN behavior and SM103 backend pitfalls
 - Have documented, reproducible optimizations
 

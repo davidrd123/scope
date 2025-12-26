@@ -26,6 +26,7 @@ The message usually suggests:
 
 - We experimented with calling `torch.compiler.cudagraph_mark_step_begin()` behind `SCOPE_CUDAGRAPH_MARK_STEP_BEGIN=1` (see `notes/FA4/b300/session-state.md`).
 - Today, we treat `mode="reduce-overhead"` as **unstable** on B300/SM103 due to this error and stick with the default compile mode.
+- Guardrail: `KreaRealtimeVideoPipeline` ignores `SCOPE_TORCH_COMPILE_MODE=reduce-overhead` on SM103 unless `SCOPE_ALLOW_REDUCE_OVERHEAD_SM103=1`.
 
 ## Practical mitigations (things we can try in our code)
 
@@ -41,4 +42,3 @@ The message usually suggests:
 1. Capture our exact full traceback(s) when this happens and identify which tensor is being accessed after overwrite.
 2. Verify our `mark_step_begin` placement is outside compiled regions for the reduce-overhead experiment.
 3. If we can’t make it stable with correct marking + external clones, consider writing a minimal repro and reporting upstream with our stack (PyTorch 2.9.x + CUDA 13.0 + SM103).
-

@@ -54,4 +54,5 @@ notes/**/bench-*.json
 
 # Output artifacts
 outputs/*.png
+outputs/observe_*/
 .claude/settings.local.json

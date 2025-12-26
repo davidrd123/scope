@@ -180,9 +180,14 @@ FA4 basic attention works on B300 after patching `nvidia-cutlass-dsl`. It's **13
 
 > ⚠️ IMPORTANT: `nvidia-cutlass-dsl` conflicts with PyTorch Inductor in this repo.
 >
-> Symptom: `torch.compile` can fail with `NoValidChoicesError` for `flex_attention` because `nvidia-cutlass-dsl` installs a top-level `cutlass` module that shadows `torch._inductor`’s internal cutlass utilities.
+> `nvidia-cutlass-dsl` installs a top-level `cutlass` module. PyTorch Inductor has a
+> CUTLASS integration that may also `import cutlass`; in some envs this shows up as an
+> ignored atexit `AttributeError: module 'cutlass' has no attribute 'CACHE_FILE'`, and
+> older stacks also saw compilation failures depending on codepaths.
 >
-> Recommendation: use a separate venv for FA4/CUTE experiments, and uninstall FA4 deps before running the normal pipeline.
+> Current B300 path uses FA4 score_mod alongside regional `torch.compile` by keeping CuTe
+> calls opaque to Dynamo and setting `DISABLE_FLEX_ATTENTION_COMPILE=1`; see
+> `notes/FA4/b300/session-state.md` for the known-good commands.
 >
 > Details: `notes/FA4/b300/investigation.md` (Issue 2).
 

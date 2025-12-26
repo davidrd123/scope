@@ -41,6 +41,7 @@ If you only remember one rule: **always record which backend actually ran** (to 
 | `SCOPE_COMPILE_KREA_PIPELINE_ALLOW_QUANTIZATION` | `0|1` | `0` | Allows `torch.compile` even when FP8 quantization is enabled | On SM100 we allow compile+FP8 without this; elsewhere this is an explicit experiment override |
 | `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED` | `0|1` | `1` | Applies a PerTensor-only TorchAO monkeypatch so `--compile + fp8` can run | Workaround for upstream TorchAO missing `aten.as_strided.default`; disable to reproduce the upstream failure |
 | `SCOPE_TORCH_COMPILE_MODE` | string | unset | Controls `torch.compile(..., mode=...)` | Some modes are footguns on SM103 |
+| `SCOPE_ALLOW_REDUCE_OVERHEAD_SM103` | `0|1` | `0` | Allows `SCOPE_TORCH_COMPILE_MODE=reduce-overhead` on SM103 | Default is to fall back to the default compile mode (reduce-overhead can hit CUDAGraph “output overwritten” on SM103) |
 | `SCOPE_CUDAGRAPH_MARK_STEP_BEGIN` | `0|1` | `0` | Calls `torch.compiler.cudagraph_mark_step_begin()` before each generator model call | Helpful when experimenting with CUDA-graph compile modes; still not a guarantee on SM103 |
 | `TRITON_PTXAS_PATH` | path | unset | Points Triton/Inductor to a newer `ptxas` | **SM103:** often required for correct codegen/autotune |
 | `DISABLE_FLEX_ATTENTION_COMPILE` | `0|1` | unset | Prevents flex_attention compilation in known-bad modes | **SM103:** set to `1` to avoid tcgen05 LLVM aborts |
