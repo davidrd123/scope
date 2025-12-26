@@ -1,7 +1,7 @@
 # B300 Optimization Ladder: Where We Are & What's Above
 
 > **Context:** The hierarchy of GPU optimization work, mapped to the B300 journey.
-> **Updated:** 2025-12-25
+> **Updated:** 2025-12-26
 
 **Learning-first note:** This is intentionally a *learning ladder*, not just a perf plan. It’s totally fine to bounce between rungs as long as we keep writing down (1) what we tried, (2) what we measured, and (3) what we learned.
 Use `notes/FA4/b300/experiments.md` as the default place to capture those “one-change” experiment cards.
@@ -10,6 +10,18 @@ Use `notes/FA4/b300/experiments.md` as the default place to capture those “one
 - `notes/FA4/b300/session-state.md` (current reproducible best-known configs + caveats)
 - `notes/FA4/b300/investigation-runbook.md` (how we measure and decide)
 - Recent drilldown artifacts under `outputs/` (e.g. `outputs/b300_*_drilldown_*.log/json`)
+
+## Preflight: Which Attention Path Are You Optimizing?
+
+There are *two* attention backends in the realtime pipeline; many “it got slower” mysteries are just “you benchmarked the other path”.
+
+- **Bias disabled** (`kv_cache_attention_bias == 1.0`)  
+  Uses the *plain attention* selection in `src/scope/core/pipelines/wan2_1/modules/attention.py` (Sage / FlashAttention / SDPA).
+
+- **Bias enabled** (`kv_cache_attention_bias < 1.0`)  
+  Uses the *KV-bias attention* implementation in `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`, selected by `SCOPE_KV_BIAS_BACKEND` (`fa4|flash|flex|triton`).
+
+Knobs map: `notes/FA4/explainers/17-backend-selection-and-knobs.md`.
 
 ---
 
