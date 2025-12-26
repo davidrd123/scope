@@ -187,7 +187,7 @@ In `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`, make 
 - Env: cu130 decode env (`.venv-b300-cu130-decode`)  
 - torch / cuda: `2.9.0+cu130` / `13.0`  
 - Settings: `320x576`, steps=`4`, bias=`0.3`, quantization=`none`  
-- Notes: compile=off, `WANVAE_STREAM_DECODE_MODE=chunk`, `DISABLE_FLEX_ATTENTION_COMPILE=1`
+- Notes: `WANVAE_STREAM_DECODE_MODE=chunk`, `DISABLE_FLEX_ATTENTION_COMPILE=1` (measured `--compile` off/on)
 
 **Command(s):**
 ```bash
@@ -207,7 +207,9 @@ WANVAE_STREAM_DECODE_MODE=chunk \
 Before fix: `SCOPE_KV_BIAS_BACKEND=flash` threw a cutlass-dsl ICE and fell back to **uncompiled flex_attention**, yielding **~`2.77 FPS`**.
 
 **Result:**  
-After fix: `SCOPE_KV_BIAS_BACKEND=flash` is stable again, measuring **~`15.1 FPS`** (this run: `15.14 FPS`).
+After fix: `SCOPE_KV_BIAS_BACKEND=flash` is stable again:  
+- `--compile` off: **~`15.1 FPS`** (this run: `15.06 FPS`)  
+- `--compile` on: **~`18.4 FPS`** (this run: `18.40 FPS`; Dynamo graph breaks inside `_kv_bias_flash_combine`, but it still helps)
 
 **Decision:**  
 Keep: this makes the “flash fallback ladder” usable on SM103 and prevents catastrophic flex fallbacks when FA4 `return_lse` is broken.

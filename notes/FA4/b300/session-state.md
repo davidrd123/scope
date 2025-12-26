@@ -16,6 +16,7 @@
 - Daydream end-to-end (cu130 env): **~14.8–15.0 FPS** at `320x576` (canonical; measured before defaulting to FA4 KV-bias)
 - `scripts/profile_krea_pipeline_blocks.py` benchmark (cu130 env, quantization none, bias=0.3):
   - `SCOPE_KV_BIAS_BACKEND=flash`: **~15.1 FPS**
+  - `SCOPE_KV_BIAS_BACKEND=flash` + `--compile`: **~18.4 FPS**
   - `SCOPE_KV_BIAS_BACKEND=fa4`: **~17.0 FPS**
   - `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile`: **~19.5 FPS**
   - Note: on SM103 we default flash segment-combine to the stable FA2 varlen op; opt in to FA4 `return_lse` experiments with `SCOPE_FLASH_COMBINE_USE_FA4_LSE=1`.
