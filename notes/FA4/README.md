@@ -73,7 +73,7 @@ notes/FA4/
 
 - **Kernel A**: Block-causal recompute path (FlexAttention with BlockMask)
 - **Kernel B**: KV-cache bias path (Triton kernel, 10.7% faster than FlexAttention)
-- **FA4/CUTE**: FlashAttention 4 with CUTLASS DSL - faster but has dependency issues
+- **FA4/CUTE**: FlashAttention 4 with CUTLASS DSL - faster, but `nvidia-cutlass-dsl` can shadow `torch._inductor` cutlass utilities; keep it in an isolated venv (see `b300/setup-guide.md`)
 - **SM103**: B300 compute capability, requires patches for CUTLASS DSL
 
 ## Current Status (Dec 2025)

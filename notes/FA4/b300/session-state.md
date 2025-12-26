@@ -26,6 +26,11 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
   - PyTorch **v2.9.1** release notes recommend: install **`nvidia-cudnn-cu12>=9.15`** if impacted by BF16 Conv3d regressions: https://github.com/pytorch/pytorch/releases/tag/v2.9.1
   - Primary issue thread: https://github.com/pytorch/pytorch/issues/166643
 
+- **`nvidia-cutlass-dsl` module shadowing `torch._inductor`**
+  - Symptom: `torch.compile` can fail with `NoValidChoicesError` for `flex_attention` because `nvidia-cutlass-dsl` installs a top-level `cutlass` module that shadows Inductor cutlass utilities.
+  - Workaround: use a separate venv for FA4/CUTE experiments, and uninstall FA4 deps before running the normal pipeline.
+  - Details: `notes/FA4/b300/investigation.md` (Issue 2) and `notes/FA4/b300/setup-guide.md`.
+
 - **CUDAGraph “output overwritten” + correct step-marker / knob names**
   - Step marker API: `torch.compiler.cudagraph_mark_step_begin()` (docs): https://docs.pytorch.org/docs/stable/generated/torch.compiler.cudagraph_mark_step_begin.html
   - CUDAGraph Trees doc (error explanation + mitigation): https://docs.pytorch.org/docs/stable/torch.compiler_cudagraph_trees.html

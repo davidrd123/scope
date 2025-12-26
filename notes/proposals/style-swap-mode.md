@@ -1,168 +1,214 @@
 # Style Swap Mode
 
-> Status: Draft
+> Status: Draft (hardened)
 > Date: 2025-12-26
+> Review: `notes/research/2025-12-26/style_swap/oai_5pro_01.md`
 
-## Problem
+## Summary
 
-LoRA switching at runtime only works if:
-1. Pipeline was loaded with `lora_merge_mode: "runtime_peft"`
-2. All target LoRAs were pre-loaded at pipeline startup
+Enable instant style switching via `video-cli style set <name>` by:
 
-By default, we use `permanent_merge` for max FPS, which bakes the LoRA into the model - no runtime switching possible.
+1. Preloading all style LoRAs at pipeline load time
+2. Forcing LoRA merge strategy to `runtime_peft` (required for runtime scale updates)
+3. Switching styles by emitting `lora_scales` updates (active LoRA at default scale, others at 0.0)
 
-## Solution
+This aligns with the current architecture:
+- Styles live in `FrameProcessor` (StyleRegistry + `_rcp_set_style` → `lora_scales`)
+- LoRAs are loaded at pipeline init via `PipelineManager` load params (`loras`, `_lora_merge_mode`)
+- Runtime LoRA scale updates flow through:
+  FrameProcessor → pipeline call (`lora_scales`) → LoRAEnabledPipeline._handle_lora_scale_updates → LoRAManager → PEFT scaling
 
-Environment flag `STYLE_SWAP_MODE=1` that:
-1. At pipeline load time, scans `~/.daydream-scope/styles/` for all style manifests
-2. Collects all unique LoRA paths from those manifests
-3. Forces `lora_merge_mode: "runtime_peft"`
-4. Pre-loads all LoRAs (active style at its default scale, others at 0.0)
+## Why this is needed
 
-Then `video-cli style set <name>` works instantly.
+Runtime LoRA switching only works if:
+1. Pipeline was loaded with `lora_merge_mode: runtime_peft`
+2. All target LoRAs are already loaded into the pipeline
 
-## Usage
+Default is `permanent_merge` for FPS, which bakes the LoRA into the weights and prevents runtime changes.
+
+## Goals
+
+- `video-cli style set rat` immediately changes the active LoRA effect without restarting the server
+- Avoid pipeline reloads during creative iteration
+- Keep behavior robust across dev (`./styles`) and user-installed styles (`~/.daydream-scope/styles`)
+
+## Non-goals
+
+- Hot-loading brand-new LoRA files into an already-running pipeline (future work)
+- Seamless visual blending between two LoRAs (future work; prompt transitions exist separately)
+
+## Activation
+
+Set env var at server start:
 
 ```bash
-# Start server with style swap enabled
 STYLE_SWAP_MODE=1 uv run python -m scope.server
-
-# Or export for session
-export STYLE_SWAP_MODE=1
-uv run python -m scope.server
 ```
 
-Then in CLI:
-```bash
-video-cli style list          # Shows all available styles
-video-cli style set hidari    # Instant switch
-video-cli style set rat       # Instant switch
-video-cli style set akira     # Instant switch
-```
+Optional:
 
-## Implementation
+- `STYLE_DEFAULT=<name>`: choose initial active style (otherwise: no style active until set)
+- `SCOPE_STYLES_DIRS=/path/a:/path/b`: override style manifest search paths
+- `SCOPE_PRELOAD_LORAS=rat,tmnt,...`: restrict preload set (advanced / optional)
 
-### 1. Style Discovery Function
+## Style discovery and directory policy
 
-```python
-# src/scope/realtime/style_manifest.py
+We must keep `FrameProcessor` style listing and pipeline preload discovery in sync.
 
-def discover_style_loras(styles_dir: Path | None = None) -> list[dict]:
-    """Scan styles directory and return all LoRA configs.
+Default style dirs (in order):
 
-    Returns list of {"path": "...", "scale": 0.0} for each unique LoRA.
-    Can be called before pipeline load (no FrameProcessor needed).
-    """
-    if styles_dir is None:
-        styles_dir = Path.home() / ".daydream-scope" / "styles"
+1. `./styles` (repo/dev built-ins)
+2. `~/.daydream-scope/styles` (user overrides)
 
-    if not styles_dir.exists():
-        return []
+If a style name exists in multiple dirs, the later dir wins.
 
-    loras = {}  # path -> manifest (to dedupe)
-    for manifest_path in styles_dir.rglob("manifest.yaml"):
-        try:
-            manifest = StyleManifest.from_yaml(manifest_path)
-            if manifest.lora_path and manifest.lora_path not in loras:
-                loras[manifest.lora_path] = manifest
-        except Exception:
-            continue
+Implementation detail: manifest file iteration must be sorted for determinism.
 
-    return [
-        {"path": path, "scale": 0.0, "merge_mode": "runtime_peft"}
-        for path in loras.keys()
-    ]
-```
+## Critical requirement: canonical LoRA paths
 
-### 2. Pipeline Manager Integration
+Runtime updates match adapters by the *exact `path` string*.
 
-```python
-# src/scope/server/pipeline_manager.py
+Therefore we must canonicalize LoRA paths once and use the canonical string everywhere:
 
-import os
-from scope.realtime.style_manifest import discover_style_loras
+- Pipeline preload `loras=[{"path": <canonical>, ...}]`
+- FrameProcessor `lora_scales=[{"path": <canonical>, ...}]`
 
-class PipelineManager:
-    def _apply_common_load_params(self, config, load_params, ...):
-        # ... existing code ...
+Canonicalization rules:
 
-        # Style swap mode: override with runtime_peft + all style LoRAs
-        if os.environ.get("STYLE_SWAP_MODE", "").lower() in ("1", "true", "yes"):
-            style_loras = discover_style_loras()
-            if style_loras:
-                logger.info(
-                    f"STYLE_SWAP_MODE: Loading {len(style_loras)} style LoRAs "
-                    f"with runtime_peft mode"
-                )
-                lora_merge_mode = "runtime_peft"
-                # Merge with any explicitly requested LoRAs
-                existing_paths = {l.get("path") for l in (loras or [])}
-                for sl in style_loras:
-                    if sl["path"] not in existing_paths:
-                        loras = loras or []
-                        loras.append(sl)
+- expand `~`
+- resolve relative paths against `models/lora` (or configured models root)
+- call `.resolve()` to normalize
 
-        # ... rest of existing code ...
-```
+If this is not done, style switching may log success but have no effect.
 
-### 3. Set Active Style on Load
+## Behavior
 
-When pipeline loads with style swap mode, we should also set the initial active style's LoRA to its default scale (not 0.0):
+When `STYLE_SWAP_MODE=1`:
 
-```python
-# In FrameProcessor initialization or first style set
+### Pipeline load (PipelineManager)
 
-def _initialize_style_swap_scales(self):
-    """Set the default style's LoRA to active scale, others to 0."""
-    if not os.environ.get("STYLE_SWAP_MODE"):
-        return
+1. Discover style manifests (same dirs as FrameProcessor)
+2. Extract all unique LoRA paths from manifests (canonicalize + dedupe)
+3. Filter missing files (warn + skip; do not hard-fail the pipeline by default)
+4. Force `_lora_merge_mode = "runtime_peft"`
+5. Preload all discovered LoRAs:
+   - default scale: 0.0
+   - per-LoRA merge_mode: "runtime_peft" (explicit)
+6. Merge with any explicitly requested LoRAs from load params:
+   - dedupe by canonical path
+   - keep explicit per-LoRA merge_mode if provided
 
-    default_style = self.style_registry.get_default()
-    if default_style and default_style.lora_path:
-        # Build scale updates: active at default_scale, others at 0
-        lora_updates = []
-        for style_name in self.style_registry.list_styles():
-            manifest = self.style_registry.get(style_name)
-            if manifest and manifest.lora_path:
-                scale = manifest.lora_default_scale if manifest == default_style else 0.0
-                lora_updates.append({"path": manifest.lora_path, "scale": scale})
+### Runtime style switching (FrameProcessor)
 
-        if lora_updates:
-            self.parameters["lora_scales"] = lora_updates
-```
+On `_rcp_set_style`:
+
+- Recompile prompts for the selected style
+- Emit `lora_scales` updates (one-shot) that:
+  - set the selected style's LoRA path to `lora_default_scale`
+  - set all other *style* LoRA paths to 0.0
+  - dedupe updates by path
+
+Cache semantics:
+
+- LoRA scale updates trigger a cache reset inside WAN pipelines when `manage_cache=True`
+- For clean style switches, `manage_cache` should remain enabled
+
+## Failure modes and logging
+
+- If `STYLE_SWAP_MODE=1` but no valid style LoRAs are discovered:
+  - pipeline loads normally (no-op)
+  - log an INFO explaining why (no styles dir / no manifests / all missing LoRAs)
+- If a style manifest references a missing LoRA:
+  - warn and skip preloading that LoRA
+  - style switching will still compile prompts, but LoRA effect won't change
+
+Suggested logs:
+
+- Discovered styles + dirs used
+- Number of unique LoRAs preloaded + how many skipped
+- On style set: active style name, active path, scale, number of paths zeroed
 
 ## Tradeoffs
 
-| Mode | FPS | Runtime Switching |
-|------|-----|-------------------|
-| Default (`permanent_merge`) | ~100% | No - reload required |
-| `STYLE_SWAP_MODE=1` (`runtime_peft`) | ~50% | Yes - instant |
+| Mode                                 | FPS   | Runtime Switching |
+| ------------------------------------ | ----- | ----------------- |
+| `permanent_merge` (default)          | ~100% | No                |
+| `STYLE_SWAP_MODE=1` (`runtime_peft`) | ~50%  | Yes               |
 
-## Logging
+## Implementation checklist
 
-When `STYLE_SWAP_MODE=1`:
+### 1. Shared style directory resolution
+
+Add `get_style_dirs()` to `scope/realtime/style_manifest.py`:
+
+```python
+def get_style_dirs() -> list[Path]:
+    """Return style directories in precedence order (later wins)."""
+    if custom := os.environ.get("SCOPE_STYLES_DIRS"):
+        return [Path(p).expanduser() for p in custom.split(":")]
+    return [
+        Path("styles"),  # repo/dev built-ins
+        Path.home() / ".daydream-scope" / "styles",  # user overrides
+    ]
 ```
-INFO: STYLE_SWAP_MODE enabled
-INFO: Discovered 6 style LoRAs: hidari, akira, rat, graffito, kaiju, tmnt
-INFO: Loading with runtime_peft mode for instant switching
-INFO: Active style: hidari @ 1.0, others @ 0.0
+
+Use in both:
+- `FrameProcessor.start()` (instead of hardcoded `Path("styles")`)
+- `PipelineManager` style-swap discovery
+
+### 2. Path canonicalization helper
+
+```python
+def canonicalize_lora_path(raw: str, models_root: Path | None = None) -> str:
+    """Canonicalize LoRA path for consistent matching."""
+    p = Path(raw).expanduser()
+    if not p.is_absolute() and models_root:
+        p = models_root / p
+    return str(p.resolve())
 ```
 
-When switching:
+### 3. Sort manifest paths in StyleRegistry
+
+In `StyleRegistry.load_from_directory()`:
+```python
+for manifest_path in sorted(directory.rglob("manifest.yaml")):
 ```
-INFO: Style switch: hidari → rat
-INFO: LoRA scales: rat @ 1.0, hidari @ 0.0, akira @ 0.0, ...
+
+### 4. Deduplicate lora_scales in FrameProcessor
+
+Build `dict[path, scale]` then convert to list:
+```python
+scales_by_path = {}
+for style_name in self.style_registry.list_styles():
+    manifest = self.style_registry.get(style_name)
+    if manifest and manifest.lora_path:
+        canonical = canonicalize_lora_path(manifest.lora_path)
+        scale = manifest.lora_default_scale if style_name == active else 0.0
+        scales_by_path[canonical] = scale
+
+lora_scales = [{"path": p, "scale": s} for p, s in scales_by_path.items()]
 ```
 
-## Future Enhancements
+### 5. Skip missing LoRAs with warning
 
-1. **UI toggle** - Settings panel option to enable style swap mode (requires pipeline reload)
-2. **Partial preload** - Only preload a subset of styles to reduce VRAM
-3. **Hot-add styles** - Load new LoRAs at runtime without preloading (if PEFT supports it)
+In discovery:
+```python
+canonical = canonicalize_lora_path(manifest.lora_path)
+if not Path(canonical).exists():
+    logger.warning(f"Style '{manifest.name}': LoRA not found at {canonical}, skipping")
+    continue
+```
 
-## Related
+## Testing plan
+
+1. Unit test: style discovery returns deterministic ordering and deduped LoRA list
+2. Unit test: path canonicalization yields identical strings for preload + lora_scales
+3. Integration test: with style swap enabled, switching styles emits `lora_scales` once and does not resend on same-style set
+4. Negative test: missing LoRA file is skipped and does not crash pipeline load
+
+## Related files
 
 - `src/scope/server/pipeline_manager.py` - Pipeline load params
 - `src/scope/realtime/style_manifest.py` - StyleRegistry and manifest loading
-- `src/scope/server/frame_processor.py` - Style switching logic
+- `src/scope/server/frame_processor.py` - Style switching logic (`_rcp_set_style`)
 - `src/scope/core/pipelines/wan2_1/lora/manager.py` - LoRA merge strategies

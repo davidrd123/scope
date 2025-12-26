@@ -179,7 +179,7 @@ Once FA4 score_mod runs:
 **Plumbing + deps:** medium to high complexity (days), because:
 - Our current installed FA4 API doesn’t expose score_mod.
 - CuTe DSL versions and signatures vary; we need robust guards.
-- `nvidia-cutlass-dsl` can conflict with `torch._inductor` in some environments (see `notes/TODO-next-session.md`), so we must keep fallbacks and avoid destabilizing the main pipeline.
+- `nvidia-cutlass-dsl` can conflict with `torch._inductor` (module shadowing); see `notes/FA4/b300/setup-guide.md` and `notes/FA4/b300/investigation.md` (Issue 2).
 
 **Performance outcome uncertainty:** medium.
 - We might get a win if FA4’s SM100 kernel handles this shape better than our Triton implementation.

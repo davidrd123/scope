@@ -57,23 +57,7 @@ Would need to add to render_timeline:
 
 ---
 
-## Current State (for context)
+## Pointers (current state)
 
-### Committed
-- `0451cea` - Fix transition completion not updating prompts
-- `80d58b1` - Add offline timeline renderer CLI with quality presets
-- `cc60cc4` - Add Flash Attention 4 (CUTE) support for Blackwell/SM100
-
-### Files Modified
-- `src/scope/core/pipelines/wan2_1/modules/attention.py` - FA4 integration
-- `src/scope/cli/render_timeline.py` - Presets + offline renderer
-- `src/scope/core/pipelines/wan2_1/blocks/embedding_blending.py` - Transition fix
-- `src/scope/server/frame_processor.py` - Transition fix
-
-### Presets Working
-Priority: CLI > preset > timeline
-- preview, standard, quality, highres, max
-
-### Docs Created
-- `notes/render-timeline-guide.md` - CLI usage guide
-- `notes/krea-offline-render-tuning.md` - Tuning knobs reference
+- FA4/B300: `notes/FA4/b300/session-state.md` and `notes/FA4/b300/investigation.md`
+- Recent changes: `git log --oneline -n 20`

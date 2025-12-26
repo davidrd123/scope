@@ -1,7 +1,8 @@
 # Server-Side Session Recorder
 
-> Status: Draft (updated with Codex feedback)
+> Status: Draft (hardened per DeepResearch review)
 > Date: 2025-12-26
+> Review: `notes/research/2025-12-26/session_recorder/oai_5pro_01.md`
 
 ## Purpose
 
@@ -109,13 +110,18 @@ class SessionRecording:
 class SessionRecorder:
     """Records control events during a streaming session.
 
-    Thread-safety: All methods are called from within process_chunk(),
+    Thread-safety: All mutation methods are called from within process_chunk(),
     serialized by the mailbox merge. Never call directly from FastAPI threads.
+
+    For status reads from FastAPI, use get_status_snapshot() which returns an
+    atomic dict snapshot (safe under GIL).
     """
 
     def __init__(self):
         self._recording: SessionRecording | None = None
         self._last_prompt: str | None = None  # Track for cut-only events
+        # Thread-safe status snapshot (atomic dict replacement under GIL)
+        self._status_snapshot: dict = {"is_recording": False}
 
     @property
     def is_recording(self) -> bool:
@@ -126,15 +132,44 @@ class SessionRecorder:
         chunk_index: int,
         pipeline_id: str,
         load_params: dict,
+        baseline_prompt: str | None = None,
+        baseline_weight: float = 1.0,
     ) -> None:
-        """Start recording. Called from process_chunk via reserved key."""
+        """Start recording. Called from process_chunk via reserved key.
+
+        Args:
+            chunk_index: Current pipeline chunk index
+            pipeline_id: Required - must not be None (fail loudly if unknown)
+            load_params: Pipeline load parameters snapshot
+            baseline_prompt: Current effective prompt (from transition target or prompts)
+            baseline_weight: Prompt weight
+        """
+        if not pipeline_id:
+            raise ValueError("pipeline_id is required for session recording")
+
+        wall_time = time.monotonic()
         self._recording = SessionRecording(
             start_chunk=chunk_index,
-            start_wall_time=time.monotonic(),
+            start_wall_time=wall_time,
             pipeline_id=pipeline_id,
             load_params=load_params.copy(),
         )
-        self._last_prompt = None
+
+        # Record baseline prompt at t=0 to avoid empty timelines
+        # (Even if user doesn't change prompt during recording, we have initial state)
+        if baseline_prompt is not None:
+            self._recording.events.append(ControlEvent(
+                chunk_index=chunk_index,
+                wall_time=0.0,  # Relative to start
+                prompt=baseline_prompt,
+                prompt_weight=baseline_weight,
+                # No transition at t=0 - we capture current state, not replay past transition
+            ))
+            self._last_prompt = baseline_prompt
+        else:
+            self._last_prompt = None
+
+        self._update_status_snapshot()
 
     def record_event(
         self,
@@ -184,7 +219,28 @@ class SessionRecorder:
         recording = self._recording
         self._recording = None
         self._last_prompt = None
+        self._update_status_snapshot()
         return recording
+
+    def _update_status_snapshot(self) -> None:
+        """Update thread-safe status snapshot. Called after any state change."""
+        rec = self._recording
+        if rec is None:
+            self._status_snapshot = {"is_recording": False}
+        else:
+            self._status_snapshot = {
+                "is_recording": rec.is_active,
+                "start_chunk": rec.start_chunk,
+                "duration_seconds": rec.duration_seconds,
+                "events_count": len(rec.events),
+            }
+
+    def get_status_snapshot(self) -> dict:
+        """Thread-safe status read for FastAPI endpoints.
+
+        Returns an atomic dict snapshot (GIL guarantees atomic pointer read).
+        """
+        return self._status_snapshot
 
     def export_timeline(self, recording: SessionRecording) -> dict:
         """Convert recording to render_timeline.py compatible format."""
@@ -272,7 +328,11 @@ class SessionRecorder:
 
 ### 2. Integration with FrameProcessor
 
-**Key design: Route start/stop through reserved keys, handle in process_chunk() for thread-safety.**
+**Key design:**
+1. Route start/stop through reserved keys, handle in `process_chunk()` for thread-safety
+2. **Record from ControlBus events, not `merged_updates`** - keys get popped before we'd see them
+3. Detect hard cuts on **edge** (`"reset_cache" in merged_updates`), not persistent state
+4. Use `peek_status_info()` to avoid clearing error state, or gate on LOADED
 
 ```python
 # In src/scope/server/frame_processor.py
@@ -288,7 +348,35 @@ class FrameProcessor:
         self.session_recorder = SessionRecorder()
         self._pipeline_manager = pipeline_manager  # Need reference for status
         self._last_recording_path: Path | None = None
-        self._recording_stop_requested: bool = False
+
+    def _get_current_effective_prompt(self) -> tuple[str | None, float]:
+        """Get current effective prompt for baseline recording.
+
+        Priority:
+        1. Transition target prompts (if transition active)
+        2. Current prompts
+        3. Compiled prompt from style layer
+
+        Returns:
+            (prompt_text, weight) or (None, 1.0)
+        """
+        # If transition is active, use target as the "current" prompt
+        transition = self.parameters.get("transition")
+        if transition and "target_prompts" in transition:
+            targets = transition["target_prompts"]
+            if targets:
+                return targets[0].get("text"), targets[0].get("weight", 1.0)
+
+        # Otherwise use current prompts
+        prompts = self.parameters.get("prompts")
+        if prompts:
+            return prompts[0].get("text"), prompts[0].get("weight", 1.0)
+
+        # Fallback: compiled prompt from style layer (if available)
+        if hasattr(self, "_compiled_prompt") and self._compiled_prompt:
+            return self._compiled_prompt, 1.0
+
+        return None, 1.0
 
     def _handle_session_recording_commands(self, merged_updates: dict) -> None:
         """Handle session recording start/stop. Called inside process_chunk."""
@@ -296,23 +384,37 @@ class FrameProcessor:
         # Start recording
         if "_rcp_session_recording_start" in merged_updates:
             merged_updates.pop("_rcp_session_recording_start")
-            status = self._pipeline_manager.get_status_info()
 
-            # Snapshot runtime parameters (not just load_params)
+            # Use peek (non-mutating) or gate on LOADED to avoid clearing errors
+            status = self._pipeline_manager.peek_status_info()
+            if status.get("status") != "LOADED":
+                logger.warning("Cannot start recording: pipeline not loaded")
+                return
+
+            # Snapshot runtime parameters
             runtime_params = {
                 "height": self.parameters.get("height"),
                 "width": self.parameters.get("width"),
                 "seed": self.parameters.get("seed"),
                 "kv_cache_attention_bias": self.parameters.get("kv_cache_attention_bias"),
                 "denoising_step_list": self.parameters.get("denoising_step_list"),
-                # Include load_params for LoRA info etc
                 **status.get("load_params", {}),
             }
 
+            # Get baseline prompt for t=0 (avoids empty timelines)
+            baseline_prompt, baseline_weight = self._get_current_effective_prompt()
+
+            pipeline_id = status.get("pipeline_id")
+            if not pipeline_id:
+                logger.error("Cannot start recording: unknown pipeline_id")
+                return
+
             self.session_recorder.start(
                 chunk_index=self.chunk_index,
-                pipeline_id=status.get("pipeline_id", "unknown"),
+                pipeline_id=pipeline_id,
                 load_params=runtime_params,
+                baseline_prompt=baseline_prompt,
+                baseline_weight=baseline_weight,
             )
             logger.info(f"Session recording started at chunk {self.chunk_index}")
 
@@ -325,61 +427,83 @@ class FrameProcessor:
                 path = Path.home() / ".daydream-scope" / "recordings" / f"session_{timestamp}.timeline.json"
                 saved_path = self.session_recorder.save(recording, path)
                 logger.info(f"Session recording saved: {saved_path}")
-                # Store path for API to retrieve
                 self._last_recording_path = saved_path
 
-    def _record_control_events(
+    def _record_control_events_from_bus(
         self,
-        merged_updates: dict,
+        applied_events: list,  # List of ControlBus events that were applied
+        hard_cut_requested: bool,  # Edge flag from merged_updates
         soft_cut_bias: float | None = None,
         soft_cut_chunks: int | None = None,
     ) -> None:
-        """Record control events if session recording is active.
+        """Record control events from ControlBus (not merged_updates).
+
+        IMPORTANT: We record from applied ControlBus events because by the time
+        we'd check merged_updates, the 'prompts' and 'transition' keys have been
+        popped during translation to events.
 
         Args:
-            merged_updates: The merged control updates
-            soft_cut_bias: Passed from _handle_soft_transition (already popped)
-            soft_cut_chunks: Passed from _handle_soft_transition (already popped)
+            applied_events: ControlBus events that were applied this chunk
+            hard_cut_requested: True if "reset_cache" was in merged_updates (edge, not persistent)
+            soft_cut_bias: Captured from _rcp_soft_transition before it was popped
+            soft_cut_chunks: Captured from _rcp_soft_transition before it was popped
         """
         if not self.session_recorder.is_recording:
             return
 
         wall_time = time.monotonic()
-        prompt = None
-        prompt_weight = 100.0
-        transition_steps = None
-        transition_method = None
-        hard_cut = "reset_cache" in merged_updates
+        recorded_prompt_event = False
 
-        # Prompt from explicit prompts field
-        if "prompts" in merged_updates:
-            prompts = merged_updates["prompts"]
-            if prompts:
-                prompt = prompts[0].get("text", "")
-                prompt_weight = prompts[0].get("weight", 100.0)
+        # Record SET_PROMPT events from ControlBus
+        for event in applied_events:
+            if event.event_type == EventType.SET_PROMPT:
+                payload = event.payload or {}
 
-        # Transition - may have target_prompts even without explicit prompts
-        if "transition" in merged_updates:
-            trans = merged_updates["transition"]
-            transition_steps = trans.get("num_steps")
-            transition_method = trans.get("temporal_interpolation_method")
-            # If no explicit prompt but transition has target_prompts, use those
-            if prompt is None and "target_prompts" in trans:
-                target = trans["target_prompts"]
-                if target:
-                    prompt = target[0].get("text", "")
-                    prompt_weight = target[0].get("weight", 100.0)
+                # Extract prompt (prefer explicit prompts, then transition target)
+                prompt = None
+                prompt_weight = 1.0
+                if "prompts" in payload and payload["prompts"]:
+                    prompt = payload["prompts"][0].get("text")
+                    prompt_weight = payload["prompts"][0].get("weight", 1.0)
+                elif "transition" in payload:
+                    trans = payload["transition"]
+                    if "target_prompts" in trans and trans["target_prompts"]:
+                        prompt = trans["target_prompts"][0].get("text")
+                        prompt_weight = trans["target_prompts"][0].get("weight", 1.0)
 
-        # Record if we have anything interesting
-        if prompt is not None or hard_cut or soft_cut_bias is not None:
+                # Extract transition metadata
+                transition_steps = None
+                transition_method = None
+                if "transition" in payload:
+                    trans = payload["transition"]
+                    transition_steps = trans.get("num_steps")
+                    transition_method = trans.get("temporal_interpolation_method")
+
+                if prompt is not None:
+                    self.session_recorder.record_event(
+                        chunk_index=self.chunk_index,
+                        wall_time=wall_time,
+                        prompt=prompt,
+                        prompt_weight=prompt_weight,
+                        transition_steps=transition_steps,
+                        transition_method=transition_method,
+                        hard_cut=hard_cut_requested,
+                        soft_cut_bias=soft_cut_bias,
+                        soft_cut_chunks=soft_cut_chunks,
+                    )
+                    recorded_prompt_event = True
+                    # Clear edge flags after first use
+                    hard_cut_requested = False
+                    soft_cut_bias = None
+                    soft_cut_chunks = None
+
+        # If hard/soft cut occurred without a prompt change, record cut-only event
+        if not recorded_prompt_event and (hard_cut_requested or soft_cut_bias is not None):
             self.session_recorder.record_event(
                 chunk_index=self.chunk_index,
                 wall_time=wall_time,
-                prompt=prompt,
-                prompt_weight=prompt_weight,
-                transition_steps=transition_steps,
-                transition_method=transition_method,
-                hard_cut=hard_cut,
+                prompt=None,  # Will use _last_prompt in recorder
+                hard_cut=hard_cut_requested,
                 soft_cut_bias=soft_cut_bias,
                 soft_cut_chunks=soft_cut_chunks,
             )
@@ -398,20 +522,46 @@ class FrameProcessor:
         return soft_cut_bias, soft_cut_chunks
 
     def process_chunk(self, ...):
-        # ... existing mailbox merge ...
+        # ... existing mailbox merge into merged_updates ...
 
-        # Handle recording commands FIRST (serialized with other updates)
+        # 1. Handle recording commands FIRST (before any keys are consumed)
         self._handle_session_recording_commands(merged_updates)
 
-        # Handle soft transition BEFORE it gets popped, capture for recording
+        # 2. Capture edge flags BEFORE translation (they get popped)
+        hard_cut_requested = "reset_cache" in merged_updates
         soft_cut_bias, soft_cut_chunks = self._handle_soft_transition(merged_updates)
 
-        # ... existing parameter handling ...
+        # 3. Translate to ControlBus events (pops prompts, transition, etc.)
+        # ... existing translation logic ...
 
-        # Record events - pass soft cut info since it was already popped
-        self._record_control_events(merged_updates, soft_cut_bias, soft_cut_chunks)
+        # 4. Drain and apply ControlBus events
+        applied_events = self.control_bus.drain_pending(...)
+        for event in applied_events:
+            # ... existing event application ...
 
-        # ... rest of process_chunk ...
+        # 5. Record events AFTER application (from ControlBus, not merged_updates)
+        self._record_control_events_from_bus(
+            applied_events,
+            hard_cut_requested,
+            soft_cut_bias,
+            soft_cut_chunks,
+        )
+
+        # ... rest of process_chunk (pause check, pipeline call, etc.) ...
+```
+
+**Note:** Requires adding `PipelineManager.peek_status_info()`:
+```python
+# In src/scope/server/pipeline_manager.py
+
+def peek_status_info(self) -> dict:
+    """Non-mutating status read (does NOT clear errors)."""
+    return {
+        "status": self._status.name,
+        "pipeline_id": self._pipeline_id,
+        "load_params": self._load_params.copy() if self._load_params else {},
+        "error": self._error,  # Return but don't clear
+    }
 ```
 
 ### 3. API Endpoints
@@ -451,15 +601,21 @@ async def stop_session_recording(
 async def get_session_recording_status(
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
-    """Check session recording status. Poll after stop to get saved path."""
+    """Check session recording status. Poll after stop to get saved path.
+
+    Uses thread-safe snapshot - never reads _recording directly from FastAPI thread.
+    """
     session = get_active_session(webrtc_manager)
     fp = session.video_track.frame_processor
-    rec = fp.session_recorder._recording
+
+    # Thread-safe read via atomic dict snapshot (GIL guarantees atomic pointer read)
+    snapshot = fp.session_recorder.get_status_snapshot()
 
     response = {
-        "is_recording": fp.session_recorder.is_recording,
-        "duration_seconds": rec.duration_seconds if rec else 0,
-        "duration_chunks": (fp.chunk_index - rec.start_chunk) if rec else 0,
+        "is_recording": snapshot.get("is_recording", False),
+        "duration_seconds": snapshot.get("duration_seconds", 0),
+        "start_chunk": snapshot.get("start_chunk"),
+        "events_count": snapshot.get("events_count", 0),
     }
 
     # Include last saved path if available (after stop completes)
@@ -601,6 +757,31 @@ These are separate milestones. Current implementation records the events, but fa
 - **Wall-clock** (`startTime`/`endTime`): Secondary, affected by GPU stalls/pauses. Useful for human-readable durations.
 
 `render_timeline.py` could use chunk indices for frame-accurate replay, or wall-clock for natural timing (with potential drift).
+
+## Known Limitations (MVP)
+
+Per hardening review, these are explicit scope boundaries:
+
+| Limitation | Notes |
+|------------|-------|
+| **Parameter changes beyond prompts/cuts** | Denoise steps, seeds, LoRA scale changes are NOT captured unless they result in SET_PROMPT events |
+| **Soft cut replay** | Recorded but not replayable until `render_timeline.py` supports it. Even then, needs restore-target nuance (`soft_cut_restore_bias`, `soft_cut_restore_was_set`) |
+| **Hard cut replay** | Recorded as `initCache`, ignored by renderer until implemented |
+| **Recording start mid-transition** | We record transition target prompt as baseline (no transition at t=0) - approximation |
+| **Multi-prompt blending** | Currently captures first prompt only |
+| **World state / style changes** | Only captured if they result in prompt recompilation (SET_PROMPT) |
+
+### Edge Cases to Handle
+
+| Edge Case | Behavior |
+|-----------|----------|
+| Start when no pipeline loaded | Fails with warning, returns early |
+| Start when no prompt set | Records baseline as None; timeline will have empty first segment |
+| Start mid-transition | Records target prompt at t=0 (without transition metadata) |
+| Stop while paused | Works - stop processed on next mailbox drain |
+| Pipeline reload mid-recording | Not handled - recording continues with stale pipeline_id |
+| Multiple sessions connected | `get_active_session` errors; recording is per-session |
+| Save failure (permissions) | Logged as error; `_last_recording_path` not updated |
 
 ## Open Questions
 

@@ -178,6 +178,14 @@ PYTHONPATH=src .venv-b300-cu130-decode/bin/python scripts/bench_wanvae_stream_de
 
 FA4 basic attention works on B300 after patching `nvidia-cutlass-dsl`. It's **13x faster** than Triton for causal attention!
 
+> ⚠️ IMPORTANT: `nvidia-cutlass-dsl` conflicts with PyTorch Inductor in this repo.
+>
+> Symptom: `torch.compile` can fail with `NoValidChoicesError` for `flex_attention` because `nvidia-cutlass-dsl` installs a top-level `cutlass` module that shadows `torch._inductor`’s internal cutlass utilities.
+>
+> Recommendation: use a separate venv for FA4/CUTE experiments, and uninstall FA4 deps before running the normal pipeline.
+>
+> Details: `notes/FA4/b300/investigation.md` (Issue 2).
+
 ```bash
 # 1. Install dependencies for flash_attn.cute (CuTe)
 uv pip install cuda-python nvidia-cutlass-dsl==4.1.0
@@ -187,6 +195,12 @@ PATH=.venv/bin:$PATH ./scripts/patch_cutlass_sm103.sh .venv
 
 # 3. Verify FA4 works
 PATH=.venv/bin:$PATH python -c "from flash_attn.cute.interface import _flash_attn_fwd; print('FA4 OK')"
+```
+
+To uninstall the FA4 deps:
+
+```bash
+uv pip uninstall nvidia-cutlass-dsl cuda-python cuda-bindings cuda-pathfinder
 ```
 
 **Note**: FA4 with `score_mod` (for Kernel B equivalent) doesn't work yet due to version mismatches. See `notes/FA4/b300/fa4-patches.md` for details.

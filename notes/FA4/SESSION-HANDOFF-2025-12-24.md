@@ -162,4 +162,4 @@ uv run python scripts/profile_krea_pipeline_blocks.py \
 These are experimental Codex changes (LSE fallback) that didn't fix B300.
 
 ## Claude Code Version
-Locked at 2.0.62 (see notes/TODO-next-session.md for unlock instructions)
+See `notes/NOTES-INDEX.md` (“Environment Note”) for the Claude Code version/pinning caveat.
