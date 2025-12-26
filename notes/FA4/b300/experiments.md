@@ -262,3 +262,25 @@ Keep: this makes the “flash fallback ladder” usable on SM103 and prevents ca
 **Lessons:**  
 - FA4 score_mod can be healthy while FA4 `return_lse` is not; keep these as separate “availability” checks.  
 - For SM103, segment-combine should default to the stable FA2 varlen kernel unless explicitly experimenting.
+
+---
+
+### 2025-12-26 — Reduce denoise-step “glue” allocations (`timestep`, `random_noise`)
+
+**Status:** Unmeasured (needs A/B)
+
+**Question:**  
+Can we reduce `aten::fill_` / `aten::copy_` / allocation churn by avoiding per-step creation of tiny-but-frequent tensors in the denoise loop?
+
+**Change (one thing):**  
+Reuse denoise-loop buffers:
+- preallocate `timestep` and `next_timestep_tensor` and update via `fill_()` instead of `torch.ones(...) * t`
+- reuse `random_noise` buffer and refill via `normal_()` instead of allocating `torch.randn(...)` each step
+
+**Files changed:**  
+- `src/scope/core/pipelines/wan2_1/blocks/denoise.py`  
+- `src/scope/core/pipelines/krea_realtime_video/blocks/recompute_kv_cache.py` (use `torch.zeros` for `context_timestep`)
+
+**Suggested measurement:**  
+- `scripts/profile_krea_pipeline_blocks.py` for FPS (canonical settings)  
+- `scripts/profile_krea_pipeline_ops.py --json ...` to check whether `aten::to`/`aten::copy_`/`aten::fill_` counts/time move

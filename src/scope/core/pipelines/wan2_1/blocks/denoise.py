@@ -296,16 +296,22 @@ class DenoiseBlock(ModularPipelineBlocks):
                 }
             )
 
+        # Avoid per-step allocations for timestep tensors (saves small but frequent overhead).
+        timestep = torch.empty(
+            [batch_size, num_frames],
+            device=noise.device,
+            dtype=torch.int64,
+        )
+        next_timestep_tensor = torch.empty(
+            [batch_size * num_frames],
+            device=noise.device,
+            dtype=torch.long,
+        )
+        random_noise = None
+
         # Denoising loop
         for index, current_timestep in enumerate(denoising_step_list):
-            timestep = (
-                torch.ones(
-                    [batch_size, num_frames],
-                    device=noise.device,
-                    dtype=torch.int64,
-                )
-                * current_timestep
-            )
+            timestep.fill_(int(current_timestep))
 
             if index < len(denoising_step_list) - 1:
                 with _ProfileDenoiseStep("generator"):
@@ -326,22 +332,15 @@ class DenoiseBlock(ModularPipelineBlocks):
                 # Create noise with same shape and properties as denoised_pred
                 flattened_pred = denoised_pred.flatten(0, 1)
                 with _ProfileDenoiseStep("randn"):
-                    random_noise = torch.randn(
-                        flattened_pred.shape,
-                        device=flattened_pred.device,
-                        dtype=flattened_pred.dtype,
-                        generator=block_state.generator,
-                    )
+                    if random_noise is None or random_noise.shape != flattened_pred.shape:
+                        random_noise = torch.empty_like(flattened_pred)
+                    random_noise.normal_(generator=block_state.generator)
                 with _ProfileDenoiseStep("scheduler_add_noise"):
+                    next_timestep_tensor.fill_(int(next_timestep))
                     noise = components.scheduler.add_noise(
                         flattened_pred,
                         random_noise,
-                        next_timestep
-                        * torch.ones(
-                            [batch_size * num_frames],
-                            device=noise.device,
-                            dtype=torch.long,
-                        ),
+                        next_timestep_tensor,
                     ).unflatten(0, denoised_pred.shape[:2])
             else:
                 with _ProfileDenoiseStep("generator"):

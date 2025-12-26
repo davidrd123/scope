@@ -235,13 +235,10 @@ class RecomputeKVCacheBlock(ModularPipelineBlocks):
             )
         )
 
-        context_timestep = (
-            torch.ones(
-                [1, num_context_frames],
-                device=context_frames.device,
-                dtype=torch.int64,
-            )
-            * 0
+        context_timestep = torch.zeros(
+            [1, num_context_frames],
+            device=context_frames.device,
+            dtype=torch.int64,
         )
 
         # Cache recomputation: no bias to faithfully store context frames
