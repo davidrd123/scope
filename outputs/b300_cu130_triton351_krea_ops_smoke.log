@@ -1,0 +1,44 @@
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 for torchao version 0.15.0+cu130             Please see https://github.com/pytorch/ao/issues/2919 for more info
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Fetching 6 files: 100%|██████████| 6/6 [00:00<00:00, 129055.51it/s]
+Warning: Could not load sageattention: No module named 'sageattention'
+sageattention package is not installed
+SAGEATTN_AVAILABLE: False
+TRITON_ROTARY_AVAILABLE: True, USE_TRITON_ROTARY: True
+TRITON_ROPE_FUSED_AVAILABLE: True, USE_TRITON_ROPE_FUSED: True
+CUDA device: NVIDIA B300 SXM6 AC
+Compute capability: (10, 3)
+torch: 2.9.0+cu130 (cuda=13.0)
+cudnn.benchmark: True
+compile=True
+SCOPE_KV_BIAS_BACKEND=fa4
+DISABLE_FLEX_ATTENTION_COMPILE=1
+WANVAE_STREAM_DECODE_MODE=chunk
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
+Loaded diffusion model in 0.077682s
+Loaded text encoder in 0.307101s
+Loaded VAE in 0.134s
+Warmed up (3 runs) in 12.75s
+Pre-warm (outside profiler): 1 iteration(s)
+Profiling: 1 iteration(s)
+Profiled wall time: 0.745s
+
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                             Torch-Compiled Region: 0/2         1.11%       4.777ms        69.73%     298.780ms       1.867ms       0.000us         0.00%     207.571ms       1.297ms           160  
+## Call CompiledFxGraph fif2mpflpcabgzt3psrubjwu2ckl...         0.00%       0.000us         0.00%       0.000us       0.000us     136.214ms        50.95%     136.214ms     681.071us           200  
+                            Torch-Compiled Region: 13/1         0.92%       3.932ms        10.64%      45.612ms     228.058us       0.000us         0.00%     132.853ms     664.266us           200  
+## Call CompiledFxGraph fif2mpflpcabgzt3psrubjwu2ckl...         3.43%      14.691ms         9.43%      40.427ms     202.137us       0.000us         0.00%     132.853ms     664.266us           200  
+                                               aten::mm         2.18%       9.323ms         2.95%      12.654ms      10.545us     128.655ms        48.12%     128.655ms     107.213us          1200  
+                             Torch-Compiled Region: 1/2         0.86%       3.664ms        57.09%     244.639ms       1.529ms       0.000us         0.00%      97.589ms     609.934us           160  
+               nvjet_tst_256x128_64x5_2x2_2cta_h_bz_TNT         0.00%       0.000us         0.00%       0.000us       0.000us      60.769ms        22.73%      60.769ms      75.962us           800  
+                             Torch-Compiled Region: 8/1         0.55%       2.347ms        49.31%     211.276ms       1.320ms       0.000us         0.00%      54.398ms     339.990us           160  
+                             Torch-Compiled Region: 0/1         0.24%       1.026ms         6.44%      27.578ms     689.460us       0.000us         0.00%      52.448ms       1.311ms            40  
+                             Torch-Compiled Region: 9/1        10.95%      46.936ms        45.74%     195.984ms       1.225ms      33.554ms        12.55%      52.400ms     327.503us           160  
+## Call CompiledFxGraph fgxtchrylcthq2iozxixhp4dhlvk...         0.00%       0.000us         0.00%       0.000us       0.000us      42.432ms        15.87%      42.432ms     265.202us           160  
+## Call CompiledFxGraph fgxtchrylcthq2iozxixhp4dhlvk...         1.26%       5.419ms         2.99%      12.801ms      80.008us       0.000us         0.00%      41.079ms     256.744us           160  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+Self CPU time total: 428.502ms
+Self CUDA time total: 267.352ms
+
