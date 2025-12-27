@@ -77,9 +77,15 @@ export DISABLE_FLEX_ATTENTION_COMPILE="${DISABLE_FLEX_ATTENTION_COMPILE:-1}"
 # Enable torch.compile for the diffusion blocks on B300 (opt-out via SCOPE_COMPILE_KREA_PIPELINE=0).
 export SCOPE_COMPILE_KREA_PIPELINE="${SCOPE_COMPILE_KREA_PIPELINE:-1}"
 
-# Fused QKV projections can introduce extra view/contiguity overhead on SM103.
-# Disable by default on B300; opt back in by setting SCOPE_DISABLE_FUSED_PROJECTIONS=0.
-export SCOPE_DISABLE_FUSED_PROJECTIONS="${SCOPE_DISABLE_FUSED_PROJECTIONS:-1}"
+# Fused QKV projections:
+# - With torch.compile ON, enabling fused projections is a small throughput win in our benchmark.
+# - With torch.compile OFF (debug/eager), fused projections can introduce strided views that
+#   trigger extra materialization work downstream.
+if [[ "${SCOPE_COMPILE_KREA_PIPELINE}" == "1" ]]; then
+  export SCOPE_DISABLE_FUSED_PROJECTIONS="${SCOPE_DISABLE_FUSED_PROJECTIONS:-0}"
+else
+  export SCOPE_DISABLE_FUSED_PROJECTIONS="${SCOPE_DISABLE_FUSED_PROJECTIONS:-1}"
+fi
 
 # Default to highest-quality output on B300 (disable FP8 quantization unless explicitly allowed).
 if [[ "$ALLOW_FP8" == "1" ]]; then

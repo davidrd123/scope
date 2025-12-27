@@ -55,6 +55,7 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
 
 Benchmark harness (`scripts/profile_krea_pipeline_blocks.py`, cu130 env, bias=0.3):
 - **Best-known (today):** `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile` + `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1` + fused projections ON: **~30.08 FPS** (`outputs/b300_cu130_triton351_compile_fuseproj_on_perf.log`)
+- Optional: `SCOPE_TORCH_COMPILE_MODE=max-autotune-no-cudagraphs` can bump this slightly (**~30.21 FPS**) but increases warmup/autotune time (`outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_fuseproj_on_perf_triton351.log`)
 - Same settings but without the VAE resample contiguity fix (`WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=0`): **~21.45 FPS** (`outputs/b300_cu130_triton351_compile_default_blocks_perf.log`)
 - Historical (needs re-measure post VAE fix): `SCOPE_KV_BIAS_BACKEND=fa4`: **~19.7 FPS**
 

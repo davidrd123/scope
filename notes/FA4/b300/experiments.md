@@ -377,6 +377,55 @@ Prefer fused projections ON when running compiled B300 path; keep “disable fus
 - `outputs/b300_cu130_triton351_compile_fuseproj_on_perf.log`  
 - `outputs/b300_cu130_triton351_compile_fuseproj_on_blocks_profile.json`
 
+### 2025-12-27 — torch.compile mode: `max-autotune-no-cudagraphs` (Triton 3.5.1)
+
+**Question:**  
+Now that Triton SM103 is updated, does `torch.compile(mode=\"max-autotune-no-cudagraphs\")` improve steady-state throughput enough to justify the extra warmup?
+
+**Hypothesis:**  
+Maybe a small win (better kernel selection), but likely higher compile/warmup cost.
+
+**Change (one thing):**  
+Set `SCOPE_TORCH_COMPILE_MODE=max-autotune-no-cudagraphs` (keep everything else the same).
+
+**Benchmark config:**  
+- GPU: B300 (SM103)  
+- Env: cu130 decode env (`.venv-b300-cu130-decode`, **triton 3.5.1**)  
+- torch / cuda: `2.9.0+cu130` / `13.0`  
+- Settings: `320x576`, steps=`4`, bias=`0.3`, quantization=`none`  
+- Notes: fused projections ON, `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1`
+
+**Command(s):**
+```bash
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_DISABLE_FUSED_PROJECTIONS=0 \
+SCOPE_TORCH_COMPILE_MODE=max-autotune-no-cudagraphs \
+WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
+PROFILE_PIPELINE_BLOCKS=1 PROFILE_PIPELINE_BLOCKS_JSON=outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_fuseproj_on_blocks_profile_triton351.json \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 --iters 6 --skip 2 \
+  --compile --quantization none --kv-cache-attention-bias 0.3 --cudnn-benchmark \
+  |& tee outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_fuseproj_on_perf_triton351.log
+```
+
+**Baseline:**  
+- `SCOPE_TORCH_COMPILE_MODE` unset (default compile mode): `30.08 FPS` (`outputs/b300_cu130_triton351_compile_fuseproj_on_perf.log`)
+
+**Result:**  
+- `max-autotune-no-cudagraphs`: `30.21 FPS` (`outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_fuseproj_on_perf_triton351.log`)
+- Warmup increased (autotune output + ~`20s` warmup vs ~`12s` in the baseline log).
+
+**Decision:**  
+Keep as an opt-in mode; default compile mode is usually “good enough” unless you’re chasing the last ~0.5–1%.
+
+**Artifacts:**  
+- `outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_fuseproj_on_perf_triton351.log`  
+- `outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_fuseproj_on_blocks_profile_triton351.json`
+
 ### 2025-12-27 — VAE decode: channels-last 3D activations
 
 **Question:**  

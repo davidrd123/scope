@@ -404,24 +404,250 @@ class TestSessionRecorderStatusSnapshot:
         assert status["is_recording"] is False
 
 
-# --- Placeholder for integration tests ---
-# These would require actual FrameProcessor/PipelineManager integration
+# --- REST API endpoint tests ---
+# These test the session recording REST endpoints
+
+
+class TestSessionRecordingRESTEndpoints:
+    """Test REST endpoints for session recording control."""
+
+    @pytest.fixture
+    def fake_frame_processor(self):
+        """Create a FakeFrameProcessor with session_recorder."""
+        from scope.server.session_recorder import SessionRecorder
+
+        class FakeFrameProcessor:
+            def __init__(self):
+                self.paused = False
+                self.chunk_index = 0
+                self.parameters: dict = {"prompts": [{"text": "test", "weight": 1.0}]}
+                self.updates: list[dict] = []
+                self.session_recorder = SessionRecorder()
+                self._last_recording_path = None
+
+            def update_parameters(self, parameters: dict) -> bool:
+                self.updates.append(dict(parameters))
+                return True
+
+        return FakeFrameProcessor()
+
+    @pytest.fixture
+    def fake_video_track(self, fake_frame_processor):
+        class FakeVideoTrack:
+            def __init__(self, fp):
+                self.frame_processor = fp
+                self.initialize_calls = 0
+
+            def initialize_output_processing(self):
+                self.initialize_calls += 1
+
+            def pause(self, paused: bool):
+                pass
+
+        return FakeVideoTrack(fake_frame_processor)
+
+    @pytest.fixture
+    def fake_session(self, fake_video_track):
+        class FakePC:
+            connectionState = "connected"
+
+        class FakeSession:
+            def __init__(self, vt):
+                self.id = "test-session"
+                self.pc = FakePC()
+                self.video_track = vt
+
+        return FakeSession(fake_video_track)
+
+    @pytest.fixture
+    def fake_webrtc_manager(self, fake_session):
+        class FakeWebRTCManager:
+            def __init__(self, session):
+                self.sessions = {session.id: session}
+
+        return FakeWebRTCManager(fake_session)
+
+    def test_start_endpoint_enqueues_reserved_key(
+        self, tmp_path, monkeypatch, fake_webrtc_manager, fake_frame_processor
+    ):
+        """POST /session-recording/start should enqueue _rcp_session_recording_start."""
+        import asyncio
+        import importlib
+
+        monkeypatch.setenv("DAYDREAM_SCOPE_LOGS_DIR", str(tmp_path / "logs"))
+        import scope.server.app as app_mod
+
+        app_mod = importlib.reload(app_mod)
+
+        resp = asyncio.run(
+            app_mod.start_session_recording(webrtc_manager=fake_webrtc_manager)
+        )
+        assert resp.status == "recording_start_requested"
+        # Reserved key should be in updates
+        assert any("_rcp_session_recording_start" in u for u in fake_frame_processor.updates)
+
+    def test_stop_endpoint_enqueues_reserved_key(
+        self, tmp_path, monkeypatch, fake_webrtc_manager, fake_frame_processor
+    ):
+        """POST /session-recording/stop should enqueue _rcp_session_recording_stop."""
+        import asyncio
+        import importlib
+
+        monkeypatch.setenv("DAYDREAM_SCOPE_LOGS_DIR", str(tmp_path / "logs"))
+        import scope.server.app as app_mod
+
+        app_mod = importlib.reload(app_mod)
+
+        resp = asyncio.run(
+            app_mod.stop_session_recording(webrtc_manager=fake_webrtc_manager)
+        )
+        assert resp.status == "stop_requested"
+        assert any("_rcp_session_recording_stop" in u for u in fake_frame_processor.updates)
+
+    def test_status_endpoint_returns_snapshot(
+        self, tmp_path, monkeypatch, fake_webrtc_manager, fake_frame_processor
+    ):
+        """GET /session-recording/status should return recorder snapshot."""
+        import asyncio
+        import importlib
+
+        monkeypatch.setenv("DAYDREAM_SCOPE_LOGS_DIR", str(tmp_path / "logs"))
+        import scope.server.app as app_mod
+
+        app_mod = importlib.reload(app_mod)
+
+        resp = asyncio.run(
+            app_mod.get_session_recording_status(webrtc_manager=fake_webrtc_manager)
+        )
+        assert resp.is_recording is False
+        assert resp.events_count == 0
+        assert resp.last_timeline_path is None
+
+    def test_status_endpoint_shows_last_path_after_stop(
+        self, tmp_path, monkeypatch, fake_webrtc_manager, fake_frame_processor
+    ):
+        """After stop, status should show last_timeline_path."""
+        import asyncio
+        import importlib
+        from pathlib import Path
+
+        monkeypatch.setenv("DAYDREAM_SCOPE_LOGS_DIR", str(tmp_path / "logs"))
+        import scope.server.app as app_mod
+
+        app_mod = importlib.reload(app_mod)
+
+        # Simulate a saved recording
+        fake_frame_processor._last_recording_path = Path("/tmp/test.timeline.json")
+
+        resp = asyncio.run(
+            app_mod.get_session_recording_status(webrtc_manager=fake_webrtc_manager)
+        )
+        assert resp.last_timeline_path == "/tmp/test.timeline.json"
+
+
+# --- PipelineManager.peek_status_info tests ---
+
+
+class TestPipelineManagerPeekStatus:
+    """Test peek_status_info() non-mutating status read."""
+
+    def test_peek_status_info_exists(self):
+        """PipelineManager should have peek_status_info method."""
+        from scope.server.pipeline_manager import PipelineManager
+
+        assert hasattr(PipelineManager, "peek_status_info")
+
+    def test_peek_status_info_does_not_clear_error(self):
+        """peek_status_info should NOT clear error message (unlike get_status_info)."""
+        from scope.server.pipeline_manager import PipelineManager
+
+        pm = PipelineManager()
+        # Set an error state
+        pm._error_message = "Test error"
+        pm._status = pm._status.__class__("error")
+
+        # First peek should return error
+        status1 = pm.peek_status_info()
+        assert status1.get("error") == "Test error"
+
+        # Second peek should STILL return error (not cleared)
+        status2 = pm.peek_status_info()
+        assert status2.get("error") == "Test error"
+
+    def test_peek_status_info_returns_load_params(self):
+        """peek_status_info should return load_params."""
+        from scope.server.pipeline_manager import PipelineManager
+
+        pm = PipelineManager()
+        pm._load_params = {"height": 480, "width": 832}
+
+        status = pm.peek_status_info()
+        assert status.get("load_params") == {"height": 480, "width": 832}
+
+    def test_peek_status_info_returns_pipeline_id(self):
+        """peek_status_info should return pipeline_id."""
+        from scope.server.pipeline_manager import PipelineManager
+
+        pm = PipelineManager()
+        pm._pipeline_id = "krea-realtime-video"
+
+        status = pm.peek_status_info()
+        assert status.get("pipeline_id") == "krea-realtime-video"
+
+
+# --- FrameProcessor integration tests ---
 
 
 class TestSessionRecorderIntegration:
-    """Integration tests with FrameProcessor (placeholder)."""
+    """Integration tests with FrameProcessor."""
 
-    @pytest.mark.skip(reason="Requires SessionRecorder implementation in FrameProcessor")
+    def test_frame_processor_has_session_recorder(self):
+        """FrameProcessor should have session_recorder attribute after wiring."""
+        pytest.importorskip("torch")
+        from scope.server.frame_processor import FrameProcessor
+        from scope.server.pipeline_manager import PipelineManager
+
+        pm = PipelineManager()
+        fp = FrameProcessor(pm)
+
+        assert hasattr(fp, "session_recorder")
+        from scope.server.session_recorder import SessionRecorder
+
+        assert isinstance(fp.session_recorder, SessionRecorder)
+
+    def test_frame_processor_has_last_recording_path(self):
+        """FrameProcessor should track _last_recording_path."""
+        pytest.importorskip("torch")
+        from scope.server.frame_processor import FrameProcessor
+        from scope.server.pipeline_manager import PipelineManager
+
+        pm = PipelineManager()
+        fp = FrameProcessor(pm)
+
+        assert hasattr(fp, "_last_recording_path")
+        assert fp._last_recording_path is None
+
+    @pytest.mark.skip(reason="Requires full process_chunk wiring")
     def test_reserved_key_starts_recording(self):
-        """_rcp_session_recording_start should start recording."""
+        """_rcp_session_recording_start should start recording when pipeline loaded."""
         pass
 
-    @pytest.mark.skip(reason="Requires SessionRecorder implementation in FrameProcessor")
-    def test_reserved_key_stops_recording(self):
-        """_rcp_session_recording_stop should stop and save."""
+    @pytest.mark.skip(reason="Requires full process_chunk wiring")
+    def test_reserved_key_stops_recording_and_saves(self):
+        """_rcp_session_recording_stop should stop, export, and save timeline."""
         pass
 
-    @pytest.mark.skip(reason="Requires SessionRecorder implementation in FrameProcessor")
-    def test_hard_cut_recorded_on_pipeline_call(self):
-        """Hard cut should be recorded when init_cache=True passed to pipeline."""
+    @pytest.mark.skip(reason="Requires full process_chunk wiring")
+    def test_hard_cut_recorded_when_reset_cache_executed(self):
+        """Hard cut (reset_cache=True) should be recorded as initCache."""
+        pass
+
+    @pytest.mark.skip(reason="Requires full process_chunk wiring")
+    def test_soft_cut_recorded_once_per_trigger(self):
+        """Soft cut should record once at first generated chunk, not every chunk."""
+        pass
+
+    @pytest.mark.skip(reason="Requires full process_chunk wiring")
+    def test_prompt_edge_detection_while_paused(self):
+        """Prompt changes while paused should be recorded at next generated chunk."""
         pass
