@@ -740,6 +740,67 @@ Keep. Even if the absolute time is small, CUDA scalar syncs are “poison” for
 - Don’t store “index counters” on CUDA if they’ll ever be used in Python control flow or slicing — it creates implicit `.item()` syncs.  
 - If you need stable identity for compile/cudagraph friendliness, a 1-element CPU tensor works as a low-risk compromise.  
 
+### 2025-12-27 — Recompute KV cache: skip full-cache zero when reusing buffers
+
+**Status:** Done (small win; correctness-preserving)
+
+**Question:**  
+Is `recompute_kv_cache` paying unnecessary memory bandwidth by zeroing the entire KV cache every iteration, even though the recompute pass overwrites the active window and updates indices?
+
+**Hypothesis:**  
+Yes. Skipping `k.zero_()`/`v.zero_()` when reusing an existing cache should reduce recompute overhead without affecting correctness (unused cache region is never read because indices bound all slices).
+
+**Change (one thing):**  
+Add `zero_cache=` to `initialize_kv_cache(...)` (default `True`), and set `zero_cache=False` in `RecomputeKVCacheBlock` when reusing `block_state.kv_cache`.
+
+**Benchmark config:**  
+- GPU: B300 (SM103)  
+- Env: cu130 decode env (`.venv-b300-cu130-decode`)  
+- torch / cuda: `2.9.0+cu130` / `13.0`  
+- Settings: `320x576`, bias=`0.3`, quantization=`none`, compile=`True`  
+- Notes: `SCOPE_KV_BIAS_BACKEND=fa4`, `SCOPE_ENABLE_FA4_VARLEN=1`, `WANVAE_STREAM_DECODE_MODE=chunk`, `WANVAE_DECODE_CHANNELS_LAST_3D=1`, `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1`
+
+**Command(s):**
+```bash
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_ENABLE_FA4_VARLEN=1 \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 10 --skip 3 \
+  --kv-cache-attention-bias 0.3 \
+  --quantization none \
+  --cudnn-benchmark \
+  --compile \
+  --profile-blocks \
+  --profile-blocks-json outputs/b300_cu130_compile_best_blocks_2025-12-27_blocks_profile.json
+```
+
+**Baseline:**  
+- Avg FPS (skip=3): `34.40` (`outputs/b300_cu130_compile_best_blocks_2025-12-27.log`)  
+- `recompute_kv_cache`: `429.56ms / 7 calls` ⇒ `~61.37ms/call` (`outputs/b300_cu130_compile_best_blocks_2025-12-27_blocks_profile.json`)
+
+**Result:**  
+- Avg FPS (skip=3): `34.49` (`outputs/b300_cu130_compile_best_blocks_no_kvcache_zero_2025-12-27.log`)  
+- `recompute_kv_cache`: `421.49ms / 7 calls` ⇒ `~60.21ms/call` (≈`-1.15ms/call`, `-1.9%`) (`outputs/b300_cu130_compile_best_blocks_no_kvcache_zero_2025-12-27_blocks_profile.json`)
+
+**Decision:**  
+Keep. It’s a small gain, but it’s effectively “free” (no quality trade-off) and shaves steady-state overhead from a block that runs every iteration.
+
+**Artifacts:**  
+- Baseline: `outputs/b300_cu130_compile_best_blocks_2025-12-27.log`  
+- Baseline blocks: `outputs/b300_cu130_compile_best_blocks_2025-12-27_blocks_profile.json`  
+- Change: `outputs/b300_cu130_compile_best_blocks_no_kvcache_zero_2025-12-27.log`  
+- Change blocks: `outputs/b300_cu130_compile_best_blocks_no_kvcache_zero_2025-12-27_blocks_profile.json`  
+
+**Lessons:**  
+- If a buffer is bounded by explicit indices (`*_end_index`) and the next step overwrites the active window, full-cache zeroing is wasted bandwidth.  
+- For “recompute” passes, prefer **reset indices** + overwrite, not **memset the world**.  
+
 ### 2025-12-26 — Baseline choice: `--quantization none` vs `fp8_e4m3fn` (B300 cu130)
 
 **Status:** Done

@@ -60,7 +60,7 @@ If you’re ever unsure what to read next, follow this loop:
 
 ## Ground Truth Conventions
 
-- **Current best:** ~30.7 FPS (BF16 + compile + FA4 varlen + resample-contiguous). **3.5× baseline.**
+- **Current best:** ~34.5 FPS (BF16 + compile + FA4 varlen + resample-contiguous). **~3.9× baseline.**
 - **Canonical perf comparisons:** `320x576`, 4 denoise steps, `kv_cache_attention_bias=0.3`, quality-preserving settings.
 - **Quality gate:** FP8 quantization is currently **off-limits** on B300 (garbage output). Use `--quantization none` (BF16). Details: `session-state.md`.
 - **One-change rule:** change exactly one thing per experiment card and write down:

@@ -222,6 +222,9 @@ class RecomputeKVCacheBlock(ModularPipelineBlocks):
             local_attn_size=components.config.local_attn_size,
             frame_seq_length=frame_seq_length,
             kv_cache_existing=block_state.kv_cache,
+            # The recompute pass immediately overwrites the active cache window and
+            # updates indices, so zeroing the full cache is wasted bandwidth.
+            zero_cache=False,
         )
 
         # Prepare blockwise causal mask

@@ -54,8 +54,8 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
 ### Production-viable (quality-preserving; BF16 / `--quantization none`)
 
 Benchmark harness (`scripts/profile_krea_pipeline_blocks.py`, cu130 env, bias=0.3):
-- **Best-known (today):** `SCOPE_KV_BIAS_BACKEND=fa4` + `SCOPE_ENABLE_FA4_VARLEN=1` + `--compile` + `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1` + fused projections ON: **~30.76 FPS** (`outputs/b300_cu130_triton351_compile_fuseproj_on_fa4_varlen_perf.log`)
-- Optional: `SCOPE_TORCH_COMPILE_MODE=max-autotune-no-cudagraphs` can bump this slightly (**~30.93 FPS**) but increases warmup/autotune time (`outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_fuseproj_on_fa4_varlen_perf.log`)
+- **Best-known (today):** `SCOPE_KV_BIAS_BACKEND=fa4` + `SCOPE_ENABLE_FA4_VARLEN=1` + `--compile` + `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1` + fused projections ON: **~34.5 FPS** (Avg FPS `skip=3`; `outputs/b300_cu130_compile_best_blocks_no_kvcache_zero_2025-12-27.log`)
+- Optional (experiment): `SCOPE_TORCH_COMPILE_MODE=max-autotune-no-cudagraphs` can increase autotuning coverage but also increases warmup time; **needs re-measure** under the current best stack.
 - Same settings but without the VAE resample contiguity fix (`WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=0`): **~21.45 FPS** (`outputs/b300_cu130_triton351_compile_default_blocks_perf.log`)
 - Historical (needs re-measure post VAE fix): `SCOPE_KV_BIAS_BACKEND=fa4`: **~19.7 FPS**
 
@@ -69,7 +69,7 @@ Daydream end-to-end (cu130 env): **TBD re-measure** (historical note: pre patch-
 
 `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, `scripts/b300_env_fix_cu130.sh` now tries `torchao==0.15.0+cu130` from the cu130 index (then PyPI as fallback). **As of 2025-12-26**, `torchao==0.15.0+cu130` still prints `Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 ...` (likely upstream; no FPS change observed).
 
-This is roughly a **3.5× throughput improvement** over the repo-default baseline (~8.8 → ~30.7 FPS in the benchmark harness).
+This is roughly a **3.9× throughput improvement** over the repo-default baseline (~8.8 → ~34.5 FPS in the benchmark harness).
 
 External doc brief (for RepoPrompt / web research): [`blackwell-docs.md`](blackwell-docs.md)
 
@@ -235,7 +235,7 @@ As of 2025-12-27:
 - **Quantization none:** `scripts/profile_krea_pipeline_blocks.py --compile` now works on B300 and improves throughput.
   - Example (B300, cu130 env, `320x576`, bias `0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`):
     - `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=0`: **~21.45 FPS** (`outputs/b300_cu130_triton351_compile_default_blocks_perf.log`)
-    - `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1`: **~29.36 FPS** (`outputs/b300_cu130_triton351_compile_default_blocks_perf_ensurecontig.log`)
+    - `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1`: **~34.5 FPS** (`outputs/b300_cu130_compile_best_blocks_no_kvcache_zero_2025-12-27.log`)
   - Tradeoff: longer warmup due to compilation (expect ~10–30s depending on cache state).
 - **FP8 (torchao):** ⚠️ **BROKEN on B300** — produces garbage output (gray noise). The `as_strided` monkeypatch is applied but TorchAO cpp extensions are skipped due to torch 2.9+cu130 incompatibility, causing FP8 kernels to malfunction. Use `--quantization none` (BF16) instead. Patch code: `src/scope/core/compat/torchao_float8_as_strided.py` (upstream issue: [`torchao-as-strided-dispatch.md`](../../issues/torchao-as-strided-dispatch.md)).
 
@@ -252,9 +252,7 @@ Server opt-in: set `SCOPE_COMPILE_KREA_PIPELINE=1` before launching. `scripts/ru
   - Guardrail: on SM103 we now ignore `SCOPE_TORCH_COMPILE_MODE=reduce-overhead` unless `SCOPE_ALLOW_REDUCE_OVERHEAD_SM103=1`.
 Recommendation: leave `SCOPE_TORCH_COMPILE_MODE` unset (default) unless you’re explicitly experimenting.
 
-**Compile strategy experiments:** by default we compile **each transformer block** (keeps graph breaks localized). You can force whole-model compilation with `SCOPE_TORCH_COMPILE_STRATEGY=model`, but in the best-known BF16 config it was effectively neutral and increased warmup:
-- Default (`blocks`): `~30.67 FPS`, warmup `~15.8s` (`outputs/b300_cu130_triton351_compile_blocks_best_perf.log`)
-- Whole model (`model`): `~30.74 FPS`, warmup `~19.5s` (`outputs/b300_cu130_triton351_compile_model_best_perf.log`)
+**Compile strategy experiments:** by default we compile **each transformer block** (keeps graph breaks localized). You can force whole-model compilation with `SCOPE_TORCH_COMPILE_STRATEGY=model`, but it’s currently **unmeasured** under the latest best-known BF16 stack (~34.5 FPS).
 
 **FA4 varlen opt-in (non-bias attention):** when `SCOPE_KV_BIAS_BACKEND=fa4`, FA4/CuTe varlen attention remains disabled by default (stable FA2 for non-bias attention). You can opt in with `SCOPE_ENABLE_FA4_VARLEN=1`; on B300 compiled BF16 this was a ~2–3% win (≈`30.08 → 30.76` FPS) but increased warmup/JIT time (≈`12s → 19s`). `scripts/run_daydream_b300.sh` now defaults this to `1` (set `SCOPE_ENABLE_FA4_VARLEN=0` to disable).
 
@@ -267,13 +265,13 @@ Update: FA4 score_mod KV-bias is now working on B300 and is faster than flash se
 
 **Config:** cu130 env, BF16, `--compile`, FA4 KV-bias + FA4 varlen, `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1`
 
-Per-call breakdown (~30.7 FPS):
+Per-call breakdown (~34.5 FPS):
 
 | Block | Per-call | Share | Notes |
 |------:|-------:|------:|-------|
-| `denoise` | ~267 ms | ~69% | Dominant; next optimization target |
-| `recompute_kv_cache` | ~62 ms | ~16% | Non-trivial; matters more as denoise improves |
-| `decode` | ~60 ms | ~15% | **Solved** (was ~195ms before resample fix) |
+| `denoise` | ~227 ms | ~65% | Dominant; next optimization target |
+| `recompute_kv_cache` | ~60 ms | ~17% | Still non-trivial; runs every iteration |
+| `decode` | ~60 ms | ~17% | Decode is no longer the bottleneck (was ~195ms pre resample fix) |
 
 **Interpretation:** VAE decode is no longer the bottleneck. The mountain is now `denoise` + `recompute_kv_cache`.
 
