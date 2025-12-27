@@ -297,16 +297,16 @@ class FrameProcessor:
             self._update_spout_receiver(spout_config)
 
         # Load style manifests from styles/ directory
-        styles_dir = Path("styles")
-        if styles_dir.exists():
-            try:
-                self.style_registry.load_from_directory(styles_dir)
+        try:
+            self.style_registry.load_from_style_dirs()
+            if len(self.style_registry) > 0:
                 logger.info(
-                    f"Loaded {len(self.style_registry.list_styles())} styles: "
-                    f"{self.style_registry.list_styles()}"
+                    "Loaded %d styles: %s",
+                    len(self.style_registry),
+                    self.style_registry.list_styles(),
                 )
-            except Exception as e:
-                logger.warning(f"Failed to load styles from {styles_dir}: {e}")
+        except Exception as e:
+            logger.warning("Failed to load styles from style dirs: %s", e)
 
         self.worker_thread = threading.Thread(target=self.worker_loop, daemon=True)
         self.worker_thread.start()
@@ -1163,34 +1163,17 @@ class FrameProcessor:
                     merged_updates["prompts"] = [p.to_dict() for p in compiled.prompts]
 
                 # LoRA only on style change (edge-trigger)
-                # Zero out all other LoRAs, activate the new one
                 if style_changed:
-                    lora_updates = []
-                    active_lora_path = new_style.lora_path
-
-                    # Zero out all other styles' LoRAs
-                    for other_style in self.style_registry.list_styles():
-                        other_manifest = self.style_registry.get(other_style)
-                        if other_manifest and other_manifest.lora_path:
-                            if other_manifest.lora_path == active_lora_path:
-                                # Active style: use its scale
-                                lora_updates.append(
-                                    {
-                                        "path": active_lora_path,
-                                        "scale": new_style.lora_default_scale,
-                                    }
-                                )
-                            else:
-                                # Inactive style: zero it out
-                                lora_updates.append(
-                                    {"path": other_manifest.lora_path, "scale": 0.0}
-                                )
-
+                    # Canonicalize paths and dedupe updates (styles may share the same LoRA).
+                    lora_updates = self.style_registry.build_lora_scales_for_style(
+                        style_name
+                    )
                     if lora_updates:
                         merged_updates["lora_scales"] = lora_updates
                         logger.info(
-                            f"LoRA switch: {active_lora_path} @ {new_style.lora_default_scale}, "
-                            f"zeroed {len(lora_updates) - 1} others"
+                            "LoRA scales updated for style '%s' (%d paths)",
+                            style_name,
+                            len(lora_updates),
                         )
             else:
                 logger.warning(f"Style not found in registry: {style_name}")

@@ -5,11 +5,83 @@ A StyleManifest captures everything needed to translate abstract world concepts
 into effective prompt tokens for a specific LoRA/style.
 """
 
+import logging
+import os
 from pathlib import Path
 from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Style Directory Resolution
+# =============================================================================
+
+
+def get_style_dirs() -> list[Path]:
+    """
+    Return style directories in precedence order (later wins on name conflicts).
+
+    Priority:
+    1. SCOPE_STYLES_DIRS env var (colon-separated paths)
+    2. Default: ./styles (repo built-ins), ~/.daydream-scope/styles (user overrides)
+    """
+    if custom := os.environ.get("SCOPE_STYLES_DIRS"):
+        return [Path(p).expanduser().resolve() for p in custom.split(":") if p]
+
+    return [
+        Path("styles").resolve(),  # repo/dev built-ins
+        Path.home() / ".daydream-scope" / "styles",  # user overrides
+    ]
+
+
+# =============================================================================
+# LoRA Path Canonicalization
+# =============================================================================
+
+
+def get_lora_dir() -> Path:
+    """Get the canonical LoRA directory path."""
+    from scope.server.models_config import get_models_dir
+
+    return get_models_dir() / "lora"
+
+
+def canonicalize_lora_path(raw: str | None) -> str | None:
+    """
+    Canonicalize a LoRA path for consistent matching.
+
+    Resolution rules:
+    - None/empty → None
+    - Already absolute → resolve and return
+    - Bare filename (no /) → resolve under models/lora
+    - Relative path with / → resolve under models/lora
+
+    This ensures the same canonical string is used for:
+    - Pipeline preload: loras=[{"path": <canonical>, ...}]
+    - Runtime updates: lora_scales=[{"path": <canonical>, ...}]
+
+    Args:
+        raw: Raw path from manifest (e.g., "rat_21_step5500.safetensors")
+
+    Returns:
+        Canonical absolute path string, or None if input was empty
+    """
+    if not raw:
+        return None
+
+    p = Path(raw).expanduser()
+
+    # Already absolute
+    if p.is_absolute():
+        return str(p.resolve())
+
+    # Relative path: resolve under lora directory
+    lora_dir = get_lora_dir()
+    return str((lora_dir / p).resolve())
 
 
 class StyleManifest(BaseModel):
@@ -146,17 +218,113 @@ class StyleRegistry:
         return manifest
 
     def load_from_directory(self, directory: str | Path) -> list[StyleManifest]:
-        """Load all manifest.yaml files from a directory tree."""
+        """
+        Load all manifest.yaml files from a directory tree.
+
+        Manifests are loaded in sorted path order for deterministic behavior.
+        """
         directory = Path(directory)
+        if not directory.exists():
+            return []
+
         manifests = []
-        for manifest_path in directory.rglob("manifest.yaml"):
+        # Sort for deterministic ordering
+        for manifest_path in sorted(directory.rglob("manifest.yaml")):
             try:
                 manifest = self.load_from_file(manifest_path)
                 manifests.append(manifest)
             except Exception as e:
                 # Log but don't fail on individual manifest errors
-                print(f"Warning: Failed to load {manifest_path}: {e}")
+                logger.warning(f"Failed to load {manifest_path}: {e}")
         return manifests
+
+    def load_from_style_dirs(self) -> list[StyleManifest]:
+        """
+        Load styles from all configured style directories.
+
+        Later directories win on name conflicts (user overrides repo).
+        """
+        all_manifests = []
+        for style_dir in get_style_dirs():
+            manifests = self.load_from_directory(style_dir)
+            all_manifests.extend(manifests)
+            if manifests:
+                logger.info(f"Loaded {len(manifests)} styles from {style_dir}")
+        return all_manifests
+
+    def get_all_lora_paths(self, skip_missing: bool = True) -> list[str]:
+        """
+        Get canonical LoRA paths for all registered styles.
+
+        Args:
+            skip_missing: If True, skip LoRAs that don't exist on disk (with warning)
+
+        Returns:
+            List of unique canonical LoRA paths
+        """
+        seen: dict[str, str] = {}  # canonical_path -> style_name (for logging)
+
+        for style_name in self.list_styles():
+            manifest = self.get(style_name)
+            if not manifest or not manifest.lora_path:
+                continue
+
+            canonical = canonicalize_lora_path(manifest.lora_path)
+            if not canonical:
+                continue
+
+            # Check if file exists
+            if skip_missing and not Path(canonical).exists():
+                logger.warning(
+                    f"Style '{style_name}': LoRA not found at {canonical}, skipping"
+                )
+                continue
+
+            if canonical in seen:
+                logger.debug(
+                    f"Style '{style_name}' shares LoRA with '{seen[canonical]}': {canonical}"
+                )
+            else:
+                seen[canonical] = style_name
+
+        return list(seen.keys())
+
+    def build_lora_scales_for_style(
+        self, active_style: str | None
+    ) -> list[dict[str, Any]]:
+        """
+        Build lora_scales list for a style switch.
+
+        Sets the active style's LoRA to its default scale, all others to 0.0.
+        Uses canonical paths for consistent matching with preloaded LoRAs.
+
+        Args:
+            active_style: Name of the style to activate (None = all at 0.0)
+
+        Returns:
+            List of {"path": <canonical>, "scale": <float>} dicts
+        """
+        scales_by_path: dict[str, float] = {}
+
+        for style_name in self.list_styles():
+            manifest = self.get(style_name)
+            if not manifest or not manifest.lora_path:
+                continue
+
+            canonical = canonicalize_lora_path(manifest.lora_path)
+            if not canonical:
+                continue
+
+            # Active style gets its default scale, others get 0.0
+            if style_name == active_style:
+                scale = manifest.lora_default_scale
+            else:
+                scale = 0.0
+
+            # Later styles with same path overwrite (consistent with load precedence)
+            scales_by_path[canonical] = scale
+
+        return [{"path": p, "scale": s} for p, s in scales_by_path.items()]
 
     def get(self, name: str) -> StyleManifest | None:
         """Get a manifest by name."""

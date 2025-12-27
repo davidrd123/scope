@@ -506,16 +506,33 @@ def _load_instruction_sheet(style: StyleManifest) -> InstructionSheet | None:
     if not style.name:
         return None
 
-    # Look for instruction sheet in style directory
-    # Assuming styles are in <project>/styles/<name>/instructions.md
-    style_dir = Path(__file__).parent.parent.parent.parent / "styles" / style.name
-    instruction_path = style_dir / "instructions.md"
+    from .style_manifest import get_style_dirs
 
-    if instruction_path.exists():
+    candidates: list[Path] = []
+
+    raw = (style.instruction_sheet_path or "").strip()
+    if raw:
+        p = Path(raw).expanduser()
+        if p.is_absolute():
+            candidates.append(p)
+        else:
+            # Try both "instructions.md" and "style/instructions.md" style paths.
+            for base in get_style_dirs():
+                candidates.append(base / style.name / p)
+                candidates.append(base / p)
+    else:
+        for base in get_style_dirs():
+            candidates.append(base / style.name / "instructions.md")
+
+    for instruction_path in candidates:
+        if not instruction_path.exists():
+            continue
         try:
             return InstructionSheet.from_markdown(instruction_path)
         except Exception as e:
-            logger.warning(f"Failed to load instruction sheet {instruction_path}: {e}")
+            logger.warning(
+                "Failed to load instruction sheet %s: %s", instruction_path, e
+            )
             return None
 
     return None

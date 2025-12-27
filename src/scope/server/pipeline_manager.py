@@ -6,6 +6,7 @@ import logging
 import os
 import threading
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -307,6 +308,7 @@ class PipelineManager:
         default_height: int,
         default_width: int,
         default_seed: int = 42,
+        pipeline_id: str | None = None,
     ) -> None:
         """Extract and apply common load parameters (resolution, seed, LoRAs) to config.
 
@@ -329,6 +331,97 @@ class PipelineManager:
             seed = load_params.get("seed", default_seed)
             loras = load_params.get("loras", None)
             lora_merge_mode = load_params.get("lora_merge_mode", lora_merge_mode)
+
+        style_swap_mode = _is_env_true("STYLE_SWAP_MODE")
+        if style_swap_mode and pipeline_id not in (None, "passthrough"):
+            from scope.realtime.style_manifest import (
+                StyleRegistry,
+                canonicalize_lora_path,
+                get_style_dirs,
+            )
+
+            requested_style_names: set[str] | None = None
+            if raw := os.getenv("SCOPE_PRELOAD_LORAS"):
+                requested_style_names = {s.strip() for s in raw.split(",") if s.strip()}
+
+            registry = StyleRegistry()
+            registry.load_from_style_dirs()
+
+            style_lora_paths: list[str] = []
+            missing_count = 0
+            for style_name in registry.list_styles():
+                if requested_style_names and style_name not in requested_style_names:
+                    continue
+                manifest = registry.get(style_name)
+                if not manifest or not manifest.lora_path:
+                    continue
+                canonical = canonicalize_lora_path(manifest.lora_path)
+                if not canonical:
+                    continue
+                if not Path(canonical).exists():
+                    missing_count += 1
+                    logger.warning(
+                        "STYLE_SWAP_MODE=1: style '%s' LoRA not found at %s, skipping",
+                        style_name,
+                        canonical,
+                    )
+                    continue
+                if canonical not in style_lora_paths:
+                    style_lora_paths.append(canonical)
+
+            style_loras = [
+                {"path": p, "scale": 0.0, "merge_mode": "runtime_peft"}
+                for p in style_lora_paths
+            ]
+
+            explicit_loras: list[dict[str, Any]] = []
+            if isinstance(loras, list):
+                for lora_cfg in loras:
+                    if not isinstance(lora_cfg, dict):
+                        continue
+                    canonical = canonicalize_lora_path(lora_cfg.get("path"))
+                    if not canonical:
+                        continue
+                    if not Path(canonical).exists():
+                        missing_count += 1
+                        logger.warning(
+                            "STYLE_SWAP_MODE=1: requested LoRA not found at %s, skipping",
+                            canonical,
+                        )
+                        continue
+                    normalized = dict(lora_cfg)
+                    normalized["path"] = canonical
+                    explicit_loras.append(normalized)
+
+            loras_by_path: dict[str, dict[str, Any]] = {}
+            for lora_cfg in style_loras:
+                loras_by_path[lora_cfg["path"]] = lora_cfg
+            for lora_cfg in explicit_loras:
+                path = lora_cfg.get("path")
+                if isinstance(path, str) and path:
+                    loras_by_path[path] = lora_cfg
+
+            loras = list(loras_by_path.values()) or None
+            if loras:
+                logger.info(
+                    "STYLE_SWAP_MODE=1: preloading %d LoRA(s) (styles_dir=%s, missing=%d)",
+                    len(loras),
+                    [str(p) for p in get_style_dirs()],
+                    missing_count,
+                )
+            else:
+                logger.info(
+                    "STYLE_SWAP_MODE=1: no LoRAs discovered to preload (styles_dir=%s, missing=%d)",
+                    [str(p) for p in get_style_dirs()],
+                    missing_count,
+                )
+
+            if lora_merge_mode != "runtime_peft":
+                logger.info(
+                    "STYLE_SWAP_MODE=1: forcing lora_merge_mode runtime_peft (was %s)",
+                    lora_merge_mode,
+                )
+            lora_merge_mode = "runtime_peft"
 
         config["height"] = height
         config["width"] = width
@@ -409,6 +502,7 @@ class PipelineManager:
                 default_height=512,
                 default_width=512,
                 default_seed=42,
+                pipeline_id=pipeline_id,
             )
 
             quantization = None
@@ -488,6 +582,7 @@ class PipelineManager:
                 default_height=320,
                 default_width=576,
                 default_seed=42,
+                pipeline_id=pipeline_id,
             )
 
             quantization = None
@@ -541,6 +636,7 @@ class PipelineManager:
                 default_height=512,
                 default_width=512,
                 default_seed=42,
+                pipeline_id=pipeline_id,
             )
 
             quantization = None
@@ -635,6 +731,7 @@ class PipelineManager:
                 default_height=320,
                 default_width=576,
                 default_seed=42,
+                pipeline_id=pipeline_id,
             )
 
             quantization = None

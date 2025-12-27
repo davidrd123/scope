@@ -16,19 +16,16 @@
 | Runtime LoRA scale updates keyed by `path` string identity | ✅ Implemented |
 | CLI + REST endpoints for style list/set | ✅ Implemented (session-dependent) |
 | `runtime_peft` merge mode supports scale updates | ✅ Implemented |
+| Multi-dir style discovery (`./styles` + `~/.daydream-scope/styles`) | ✅ Implemented |
+| Sorted manifest loading (deterministic) | ✅ Implemented |
+| Canonical LoRA path normalization (for style swap) | ✅ Implemented |
+| Instruction sheet lookup follows style dirs | ✅ Implemented |
+| `STYLE_SWAP_MODE=1` manifest-driven LoRA preload + `runtime_peft` forcing | ✅ Implemented |
 
 ### What's NOT implemented yet (❌)
 
 | Feature | Gap |
 |---------|-----|
-| `STYLE_SWAP_MODE=1` flag | No code reads this env var |
-| PipelineManager manifest-driven LoRA preload | Doesn't scan styles or preload |
-| Force `runtime_peft` in style-swap mode | Default is still `permanent_merge` |
-| Multi-dir style discovery | Hardcoded to `Path("styles")` only |
-| Sorted manifest loading | Uses unsorted `rglob`, nondeterministic |
-| Canonical LoRA path normalization | Manifest paths used as-is, no resolution |
-| "Warn + skip missing LoRAs" policy | `RuntimeError` on missing file |
-| Deduped `lora_scales` list | Duplicates possible if styles share LoRA |
 | `STYLE_DEFAULT` initial activation | No initial style on connect |
 
 ### Current behavior
@@ -165,11 +162,11 @@ Cache semantics:
   - warn and skip preloading that LoRA
   - style switching will still compile prompts, but LoRA effect won't change
 
-**Current behavior (NOT YET FIXED):**
+**Current behavior:**
 
-- `PeftLoRAStrategy.load_adapters_from_list()` raises `RuntimeError` on `FileNotFoundError`
-- One missing LoRA file bricks the entire pipeline load
-- Must implement "warn + skip" policy before this works as designed
+- `PeftLoRAStrategy.load_adapters_from_list()` still raises `RuntimeError` on `FileNotFoundError` if a missing path reaches it.
+- In `STYLE_SWAP_MODE=1`, PipelineManager now filters missing LoRAs (warn + skip) before loading adapters, so style-swap preload won't brick the load.
+- Outside style-swap mode, a missing explicitly requested LoRA can still fail pipeline load.
 
 Suggested logs:
 
