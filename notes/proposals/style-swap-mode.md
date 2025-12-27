@@ -1,8 +1,47 @@
 # Style Swap Mode
 
-> Status: Draft (hardened)
-> Date: 2025-12-26
-> Review: `notes/research/2025-12-26/style_swap/oai_5pro_01.md`
+> Status: Draft (reviewed against codebase)
+> Date: 2025-12-26, reviewed 2025-12-27
+> Review: `notes/proposals/style-swap-mode/oai_5pro01.md`
+
+## Implementation Status
+
+### What's working today (✅)
+
+| Feature | Status |
+|---------|--------|
+| `_rcp_set_style` triggers prompt recompile + one-shot `lora_scales` | ✅ Implemented |
+| Runtime LoRA scale updates keyed by `path` string identity | ✅ Implemented |
+| CLI + REST endpoints for style list/set | ✅ Implemented (session-dependent) |
+| `runtime_peft` merge mode supports scale updates | ✅ Implemented |
+
+### What's NOT implemented yet (❌)
+
+| Feature | Gap |
+|---------|-----|
+| `STYLE_SWAP_MODE=1` flag | No code reads this env var |
+| PipelineManager manifest-driven LoRA preload | Doesn't scan styles or preload |
+| Force `runtime_peft` in style-swap mode | Default is still `permanent_merge` |
+| Multi-dir style discovery | Hardcoded to `Path("styles")` only |
+| Sorted manifest loading | Uses unsorted `rglob`, nondeterministic |
+| Canonical LoRA path normalization | Manifest paths used as-is, no resolution |
+| "Warn + skip missing LoRAs" policy | `RuntimeError` on missing file |
+| Deduped `lora_scales` list | Duplicates possible if styles share LoRA |
+| `STYLE_DEFAULT` initial activation | No initial style on connect |
+
+### Current behavior
+
+Today, `video-cli style set <name>` will:
+- ✅ Recompile prompts for the new style
+- ✅ Emit `lora_scales` update
+- ❌ **NOT actually change the LoRA** unless:
+  1. Pipeline was loaded with `lora_merge_mode="runtime_peft"`, AND
+  2. All style LoRAs were preloaded into the pipeline, AND
+  3. The `path` strings match exactly (load vs emit)
+
+This is documented in `notes/issues/multi-lora-hot-switching.md`.
+
+---
 
 ## Summary
 
@@ -115,12 +154,20 @@ Cache semantics:
 
 ## Failure modes and logging
 
+**Desired behavior:**
+
 - If `STYLE_SWAP_MODE=1` but no valid style LoRAs are discovered:
   - pipeline loads normally (no-op)
   - log an INFO explaining why (no styles dir / no manifests / all missing LoRAs)
 - If a style manifest references a missing LoRA:
   - warn and skip preloading that LoRA
   - style switching will still compile prompts, but LoRA effect won't change
+
+**Current behavior (NOT YET FIXED):**
+
+- `PeftLoRAStrategy.load_adapters_from_list()` raises `RuntimeError` on `FileNotFoundError`
+- One missing LoRA file bricks the entire pipeline load
+- Must implement "warn + skip" policy before this works as designed
 
 Suggested logs:
 
@@ -206,9 +253,51 @@ if not Path(canonical).exists():
 3. Integration test: with style swap enabled, switching styles emits `lora_scales` once and does not resend on same-style set
 4. Negative test: missing LoRA file is skipped and does not crash pipeline load
 
+## Sharp edges / UX gaps (from review)
+
+### Style endpoints require active WebRTC session
+
+`/api/v1/realtime/style/*` endpoints call `get_active_session(webrtc_manager)`:
+- With 0 sessions: API errors
+- With >1 sessions: ambiguous which is "active"
+
+Style swap is not a "server setting" — it's per active session/video track.
+
+### Style set API doesn't validate style exists
+
+`PUT /api/v1/realtime/style` forwards `_rcp_set_style` without checking if the style is registered. If style isn't found:
+- FrameProcessor logs warning but does nothing
+- API returns success ("style_set") even though nothing changed
+
+**UX mismatch:** user thinks style changed, but it didn't.
+
+### Instruction sheet lookup must follow style dirs
+
+`prompt_compiler._load_instruction_sheet()` builds path as `styles/<style.name>/instructions.md` relative to repo root.
+
+If multi-dir style discovery is implemented, instruction sheet lookup must follow the same resolution rules, or LLM compiler behavior will be inconsistent.
+
+### Cache reset semantics not enforced
+
+The proposal says LoRA scale updates trigger cache reset when `manage_cache=True`. But:
+- FrameProcessor style switching does NOT force `reset_cache=True`
+- FrameProcessor does NOT force `manage_cache=True`
+
+Clean style switches depend on:
+- Downstream pipeline behavior
+- Client not disabling `manage_cache`
+
+**Options to fix:**
+1. Document requirement ("don't disable manage_cache")
+2. Force `reset_cache=True` on style change
+3. Force `init_cache=True` when LoRA updates present
+
+---
+
 ## Related files
 
 - `src/scope/server/pipeline_manager.py` - Pipeline load params
 - `src/scope/realtime/style_manifest.py` - StyleRegistry and manifest loading
 - `src/scope/server/frame_processor.py` - Style switching logic (`_rcp_set_style`)
 - `src/scope/core/pipelines/wan2_1/lora/manager.py` - LoRA merge strategies
+- `src/scope/realtime/prompt_compiler.py` - Instruction sheet loading
