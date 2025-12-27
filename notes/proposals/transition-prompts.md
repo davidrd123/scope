@@ -175,3 +175,172 @@ Impressionist painting of a city
 - Soft cut (KV bias) - opens plasticity window
 - Embedding transition (LERP/SLERP) - interpolates embeddings
 - This proposal - adds semantic waypoints to the interpolation path
+
+---
+
+## Implementation Context (Code Exploration)
+
+> Added 2025-12-27 from codebase exploration
+
+### File Locations
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| **PromptPlaylist** | `src/scope/realtime/prompt_playlist.py` | Playlist parsing and navigation |
+| **EmbeddingBlender** | `src/scope/core/pipelines/blending.py` | Core interpolation logic (LERP/SLERP) |
+| **EmbeddingBlendingBlock** | `src/scope/core/pipelines/wan2_1/blocks/embedding_blending.py` | Pipeline integration, transition lifecycle |
+| **TextConditioningBlock** | `src/scope/core/pipelines/wan2_1/blocks/text_conditioning.py` | Prompt encoding |
+| **API Endpoints** | `src/scope/server/app.py:1644-1712` | `/playlist/next` with transition params |
+| **Frame Processor** | `src/scope/server/frame_processor.py:858-1519` | Control message handling, transition completion |
+
+### Current Data Structure
+
+```python
+# src/scope/realtime/prompt_playlist.py:20-32
+@dataclass
+class PromptPlaylist:
+    source_file: str = ""
+    prompts: list[str] = field(default_factory=list)  # Just strings, no metadata
+    current_index: int = 0
+    trigger_swap: tuple[str, str] | None = None
+    original_count: int = 0
+```
+
+**Key observation:** Prompts are stored as bare strings. No per-prompt metadata exists yet.
+
+### Current Parsing Flow
+
+```python
+# src/scope/realtime/prompt_playlist.py:59-80
+prompts = []
+for line in lines:
+    line = line.strip()
+    if skip_empty and not line:
+        continue
+    # Apply trigger swap...
+    prompts.append(line)  # Just appends the string
+```
+
+**Hook point:** Lines 59-80 in `from_file()` — this is where `>` parsing would go.
+
+### Current Transition Flow
+
+1. **User calls** `POST /api/v1/realtime/playlist/next?transition=true&transition_chunks=4`
+2. **`app.py:1644-1712`** → `_apply_playlist_prompt(transition=True, transition_chunks=4)`
+3. **`app.py:1512-1567`** builds message:
+   ```python
+   msg = {
+       "transition": {
+           "target_prompts": [{"text": prompt, "weight": 1.0}],
+           "num_steps": transition_chunks,
+           "temporal_interpolation_method": "linear"
+       }
+   }
+   ```
+4. **Frame processor** receives message, forwards to pipeline
+5. **EmbeddingBlendingBlock** calls `blender.start_transition(source, target, num_steps)`
+6. **Each frame:** `get_next_embedding()` returns interpolated embedding
+7. **Transition complete:** Frame processor promotes target to active prompts
+
+### What Needs to Change
+
+#### 1. New Data Structure
+
+```python
+# src/scope/realtime/prompt_playlist.py
+@dataclass
+class PlaylistEntry:
+    prompt: str
+    transition_prompt: str | None = None  # The `>` line before this entry
+
+@dataclass
+class PromptPlaylist:
+    source_file: str = ""
+    entries: list[PlaylistEntry] = field(default_factory=list)  # Changed from list[str]
+    current_index: int = 0
+    # ...
+```
+
+#### 2. Parser Changes
+
+```python
+# src/scope/realtime/prompt_playlist.py:59-80
+entries = []
+pending_transition = None
+
+for line in lines:
+    line = line.strip()
+    if skip_empty and not line:
+        continue
+    if line.startswith("#"):  # Comments
+        continue
+    if line.startswith(">"):
+        pending_transition = line[1:].strip()
+    else:
+        # Apply trigger swap to main prompt...
+        entries.append(PlaylistEntry(
+            prompt=line,
+            transition_prompt=pending_transition
+        ))
+        pending_transition = None
+```
+
+#### 3. Navigation Changes
+
+When navigating to an entry with `transition_prompt`, the transition becomes two-stage:
+
+```python
+# In _apply_playlist_prompt() or equivalent
+entry = playlist.current_entry
+
+if entry.transition_prompt and transition:
+    # Stage 1: current → transition_prompt
+    half = transition_chunks // 2
+    # ... send transition to entry.transition_prompt
+
+    # Stage 2: transition_prompt → entry.prompt (scheduled after stage 1)
+    # ... send transition to entry.prompt
+```
+
+**Option A:** Handle in `app.py:_apply_playlist_prompt()` with delayed second message
+**Option B:** Extend `EmbeddingBlender` to support waypoints (list of embeddings, not just source→target)
+
+#### 4. API Surface
+
+No new endpoints needed. The existing `transition=true` parameter triggers the behavior automatically when the target entry has a `transition_prompt`.
+
+### Backward Compatibility
+
+- Entries without `>` prefix work exactly as before
+- `current` property returns `entry.prompt` (the main prompt text)
+- `to_dict()` could optionally expose `transition_prompt` for UI display
+
+### Testing Strategy
+
+1. **Unit test:** Parse playlist with `>` lines, verify entries have correct `transition_prompt`
+2. **Integration test:** Navigate with `transition=true`, verify two-stage interpolation
+3. **Edge cases:** First entry with `>`, multiple `>` lines, `>` without following prompt
+
+### Effort Estimate
+
+| Task | Effort |
+|------|--------|
+| Data structure change | S |
+| Parser modification | S |
+| Two-stage transition logic | M |
+| Tests | S |
+| **Total** | **S-M** |
+
+### Risk Assessment
+
+- **Low:** Parser change is isolated
+- **Low:** Backward compatible (existing playlists work)
+- **Medium:** Two-stage transition timing needs tuning (how long for each stage?)
+
+### Decision Needed
+
+**Two-stage timing:** Should each stage get half the chunks, or should transition prompts have their own duration?
+
+Option A: Split evenly (`transition_chunks // 2` each)
+Option B: Transition prompt gets fixed 2 chunks, remainder goes to target
+Option C: Allow syntax like `>3 dissolving mist` for explicit chunk count
