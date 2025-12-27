@@ -264,6 +264,22 @@ class SessionRecorder:
         if "kv_cache_attention_bias" in load_params:
             settings["kvCacheAttentionBias"] = load_params.get("kv_cache_attention_bias")
 
+        # Export LoRA configuration for replay
+        loras = load_params.get("loras")
+        if loras and isinstance(loras, list):
+            settings["loras"] = [
+                {
+                    "path": lora.get("path"),
+                    "scale": float(lora.get("scale", 1.0)),
+                    **({"mergeMode": lora.get("merge_mode")} if lora.get("merge_mode") else {}),
+                }
+                for lora in loras
+                if isinstance(lora, dict) and lora.get("path")
+            ]
+        lora_merge_mode = load_params.get("lora_merge_mode")
+        if lora_merge_mode:
+            settings["loraMergeStrategy"] = lora_merge_mode
+
         return {
             "version": "1.1",
             "exportedAt": datetime.now(timezone.utc).isoformat(),
