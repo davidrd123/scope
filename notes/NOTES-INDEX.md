@@ -179,6 +179,7 @@ Concrete implementation proposals with specs and checklists.
 | [proposals/gemini-cookbook.md](proposals/gemini-cookbook.md) | Gemini integration patterns (from comfy_automation) | Reference |
 | [proposals/ndi-pubsub-video-output.md](proposals/ndi-pubsub-video-output.md) | NDI network streaming | Ready |
 | [proposals/tidal-cycles-integration.md](proposals/tidal-cycles-integration.md) | Music sync via OSC | Speculative |
+| [proposals/multi-gpu-scaling.md](proposals/multi-gpu-scaling.md) | Pipeline parallelism for multi-GPU inference | Exploratory |
 | [proposals/transition-prompts.md](proposals/transition-prompts.md) | Transition prompt syntax | Draft |
 
 ---
