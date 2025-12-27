@@ -454,3 +454,147 @@ If you want, I can also provide a **single consolidated “portable module”** 
 * includes the sidecar writer
 
 …but everything above should already be enough to reuse the existing repo patterns without bringing over the CLI/UI machinery.
+
+---
+
+## 10) Action Items: Patterns to Copy from ComfyPromptByAPI
+
+> Source: `/root/ComfyPromptByAPI` (cloned 2025-12-27)
+
+The ComfyPromptByAPI repo demonstrates mature multi-provider patterns worth extracting. These action items represent concrete patterns to add or improve in this codebase.
+
+### High Priority (Core Integration)
+
+#### A. Provider Protocol & Contract
+**Source:** `comfy_automation/generation_providers/interface.py`
+
+Copy the `ImageGenerator` Protocol pattern:
+- [ ] Define structural typing for provider interface (`generate()`, `edit()` methods)
+- [ ] Standardize `ImageJobResult` TypedDict (status, error, outputs, metrics)
+- [ ] Add error classification: `ok | error | rejected | timeout`
+
+#### B. Image Generation YAML Spec
+**Source:** `tools/image_batch_cli.py`
+
+The YAML batch spec is more mature than what we have:
+- [ ] Document complete schema (batch, defaults, jobs)
+- [ ] Add parameter inheritance (job > batch defaults > global defaults)
+- [ ] Support `provider` routing field (gemini, replicate, openai)
+
+#### C. Handle System for Edit Chaining
+**Source:** `comfy_automation/handles.py`
+
+Enables iterative editing workflows:
+- [ ] `@hash:abc123` — find output by content hash
+- [ ] `@sidecar:/path/to.json` — explicit sidecar reference
+- [ ] `@last:model:user:session` — query-based filter
+- [ ] Resolution algorithm scans `index.ndjson` under configured roots
+
+### Medium Priority (Robustness)
+
+#### D. Sidecar Schema Alignment
+**Source:** All providers write consistent sidecars
+
+Our sidecars are ad-hoc; theirs are standardized:
+```json
+{
+  "status": "ok",
+  "provider": "gemini",
+  "model": {"id": "...", "version": null},
+  "inputs": {"prompt": "...", "system": null},
+  "resolved_params": {...},
+  "outputs": [{"path": "...", "url": null, "bytes": 12345}],
+  "naming": {"base_dir": "...", "base_name": "...", "take_number": 1},
+  "meta": {"job_id": "...", "job_title": "..."}
+}
+```
+- [ ] Add `resolved_params` (what actually ran, after defaults applied)
+- [ ] Add `naming` block for deterministic output organization
+- [ ] Add `meta.job_id` for batch traceability
+
+#### E. Index NDJSON for Query
+**Source:** Output directories have `index.ndjson`
+
+Append-only log enables handle resolution and history:
+- [ ] Write one line per generation (sourced from sidecar)
+- [ ] Use for `@hash:` and `@last:` resolution
+- [ ] Enables reproducibility queries
+
+#### F. Model Registry Design
+**Source:** `ModelCatalog/unified_registry.yaml`
+
+Cleaner than substring matching:
+```yaml
+models:
+  gemini-3-pro-image-preview:
+    provider: gemini
+    type: [txt2img, edit]
+    max_images: 14
+    params:
+      aspect_ratio: {type: enum, options: [...], default: "1:1"}
+```
+- [ ] Add capability flags (`txt2img`, `edit`, `multi_image_reference`)
+- [ ] Add `param_map` for canonical → provider API names
+- [ ] Add `unsupported` list for filtering invalid params
+
+### Lower Priority (Nice to Have)
+
+#### G. Session Kit Structure
+**Source:** `WorkingSpace/Projects/.../Sessions/`
+
+For project organization:
+```
+Sessions/MyProject/
+├── session.yaml          # Batch metadata
+├── groups/
+│   └── shots/
+│       ├── group.yaml    # Prompts + defaults
+│       └── Images/       # Input images
+└── out/
+    └── batch.yaml        # Materialized from kit
+```
+- [ ] Consider adopting for daydream projects
+- [ ] `group.yaml` has `prompt_body`, `neg_body`, `images_glob`
+
+#### H. UI State Management (Three-Layer)
+**Source:** `tools/gemini_ui/state.py`
+
+If we build a UI:
+1. In-memory caches (server lifetime)
+2. `.state.json` (ephemeral, gitignored)
+3. Source files (YAML, sidecars)
+
+Key patterns:
+- [ ] `StateManager` with conflict detection (yaml_hash, yaml_mtime)
+- [ ] Delegate execution to CLI subprocess (don't reimplement naming)
+- [ ] Take number reservation for concurrent requests
+
+#### I. ADR References
+**Source:** `Notes/Architecture/adr/`
+
+Key decisions to reference:
+- ADR-040: Gemini Image UI (FastHTML MVP)
+- ADR-035: Gemini 3 Pro Image Preview integration
+- ADR-018: Image Handles and Browser
+- ADR-017: Image Generation (multi-provider)
+
+### Patterns NOT in ComfyPromptByAPI (Future Work)
+
+- Request/response tracing (correlation IDs)
+- Rate limiting handling
+- Persistent caching layer
+- Multi-tenancy
+
+---
+
+## Summary: What to Lift vs Build
+
+| Pattern | Source | Action |
+|---------|--------|--------|
+| `init_client`, `prepare_content` | gemini_min.py | Lift verbatim |
+| `generate_images` (Gemini 3 Pro) | gemini_image.py | Lift verbatim |
+| Sidecar writer | image_generator_cli.py | Adapt schema |
+| Handle resolver | handles.py | Port if chaining needed |
+| Model registry | unified_registry.yaml | Adopt format |
+| YAML batch spec | image_batch_cli.py | Align schemas |
+| UI state management | gemini_ui/state.py | Reference for future UI |
