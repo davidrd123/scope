@@ -61,6 +61,63 @@ If you’re ever unsure what to read next, follow this loop:
 - **One-change rule:** change exactly one thing per experiment card and write down:
   - command, env, baseline, result, artifacts, and the lesson.
 
+## Tiny Desk Reference (Copy/Paste)
+
+Pick the Python for your cu130 env (example):
+
+```bash
+PY=.venv-b300-cu130-decode/bin/python
+```
+
+Canonical BF16 env vars (SM103-safe defaults):
+
+```bash
+export SCOPE_KV_BIAS_BACKEND=fa4
+export DISABLE_FLEX_ATTENTION_COMPILE=1
+export WANVAE_STREAM_DECODE_MODE=chunk
+export TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
+```
+
+Benchmark harness (BF16, no compile):
+
+```bash
+$PY scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 10 --skip 3 \
+  --kv-cache-attention-bias 0.3 \
+  --quantization none \
+  --cudnn-benchmark
+```
+
+Benchmark harness (BF16 + `--compile`):
+
+```bash
+$PY scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 10 --skip 3 \
+  --kv-cache-attention-bias 0.3 \
+  --quantization none \
+  --cudnn-benchmark \
+  --compile
+```
+
+Op profile (stack attribution for `copy_`/`to` hotspots):
+
+```bash
+$PY scripts/profile_krea_pipeline_ops.py \
+  --height 320 --width 576 \
+  --iters 1 --pre-iters 1 \
+  --kv-cache-attention-bias 0.3 \
+  --kv-bias-backend fa4 \
+  --quantization none \
+  --cudnn-benchmark \
+  --with-stack --stack-n 12 \
+  --summary outputs/b300_ops_summary.md \
+  --json outputs/b300_ops_profile.json
+```
+
+When numbers disagree: trust `session-state.md` → `investigation-runbook.md` → recent `outputs/` artifacts, and sanity-check GPU sharing + warmup time.
+
 ## Upstream References (Shortlist)
 
 If you’re trying to answer “is this a us-bug or an upstream landmine?”, this is the minimal set:
