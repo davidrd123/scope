@@ -91,7 +91,7 @@ def _cuda_unavailable_hint(torch) -> str:
 def main() -> int:
     args = _parse_args()
 
-    if args.profile_blocks:
+    if args.profile_blocks or args.profile_blocks_json is not None:
         os.environ["PROFILE_PIPELINE_BLOCKS"] = "1"
     if args.profile_blocks_json is not None:
         os.environ["PROFILE_PIPELINE_BLOCKS_JSON"] = str(args.profile_blocks_json)

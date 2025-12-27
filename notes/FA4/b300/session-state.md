@@ -309,21 +309,34 @@ Implication: To move B300 off ~8.8 FPS, **prioritize a cu130 (or newer) runtime*
 
 Without `flash_attn` installed in the cu130 env, KV-bias falls back to Triton (and flex_attention can run unfused), which regresses end-to-end to ~`1 FPS`.
 
-Install (in `.venv-b300-cu130-decode`; note the CUDA extension is large, ~1GB):
+Recommended: use the repo script (it keeps the shared `.venv` untouched and repairs the env end-to-end):
 
 ```bash
-uv pip install -p .venv-b300-cu130-decode/bin/python wheel ninja
-uv pip install -p .venv-b300-cu130-decode/bin/python --no-deps --no-build-isolation --no-binary flash-attn flash-attn==2.8.3
+# Default: upgrades Triton to 3.5.1 (SM103 tcgen05 fix) and installs FA4 deps.
+./scripts/b300_env_fix_cu130.sh .venv-b300-cu130-decode
+
+# Optional knobs:
+# - TRITON_VERSION=3.5.1         (override if needed)
+# - INSTALL_FA4_DEPS=0           (skip cuda-python + nvidia-cutlass-dsl)
 ```
 
-Optional (FA4 / CuTe): if you want `FLASH_ATTN_4_AVAILABLE=True` on B300 in this env, you also need `cuda-python` + `nvidia-cutlass-dsl`:
+Manual install (in `.venv-b300-cu130-decode`; note the CUDA extension is large, ~1GB):
+
+```bash
+uv pip install -p .venv-b300-cu130-decode/bin/python pip wheel ninja packaging
+FLASH_ATTENTION_SKIP_CUDA_BUILD=0 \
+  .venv-b300-cu130-decode/bin/python -m pip install --force-reinstall \
+    --no-deps --no-build-isolation --no-binary flash-attn \
+    flash-attn==2.8.3
+```
+
+FA4 / CuTe (recommended for the B300 KV-bias path): install `cuda-python` + `nvidia-cutlass-dsl`:
 
 ```bash
 uv pip install -p .venv-b300-cu130-decode/bin/python cuda-python nvidia-cutlass-dsl==4.1.0
-PATH=.venv-b300-cu130-decode/bin:$PATH ./scripts/patch_cutlass_sm103.sh .venv-b300-cu130-decode
 ```
 
-This makes `flash_attn.cute` importable (CuTe). End-to-end FPS was still ~13.4 in our run (small/no gain vs FA2).
+On SM103, `scope.core.compat.sm103.patch_cutlass_for_sm103()` now patches the CUTLASS DSL arch checks at runtime, so you should not need to modify site-packages (the legacy script `scripts/patch_cutlass_sm103.sh` still exists if you want a persistent on-disk patch).
 
 If the env ever gets clobbered back to cu128 (e.g. by `uv sync`), restore it with:
 

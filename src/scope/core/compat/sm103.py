@@ -105,6 +105,33 @@ def patch_cutlass_for_sm103() -> bool:
         logger.warning("cutlass not installed, cannot patch for SM103")
         return False
 
+    # Patch the CUTLASS DSL arch validator to accept `sm_103a` anywhere `sm_100a`/`sm_100f`
+    # is accepted. This mirrors `scripts/patch_cutlass_sm103.sh` but keeps the workaround
+    # in-repo (no site-packages edits required).
+    try:
+        import cutlass.impl_utils as impl_utils  # type: ignore
+
+        if not getattr(impl_utils, "_scope_sm103_check_value_in_patched", False):
+            check_value_in_og = impl_utils.check_value_in
+
+            def check_value_in_patched(
+                value, possible_values: list, value_description: str, prefix=""
+            ) -> None:
+                if value == "sm_103a" and value_description == "arch":
+                    if "sm_100a" in possible_values or "sm_100f" in possible_values:
+                        possible_values = list(possible_values) + ["sm_103a"]
+                return check_value_in_og(value, possible_values, value_description, prefix)
+
+            impl_utils.check_value_in = check_value_in_patched  # type: ignore[assignment]
+            impl_utils._scope_sm103_check_value_in_patched = True
+            logger.debug("Patched cutlass.impl_utils.check_value_in for SM103")
+            patched_count = 1
+        else:
+            patched_count = 0
+    except Exception as e:
+        logger.debug(f"Failed to patch cutlass.impl_utils.check_value_in: {e}")
+        patched_count = 0
+
     # Files to patch and their arch validation attributes
     # Each entry: (module_path, attr_path, valid_arch_values)
     patches = [
@@ -120,7 +147,6 @@ def patch_cutlass_for_sm103() -> bool:
         ("cute.nvgpu.cpasync.copy", "_VALID_ARCHS", [100, 103]),
     ]
 
-    patched_count = 0
     for module_path, attr_name, valid_archs in patches:
         try:
             # Import the module

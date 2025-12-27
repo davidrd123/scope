@@ -57,6 +57,10 @@ uv pip install -p "$PY" --upgrade --index-url https://download.pytorch.org/whl/c
   --force-reinstall \
   torch==2.9.0+cu130 torchvision==0.24.0+cu130
 
+TRITON_VERSION="${TRITON_VERSION:-3.5.1}"
+echo "==> Upgrading triton to ${TRITON_VERSION} (SM103 tcgen05 fix)..."
+uv pip install -p "$PY" --upgrade "triton==${TRITON_VERSION}"
+
 echo "==> Aligning torchao with torch (best-effort; override with TORCHAO_VERSION=... )..."
 # Prefer the PyTorch cu130 index so we get a build aligned with torch==2.9.0+cu130.
 # If that fails (e.g. no matching wheel), fall back to PyPI wheels.
@@ -86,15 +90,29 @@ if [[ "$TORCHAO_VERSION" != "skip" ]]; then
   fi
 fi
 
+INSTALL_FA4_DEPS="${INSTALL_FA4_DEPS:-1}"
+if [[ "$INSTALL_FA4_DEPS" == "1" ]]; then
+  echo "==> Installing FA4/CuTe deps (cuda-python + nvidia-cutlass-dsl==4.1.0)..."
+  uv pip install -p "$PY" cuda-python nvidia-cutlass-dsl==4.1.0
+else
+  echo "==> Skipping FA4/CuTe deps install (INSTALL_FA4_DEPS=0)."
+fi
+
 echo "==> Ensuring build tools for flash-attn..."
+echo "==> Ensuring pip is available..."
+uv pip install -p "$PY" pip
 uv pip install -p "$PY" wheel ninja packaging
 
 echo "==> Reinstalling flash-attn (no deps; force source build)..."
-uv pip install -p "$PY" --force-reinstall \
-  --no-deps \
-  --no-build-isolation \
-  --no-binary flash-attn \
-  flash-attn==2.8.3
+# NOTE: `uv pip install` can fail here due to repo-level `tool.uv.extra-build-dependencies`
+# for flash-attn (match-runtime torch) combined with `--no-deps`. Using pip avoids that
+# resolution path and reliably rebuilds the CUDA extension against the current torch.
+FLASH_ATTENTION_SKIP_CUDA_BUILD=0 \
+  "$PY" -m pip install --upgrade --force-reinstall \
+    --no-deps \
+    --no-build-isolation \
+    --no-binary flash-attn \
+    flash-attn==2.8.3
 
 echo "==> After:"
 "$PY" - <<'PY'

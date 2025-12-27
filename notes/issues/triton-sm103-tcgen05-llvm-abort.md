@@ -27,6 +27,17 @@ Practical implication for this repo:
 - If your environment is on **`triton==3.5.0`**, assume SM103 tcgen05 compilation is **unsafe** and keep using the mitigations below.
 - If we upgrade to **`triton==3.5.1`** (or a PyTorch build that vendors it), we should re-test the previously “known-bad” compile paths and update `notes/FA4/b300/session-state.md`.
 
+### Verified in this repo (2025-12-27)
+
+In an isolated cu130 env upgraded to `triton==3.5.1` (torch `2.9.0+cu130`), the previously-crashing compile mode is now stable:
+
+- `SCOPE_TORCH_COMPILE_MODE=max-autotune-no-cudagraphs` **no longer aborts** on SM103.
+- Steady-state FPS at our canonical settings was ~unchanged vs default compile mode, but warmup was longer (more autotuning).
+
+Artifacts:
+- Crash (triton 3.5.0): `outputs/b300_cu130_none_bias0.3_no_fuseproj_compile_mode_maxautotune_nocg_perf.log`
+- Fixed (triton 3.5.1): `outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_perf2.log`
+
 ## Where it shows up in this repo
 
 - We default to disabling FlexAttention compilation on B300 to avoid this abort:

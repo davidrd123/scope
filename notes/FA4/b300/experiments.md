@@ -311,7 +311,7 @@ Keep and default-on for B300 (`scripts/run_daydream_b300.sh` sets `WANVAE_DECODE
 
 ### 2025-12-27 — torch.compile mode `max-autotune-no-cudagraphs` can hard-abort on SM103
 
-**Status:** Failed (process abort)
+**Status:** Done (fixed by Triton 3.5.1; no meaningful FPS win)
 
 **Question:**  
 Can `SCOPE_TORCH_COMPILE_MODE=max-autotune-no-cudagraphs` improve steady-state FPS on B300 by enabling more autotuning (without cudagraphs)?
@@ -320,11 +320,28 @@ Can `SCOPE_TORCH_COMPILE_MODE=max-autotune-no-cudagraphs` improve steady-state F
 On SM103 with `triton==3.5.0`, the run can hard-abort during Inductor autotuning with:
 - `LLVM ERROR: Cannot select: intrinsic %llvm.nvvm.tcgen05.wait.st`
 
+**Update (2025-12-27): Triton 3.5.1 fixes the abort**  
+In an isolated cu130 env upgraded to `triton==3.5.1`, the same compile mode no longer aborts.
+Steady-state FPS was effectively unchanged vs the default compile mode, but warmup was longer
+(more autotuning).
+
+Benchmark (B300, `320x576`, BF16, bias=0.3, `--quantization none`, `--compile`):
+- Default compile mode: `21.51` FPS (`outputs/b300_cu130_triton351_compile_default_perf3.log`)
+- `max-autotune-no-cudagraphs`: `21.52` FPS (`outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_perf2.log`)
+
 **Decision:**  
-Treat `max-autotune*` as opt-in on SM103 until the Triton fix is present. The pipeline now ignores `SCOPE_TORCH_COMPILE_MODE=max-autotune*` on SM103 unless you set `SCOPE_ALLOW_MAX_AUTOTUNE_SM103=1` (and you should have `triton>=3.5.1`).
+Treat `max-autotune*` as an experiment on SM103:
+- It’s **safe** once `triton>=3.5.1` (no LLVM abort observed).
+- It’s **not** a clear win at current shapes; keep default compile mode for faster warmup.
 
 **Artifacts:**  
 - `outputs/b300_cu130_none_bias0.3_no_fuseproj_compile_mode_maxautotune_nocg_perf.log`
+- `outputs/b300_cu130_triton351_compile_default_perf3.log`
+- `outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_perf2.log`
+- `outputs/b300_cu130_triton351_compile_default_blocks_perf.log`
+- `outputs/b300_cu130_triton351_compile_default_blocks_profile.json`
+- `outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_blocks_perf.log`
+- `outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_blocks_profile.json`
 
 ### 2025-12-26 — Baseline choice: `--quantization none` vs `fp8_e4m3fn` (B300 cu130)
 
