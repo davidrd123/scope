@@ -520,6 +520,7 @@ def rope_fused_3way(
 
     In-place policy (default):
       - if inplace is None: allow inplace only when (not torch.is_grad_enabled()) and (seq_len == L)
+      - optional: allow inplace for padded L when `SCOPE_TRITON_ROPE_FUSED_ALLOW_INPLACE_PADDED=1`
     """
     if x.device.type != "cuda":
         raise RuntimeError("rope_fused_3way requires CUDA tensor")
@@ -570,9 +571,26 @@ def rope_fused_3way(
     if freqs.shape[1] != C:
         raise ValueError(f"freqs second dim must be C={C}, got {freqs.shape[1]}")
 
-    # Default inplace policy (inference only, full tensor)
+    # Default inplace policy (inference only).
     if inplace is None:
-        inplace = (not torch.is_grad_enabled()) and (seq_len == L)
+        if torch.is_grad_enabled():
+            inplace = False
+        elif seq_len == L:
+            inplace = True
+        else:
+            # Opt-in: allow in-place RoPE when the only reason L != seq_len is simple padding.
+            #
+            # This avoids allocating an output tensor and copying the tail, which shows up as
+            # `aten::copy_` / direct-copy kernels in stack-filtered profiles.
+            allow_inplace_padded = (
+                os.environ.get("SCOPE_TRITON_ROPE_FUSED_ALLOW_INPLACE_PADDED", "0") == "1"
+            )
+            if not allow_inplace_padded:
+                inplace = False
+            else:
+                # Heuristic: treat L as padding-to-alignment when it matches ceil_div(seq_len, 128)*128.
+                aligned_len = ((seq_len + 127) // 128) * 128
+                inplace = (L == aligned_len)
 
     # Output allocation / tail preservation
     # CRITICAL FIX: Never clone full tensor. Use empty_like + tiny tail copy.

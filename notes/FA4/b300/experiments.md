@@ -238,6 +238,65 @@ Keep as an opt-in knob (do not enable by default). Revisit only if we can make t
 - `outputs/b300_cu130_none_bias0.3_no_fuseproj_it6_sk2_perf.log`  
 - `outputs/b300_cu130_none_bias0.3_no_fuseproj_rope_k_to_cache_drilldown_perf.log`  
 - `outputs/b300_cu130_ops_profile_selfattn_no_fuseproj_stack.md`  
+
+### 2025-12-27 — Allow in-place RoPE when L is padded (opt-in)
+
+**Question:**  
+Are the RoPE call sites paying avoidable overhead from “preserve tail” behavior when `seq_len < L` (i.e. when L is just padding-to-alignment)?
+
+**Change (one thing):**  
+Added an opt-in knob: `SCOPE_TRITON_ROPE_FUSED_ALLOW_INPLACE_PADDED=1` (see `src/scope/core/kernels/triton_rope_fused.py`).
+
+When enabled, `rope_fused_3way(..., inplace=None)` may run in-place when:
+- inference (`torch.is_grad_enabled() == False`)
+- `seq_len != L`
+- and `L == ceil_div(seq_len, 128) * 128` (heuristic for padding-to-128)
+
+**Benchmark config:**  
+- GPU: B300 (SM103)  
+- Env: cu130 decode env (`.venv-b300-cu130-decode`)  
+- Settings: `320x576`, bias=`0.3`, quantization=`none`, `--compile`, `SCOPE_KV_BIAS_BACKEND=fa4`, `SCOPE_ENABLE_FA4_VARLEN=1`
+
+**Command(s):**
+```bash
+# Baseline
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_ENABLE_FA4_VARLEN=1 \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 --iters 6 --skip 2 \
+  --kv-cache-attention-bias 0.3 --quantization none --cudnn-benchmark --compile
+
+# Change: allow inplace on padded lengths (heuristic)
+SCOPE_TRITON_ROPE_FUSED_ALLOW_INPLACE_PADDED=1 \
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_ENABLE_FA4_VARLEN=1 \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 --iters 6 --skip 2 \
+  --kv-cache-attention-bias 0.3 --quantization none --cudnn-benchmark --compile
+```
+
+**Result:**  
+- Benchmark: ~`33.41 → 33.52 FPS` (noise-level in this short run)
+- Stack-filtered op profile (`CausalWanSelfAttention`): `aten::copy_` unchanged (~`5.30ms` total), suggesting the dominant `aten::copy_` at the RoPE
+  call sites is **not** from the “preserve tail” behavior (or this shape didn’t hit `seq_len < L`).
+
+**Decision:**  
+Keep as an opt-in debugging knob only. Revisit if we can prove we’re frequently running RoPE on padded tensors and downstream truly ignores the tail.
+
+**Artifacts:**  
+- `outputs/b300_cu130_compile_ropek0_2025-12-27_resume.log` (baseline-ish, same stack; different run)  
+- `outputs/b300_cu130_compile_rope_inplacepadded_2025-12-27.log`  
+- `outputs/b300_cu130_ops_profile_selfattn_compile_fa4_inplacepadded_2025-12-27.md`
 - `outputs/b300_cu130_ops_profile_selfattn_no_fuseproj_rope_k_to_cache_stack.md`  
 
 ### 2025-12-27 — VAE decode: keep Resample outputs contiguous (avoid `slow_conv_dilated3d`)
