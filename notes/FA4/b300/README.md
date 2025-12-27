@@ -21,8 +21,10 @@ If you’re ever unsure what to read next, follow this loop:
 | Measure correctly (and not lie to yourself) | `investigation-runbook.md` |
 | Log a single change / result | `experiments.md` |
 | See the longer narrative / hypotheses | `investigation.md` |
+| Read the “what we learned” distillation | `lessons.md` |
 | See the roadmap / next levers | `optimization-vision.md` |
 | See the learning ladder framing | `optimization-ladder.md` |
+| Align on how we operate (learning-first) | `philosophy.md` |
 | External references / stack maturity links | `blackwell-docs.md` |
 | Document layout contracts (blocks Level 6) | `layout-contracts.md` |
 | Break down `other_in_self` with stacks | `other-in-self-breakdown.md` |
@@ -46,6 +48,8 @@ If you’re ever unsure what to read next, follow this loop:
   - `development-plan.md` (workstreams + acceptance criteria)
 - **Record**
   - `experiments.md` (one-change cards only)
+- **Distill**
+  - `lessons.md` (what we learned + pointers to evidence)
 - **Level 6 groundwork (only after measurement)**
   - `layout-contracts.md` (hard constraints at QKV/RoPE/cache/attn boundaries)
   - `other-in-self-breakdown.md` (fill once with real stack data; don’t guess)
