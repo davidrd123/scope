@@ -118,6 +118,57 @@ WANVAE_STREAM_DECODE_MODE=chunk \
 ```
 
 **Baseline:**  
+
+### 2025-12-27 — Disable fused QKV projections on B300
+
+**Question:**  
+Does enabling fused QKV projections (`to_qkv(...).chunk(3, dim=-1)`) reduce or increase real self-attn time on B300?
+
+**Hypothesis:**  
+Fusing reduces GEMM launch overhead, but may introduce strided Q/K views that force `rms_norm` / downstream ops to materialize contiguous copies. Net effect could be negative.
+
+**Change (one thing):**  
+Set `SCOPE_DISABLE_FUSED_PROJECTIONS=1` (keep everything else identical).
+
+**Benchmark config:**  
+- GPU: B300 (SM103)  
+- Env: cu130 decode env (`.venv-b300-cu130-decode`)  
+- torch / cuda: `2.9.0+cu130` / `13.0`  
+- Settings: `320x576`, steps=`4`, bias=`0.3`, quantization=`none`
+
+**Command(s):**
+```bash
+# Baseline (fused projections on by default)
+OUT_PREFIX=outputs/b300_cu130_none_bias0.3_kickoff \
+ITERS=4 SKIP=1 QUANTIZATION=none KV_CACHE_ATTENTION_BIAS=0.3 \
+scripts/profile_b300_denoise_drilldown.sh
+
+# Change: disable fused projections
+SCOPE_DISABLE_FUSED_PROJECTIONS=1 \
+OUT_PREFIX=outputs/b300_cu130_none_bias0.3_no_fuseproj \
+ITERS=4 SKIP=1 QUANTIZATION=none KV_CACHE_ATTENTION_BIAS=0.3 \
+scripts/profile_b300_denoise_drilldown.sh
+```
+
+**Baseline:**  
+- Avg FPS (skip=1): `18.09`  
+- `self_attn`: `1.25 ms/call`  
+- `other_in_self`: `0.85 ms/call` (68.2% of self_attn)  
+
+**Result:**  
+- Avg FPS (skip=1): `18.53`  
+- `self_attn`: `1.18 ms/call`  
+- `other_in_self`: `0.80 ms/call` (67.4% of self_attn)  
+- Self-attn stack filter shows `aten::contiguous` / `aten::clone` disappear when projections are not fused.
+
+**Decision:**  
+Treat fused projections as a **B300 hazard**; keep them opt-in on SM103 (default-disabled in `scripts/run_daydream_b300.sh`).
+
+**Artifacts:**  
+- `outputs/b300_cu130_none_bias0.3_kickoff_perf.log`  
+- `outputs/b300_cu130_none_bias0.3_no_fuseproj_perf.log`  
+- `outputs/b300_cu130_ops_profile_selfattn_stack.md`  
+- `outputs/b300_cu130_ops_profile_selfattn_no_fuseproj_stack.md`
 `SCOPE_KV_BIAS_BACKEND=flash` ≈ **14.9 FPS**
 
 **Result:**  
