@@ -10,6 +10,8 @@ Enable multi-GPU inference for the KREA realtime pipeline to scale **single-stre
 
 Key framing: **multi-GPU only helps if we can overlap work** (or otherwise avoid turning "more devices" into "more copies + more latency").
 
+**Scope note:** This doc is about **single-stream FPS**. “Multi-session throughput scaling” is included only as a contrast case (Approach 0).
+
 ## How multi-GPU can (and cannot) increase single-stream FPS
 
 The only "real" ways multiple GPUs make a **single** stream faster:
@@ -24,7 +26,7 @@ Everything else tends to become:
 
 ### Concrete bottleneck snapshot (B300, "current best" @ 320×576)
 
-From `notes/FA4/b300/session-state.md`, the best-known BF16 + `--compile` config is ~**30.7 FPS** and the block shares look like:
+From [`notes/FA4/b300/session-state.md`](../FA4/b300/session-state.md), the best-known BF16 + `--compile` config is ~**30.7 FPS** and the block shares look like:
 
 | Block | Per-call | Share | Implication for multi-GPU |
 |------:|---------:|------:|---------------------------|
@@ -41,12 +43,6 @@ For multi-GPU overlap experiments, prefer:
 - `nsys` (if accessible), or
 - custom "overlap-aware" timing (events without per-block synchronize, plus end-of-iteration synchronize), or
 - a microbench harness designed to measure **wall time vs per-device time**.
-
-Before diving in, clarify which “scaling” you mean:
-- **Scale a single stream’s FPS** (hard; needs overlap + careful orchestration).
-- **Scale total throughput across streams/users** (easy: run independent sessions pinned to GPUs; little/no model partitioning).
-
-This proposal is primarily about **single-stream FPS**, but many of the measurements apply to throughput scaling too.
 
 StreamDiffusionV2 reports multi-GPU viability (including **~58 FPS with a 14B model on 4× H100**) using pipeline-parallel style orchestration, but we should treat those numbers as *reported* until we reproduce comparable behavior in our stack.
 
@@ -98,7 +94,7 @@ No distributed primitives currently wired.
 ### Current Single-GPU Baseline (B300, 2025-12-27)
 
 The B300 baseline moved quickly as we fixed decode slow-path issues. Avoid hard-coding numbers here; treat the B300 “truth” as:
-- `notes/FA4/b300/session-state.md` (best-known config + block shares + caveats)
+- [`notes/FA4/b300/session-state.md`](../FA4/b300/session-state.md) (best-known config + block shares + caveats)
 
 As of 2025-12-27, the best-known **quality-preserving** config on B300 is **~30+ FPS** (BF16 + `--compile`) and the block profile looks like:
 - `denoise` dominant
@@ -110,7 +106,7 @@ This matters for multi-GPU: **VAE offload only pays if decode is a large share a
 #### Measurement methodology to reuse (don't reinvent it)
 
 The "how we measure" ground truth and known profiler constraints live in:
-- `notes/FA4/b300/investigation-runbook.md` (baseline FPS, block profile harness, CUPTI/torch.profiler limitations, op-level profiling guidance, code map)
+- [`notes/FA4/b300/investigation-runbook.md`](../FA4/b300/investigation-runbook.md) (baseline FPS, block profile harness, CUPTI/torch.profiler limitations, op-level profiling guidance, code map)
 
 At minimum, every multi-GPU experiment should carry:
 - (A) **block profile** at the target settings (for share + Amdahl sanity),
@@ -325,7 +321,7 @@ Proceed only if sustained runs show:
 3. Estimate communication costs for candidate splits
 
 Concrete measurement checklist (reuse the runbook discipline):
-- Capture a card in `notes/FA4/b300/experiments.md` (hypothesis → command → result → lesson).
+- Capture a card in [`notes/FA4/b300/experiments.md`](../FA4/b300/experiments.md) (hypothesis → command → result → lesson).
 - For each target setting: record (a) FPS, (b) block shares, (c) top op stacks if something looks wrong.
 - If `torch.profiler` is broken due to CUPTI constraints (runbook), prefer: block events + `nsys` + purpose-built microbenches.
 
@@ -361,7 +357,7 @@ Treat this as an experiment ladder: each stage produces artifacts (logs, profile
 ### Test 0: Reconfirm baseline and shares (target settings)
 
 Artifacts:
-- Block profile JSON + the summary table in `notes/FA4/b300/session-state.md` (or a new dated entry)
+- Block profile JSON + the summary table in [`notes/FA4/b300/session-state.md`](../FA4/b300/session-state.md) (or a new dated entry)
 - FPS number (steady-state) for the exact settings you'll target in multi-GPU
 
 Pass:
@@ -496,4 +492,4 @@ Additions for "real product" readiness:
 
 - `src/scope/core/pipelines/krea_realtime_video/pipeline.py` - current device handling
 - `src/scope/core/pipelines/streamdiffusionv2/` - reference pipeline (no multi-GPU yet)
-- `notes/FA4/b300/session-state.md` - current B300 single-GPU performance baseline (truth source)
+- [`notes/FA4/b300/session-state.md`](../FA4/b300/session-state.md) - current B300 single-GPU performance baseline (truth source)

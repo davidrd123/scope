@@ -14,14 +14,18 @@ Capability features in the pipeline:
 |---------|--------|-----------|----------|
 | **Style Layer (Phase 6a)** | Implemented (MVP) | No | Below |
 | **VACE-14B Integration** | Ready to Implement | No | Below |
-| **Server-Side Session Recorder** | Ready to Implement | No | `proposals/server-side-session-recorder.md` |
-| **Style Swap Mode** | Ready to Implement | No | `proposals/style-swap-mode.md` |
+| **Server-Side Session Recorder** | Implemented (MVP) | No | `proposals/server-side-session-recorder.md` |
+| **Style Swap Mode** | Partial (core exists) | No | `proposals/style-swap-mode.md` |
 | **VLM Frame Analysis** | Ready to Implement | No | `proposals/vlm-integration.md` |
 | **VLM-Mediated V2V** | Speculative | Needs VLM first | Below |
 | **Context Editing** | Speculative | Needs validation spike | Below |
 | **Tidal Cycles Integration** | Speculative | Needs Tidal setup | `proposals/tidal-cycles-integration.md` |
 | **NDI / Pub-Sub Video Output** | Ready to Implement | No | `proposals/ndi-pubsub-video-output.md` |
 | **Real-Time Voice Integration** | Speculative | No | `proposals/realtime-voice-integration.md` |
+| **Transition Prompts** | Ready to Implement | No | `proposals/transition-prompts.md` |
+| **Hardware Control Surface** | Not Started | Session scoping | `proposals/hardware-control-surface.md` |
+| **Frame Buffer Scrubbing** | Not Started | No | `proposals/frame-buffer-scrubbing.md` |
+| **Multi-GPU Scaling** | Exploratory | Research first | `proposals/multi-gpu-scaling.md` |
 
 ---
 
@@ -268,11 +272,11 @@ decoded_buffer[:, :1] = anchor_frame
 
 ---
 
-## 4. Server-Side Session Recorder — READY TO IMPLEMENT
+## 4. Server-Side Session Recorder — IMPLEMENTED (MVP)
 
 **What:** Capture all control events at the server level (CLI, API, frontend) for timeline export and offline re-rendering.
 
-**Status:** Proposal hardened, ready for implementation.
+**Status:** Implemented (MVP). Expand recorded events (e.g., LoRA scales) + harden multi-session behavior.
 
 **Proposal:** `notes/proposals/server-side-session-recorder.md`
 
@@ -292,11 +296,11 @@ decoded_buffer[:, :1] = anchor_frame
 
 ---
 
-## 5. Style Swap Mode — READY TO IMPLEMENT
+## 5. Style Swap Mode — PARTIAL (Core Exists)
 
 **What:** Enable instant style/LoRA switching without pipeline reload by preloading all LoRAs at startup.
 
-**Status:** Proposal hardened, ready for implementation.
+**Status:** Core implementation exists. Remaining: `STYLE_DEFAULT` initial activation + tighten "style exists" validation.
 
 **Proposal:** `notes/proposals/style-swap-mode.md`
 
@@ -651,6 +655,57 @@ Voice as a natural control surface — speak prompts, give commands, have a conv
 
 ---
 
+## 11. Transition Prompts — READY TO IMPLEMENT
+
+**What:** Add `>` syntax to prompt format for specifying transition text that appears during scene changes.
+
+**Status:** Ready to implement (High readiness, S effort, Low risk).
+
+**Proposal:** `notes/proposals/transition-prompts.md`
+
+### Implementation Summary
+
+1. Parse `>` prefix in prompt lines as transition text
+2. Thread transition text into existing transition machinery
+3. Display during soft/hard cut transitions
+
+---
+
+## 12. Hardware Control Surface — NOT STARTED
+
+**What:** Enable physical hardware controllers (MIDI, OSC) to control video parameters in real-time.
+
+**Status:** Not started. Needs "hardware router" process + session targeting logic.
+
+**Proposal:** `notes/proposals/hardware-control-surface.md`
+
+### Key Blockers
+
+- Session scoping: which session does the hardware control?
+- Router architecture: standalone process or integrated?
+
+---
+
+## 13. Frame Buffer Scrubbing — NOT STARTED
+
+**What:** Enable scrubbing through recent output frames with recording/export capability.
+
+**Status:** Not started. Needs ring-buffer budget decision + output history + scrub endpoints.
+
+**Proposal:** `notes/proposals/frame-buffer-scrubbing.md`
+
+---
+
+## 14. Multi-GPU Scaling — EXPLORATORY
+
+**What:** Scale pipeline across multiple GPUs for higher resolution or throughput.
+
+**Status:** Exploratory (Low readiness, L effort, High risk). Profile + pick concrete parallelism strategy before any code.
+
+**Proposal:** `notes/proposals/multi-gpu-scaling.md`
+
+---
+
 ## Dependency Graph
 
 ```
@@ -683,35 +738,51 @@ Style Layer (Phase 6a) ───────────────────
     │                    ├── depends on: nano-banana / image edit   │
     │                    └── depends on: VLM for agent loop ────────┤
     │                                                               │
-    └── [independent] Real-Time Voice Integration                   │
-                         │                                          │
-                         ├── Phase 1: browser STT (no deps)         │
-                         ├── Phase 2: command parser                │
-                         └── Phase 3: VLM for "what am I seeing?" ──┘
+    ├── [independent] Real-Time Voice Integration                   │
+    │                        │                                      │
+    │                        ├── Phase 1: browser STT (no deps)     │
+    │                        ├── Phase 2: command parser            │
+    │                        └── Phase 3: VLM for "what am I seeing?" ─┤
+    │                                                               │
+    ├── [independent] Transition Prompts (no deps)                  │
+    │                                                               │
+    ├── [independent] Hardware Control Surface                      │
+    │                        └── depends on: session scoping        │
+    │                                                               │
+    ├── [independent] Frame Buffer Scrubbing (no deps)              │
+    │                                                               │
+    └── [independent] Multi-GPU Scaling                             │
+                             └── depends on: profiling + strategy   │
 ```
 
-**Ready now:** Style Layer (in progress), VACE-14B, Session Recorder, Style Swap, VLM Frame Analysis, NDI Output
-**Speculative:** VLM-Mediated V2V, Context Editing, Tidal Cycles, Voice Integration
+**Ready now:** Style Layer (done), Session Recorder (MVP), Style Swap (partial), VACE-14B, VLM Frame Analysis, NDI Output, Transition Prompts
+**Speculative:** VLM-Mediated V2V, Context Editing, Tidal Cycles, Voice Integration, Hardware Control Surface, Frame Buffer Scrubbing, Multi-GPU Scaling
 
 ---
 
 ## Priority Recommendation
 
-### Tier 1: In Progress
-1. **Style Layer (Phase 6a)** — Let it complete
+### Tier 1: Done / In Progress
+1. **Style Layer (Phase 6a)** — Done (MVP)
+2. **Server-Side Session Recorder** — Done (MVP), expand events next
 
 ### Tier 2: Ready Now (pick based on need)
-2. **Server-Side Session Recorder** — Enables offline re-rendering workflow
-3. **Style Swap Mode** — Enables live style switching for performances
-4. **VACE-14B Integration** — Reference image conditioning
-5. **VLM Frame Analysis** — Foundation for agent loops + V2V
-6. **NDI / Pub-Sub Video Output** — Network streaming to TouchDesigner/OBS
+3. **Style Swap Mode** — Partial; finish `STYLE_DEFAULT` + validation
+4. **Transition Prompts** — Lowest friction (S effort, no deps)
+5. **VACE-14B Integration** — Reference image conditioning
+6. **VLM Frame Analysis** — Foundation for agent loops + V2V
+7. **NDI / Pub-Sub Video Output** — Network streaming to TouchDesigner/OBS
 
-### Tier 3: Speculative (needs validation/dependencies)
-7. **VLM-Mediated V2V** — Depends on VLM Frame Analysis + video capture
-8. **Context Editing** — Run validation spike first
-9. **Tidal Cycles Integration** — Depends on Tidal setup + OSC bridge
-10. **Real-Time Voice Integration** — Phase 1 (browser STT) has no deps; Phase 3 needs VLM
+### Tier 3: Medium Lift (needs decisions/deps)
+8. **Hardware Control Surface** — Needs session scoping decision
+9. **Frame Buffer Scrubbing** — Needs ring-buffer budget decision
+10. **Real-Time Voice Integration** — Phase 1 (browser STT) has no deps
+
+### Tier 4: Speculative (needs validation/research)
+11. **VLM-Mediated V2V** — Depends on VLM Frame Analysis + video capture
+12. **Context Editing** — Run validation spike first
+13. **Tidal Cycles Integration** — Depends on Tidal setup + OSC bridge
+14. **Multi-GPU Scaling** — Research first, profile before code
 
 ---
 
@@ -754,7 +825,8 @@ Style Layer (Phase 6a) ───────────────────
 ## Related Performance Work
 
 See `notes/FA4/b300/optimization-vision.md` for performance optimization roadmap:
-- Current: 15 FPS @ 320×576 with FA4
-- Target: 24+ FPS
-- Blocked: torch.compile, recompute cadence
-- Next: cuDNN benchmark, SageAttention, torchao fix
+- Current (benchmark harness): **~30.7 FPS @ 320×576** (≈3.5× baseline) with BF16 + `--compile` + FA4 varlen + resample-contiguous
+- Daydream end-to-end: TBD re-measure (server steady-state + warmup UX differs from the harness)
+- Target: Further gains require Level 5/6 work (fusing "other_in_self")
+- VAE decode: **Solved** (~60ms, down from ~760ms)
+- See `notes/FA4/b300/session-state.md` for current best config

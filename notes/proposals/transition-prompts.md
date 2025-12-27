@@ -1,7 +1,7 @@
 # Proposal: Transition Prompts in Playlists
 
 > Status: Draft
-> Date: 2025-12-26
+> Date: 2025-12-27
 
 ## Problem
 
@@ -44,8 +44,8 @@ When navigating A → B where B has transition prompt T:
 
 ### Option 1: Two-stage (simple)
 ```
-chunks 1-2: A ────────► T
-chunks 3-4: T ────────► B
+chunks 1-3: A ────────► T
+chunks 4-6: T ────────► B
 ```
 
 ### Option 2: Three-point blend (smoother)
@@ -70,7 +70,7 @@ t=1.0: B
 
 | Case | Behavior |
 |------|----------|
-| First prompt has `>` | Ignore (no source to transition from) |
+| File begins with `>` (transition prompt for entry 0) | Parsed and attached to entry 0; ignore on initial load (no source), but it can still apply when navigating **into** entry 0 later (e.g., wrap/goto/prev) |
 | Multiple `>` before scene | Last `>` wins (MVP); chaining is future extension |
 | `>` without following scene | Ignore (dangling transition) |
 | Hard cut to scene with `>` | Skip transition (no continuity) |
@@ -283,6 +283,7 @@ for line in lines:
         continue
     if line.startswith(">"):
         pending_transition = line[1:].strip()
+        # Apply trigger swap to transition prompt too (same rules as main prompts)
     else:
         # Apply trigger swap to main prompt...
         entries.append(PlaylistEntry(
@@ -330,6 +331,19 @@ No new endpoints needed. The existing `transition=true` parameter triggers the b
 2. **Integration test:** Navigate with `transition=true`, verify two-stage interpolation
 3. **Edge cases:** First entry with `>`, multiple `>` lines, `>` without following prompt
 
+### Recording / Replay Considerations
+
+This matters because we now have server-side session recording and offline replay tooling.
+
+- If we implement two-stage transitions as **two explicit control messages** (stage 1 to `T`, stage 2 to `B`), the session recorder will naturally capture both transitions (and replay can reproduce them without additional schema).
+- If we implement transition prompts as an internal **waypoint** inside `EmbeddingBlender` (single control message to `B`), the intermediate `T` won’t be visible to the recorder unless we extend the recording schema to include the waypoint.
+
+### MVP Recommendation (Given the Recorder)
+
+If we build this, the cleanest “MVP that replays” is:
+- Parse `>` lines into per-entry `transition_prompt`.
+- When navigating with `transition=true`, execute a two-stage transition **as two explicit transitions** (so the recorder captures them), with server-side orchestration to schedule stage 2 after stage 1 has progressed/completed.
+
 ### Effort Estimate
 
 | Task | Effort |
@@ -353,3 +367,5 @@ No new endpoints needed. The existing `transition=true` parameter triggers the b
 Option A: Split evenly (`transition_chunks // 2` each)
 Option B: Transition prompt gets fixed 2 chunks, remainder goes to target
 Option C: Allow syntax like `>3 dissolving mist` for explicit chunk count
+
+**Minimum steps:** Should we enforce a minimum (e.g. `>= 3` steps per stage) so two-stage transitions actually interpolate (given `torch.linspace(0,1,steps=num_steps)` includes endpoints)?

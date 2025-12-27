@@ -1,12 +1,21 @@
 # Tidal Cycles Integration
 
-> Status: Draft
-> Date: 2025-12-26
+> Status: Draft (vetted against current Scope control-plane behavior)
+> Date: 2025-12-26 (rev: 2025-12-27)
 > Research: `notes/research/2025-12-26/tidal/aoi_5pro_01.md`
+> Review: `notes/proposals/tidal-cycles-integration/oai_5pro01.md`
+> Related: `notes/proposals/hardware-control-surface.md`
 
 ## Summary
 
-Synchronize live-coded music (Tidal Cycles) with real-time video generation by routing "music intent" derived from video cues to Tidal parameters. This creates a unified audio-visual performance instrument where narrative intent drives both video prompts and musical expression.
+Synchronize live-coded music (Tidal Cycles) with real-time video generation by routing **music intent** (continuous parameters + discrete arrangement actions) from the video system to the music system.
+
+**Design goal:** treat audio as a *first-class sibling* of video prompting in the same narrative stack.
+
+This proposal is deliberately staged:
+- **Start simple:** precomputed cue sheet + OSC parameter steering (no agent rewrites)
+- **Add live control:** same intent interface, driven by runtime events (soft/hard cuts, prompt changes)
+- **Only later:** pattern rewrites (MCP / evaluated Tidal code) with human approval
 
 ## The Vision
 
@@ -18,6 +27,27 @@ World State → Narrative Intent → ┬→ Video Prompts → Krea Realtime → 
 
 The same narrative intention layer that compiles world state into video prompts also emits music intent — a small vocabulary of continuous parameters (energy, tension, space) plus discrete actions (solo, hush, pattern switch). This keeps video and music semantically aligned without tight temporal coupling.
 
+---
+
+## Reality Check: What Exists Today in Scope
+
+Scope realtime control is already chunk-boundary-driven and has a clear "reserved key" mechanism that fits music intent cleanly.
+
+### Control planes that exist today
+
+- **REST endpoints** in `src/scope/server/app.py`:
+  - `/api/v1/realtime/hard-cut` → forwards `{ "reset_cache": true }` (+ optional prompt)
+  - `/api/v1/realtime/soft-cut` → forwards `{ "_rcp_soft_transition": { temp_bias, num_chunks } }` (+ optional prompt)
+  - `/api/v1/realtime/world` → forwards `{ "_rcp_world_state": <WorldState> }`
+  - `/api/v1/realtime/style` → forwards `{ "_rcp_set_style": <style_name> }`
+- **WebRTC data-channel** messages are translated by `apply_control_message` in `src/scope/server/webrtc.py`
+- **Reserved keys are consumed inside `FrameProcessor`** and are **not forwarded** to the pipeline — this is the correct pattern for music integration
+- **Soft cut semantics are already defined**: `_rcp_soft_transition` temporarily overrides `kv_cache_attention_bias` for N chunks and restores
+
+**Implication:** align audio events to the same chunk-boundary semantics and reuse the "reserved keys consumed in FrameProcessor" pattern.
+
+---
+
 ## Architecture
 
 ### Control Planes
@@ -28,33 +58,38 @@ The same narrative intention layer that compiles world state into video prompts 
 | **Arrangement control** | OSC `/solo`, `/hush`, `/muteAll` | ~10ms | Scene boundary toggles |
 | **Pattern rewrites** | MCP `tidal_eval` | ~100ms | Hard cuts, section changes |
 
-### Network Topology
+### Network Topology (Two-Box, Recommended)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  VIDEO BOX (Remote GPU)                                         │
-│  ┌─────────────────┐     ┌─────────────────┐                   │
-│  │  Krea Realtime  │     │  Intent Emitter │                   │
-│  │  (video gen)    │     │  (HTTP POST)    │                   │
-│  └────────┬────────┘     └────────┬────────┘                   │
-│           │                       │                             │
-└───────────┼───────────────────────┼─────────────────────────────┘
-            │ WebRTC                │ HTTP/WebSocket
-            ▼                       ▼
-┌───────────────────────────────────────────────────────────────────┐
-│  MUSIC BOX (Local)                                                │
-│  ┌─────────────────┐     ┌─────────────────┐     ┌─────────────┐ │
-│  │  Intent Bridge  │────▶│  Tidal Cycles   │────▶│  SuperDirt  │ │
-│  │  (HTTP→OSC)     │ OSC │  (GHCi)         │     │  (audio)    │ │
-│  └─────────────────┘     └─────────────────┘     └─────────────┘ │
-│           ▲                       ▲                              │
-│           │                       │                              │
-│  ┌────────┴────────┐     ┌────────┴────────┐                    │
-│  │  Buddy Console  │     │  MCP Server     │                    │
-│  │  (live tweaks)  │     │  (agent edits)  │                    │
-│  └─────────────────┘     └─────────────────┘                    │
-└───────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│ VIDEO BOX (Remote GPU)                                             │
+│                                                                    │
+│ Scope server + realtime pipeline                                   │
+│  - REST / data-channel control plane                               │
+│  - WorldState + Style + PromptCompiler                             │
+│  - (Proposed) MusicIntentEmitter                                   │
+│                                                                    │
+│                emits JSON intent events (HTTP/WebSocket)           │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │
+                                ▼
+┌────────────────────────────────────────────────────────────────────┐
+│ MUSIC BOX (Local)                                                  │
+│                                                                    │
+│ Intent Bridge (HTTP→OSC)                                           │
+│  - validates + clamps                                              │
+│  - smooths / rate-limits                                           │
+│  - logs / replays                                                  │
+│                                                                    │
+│ Tidal Cycles (GHCi) listens on localhost OSC                       │
+│  - /ctrl  <key> <value>                                            │
+│  - /hush, /solo, /muteAll, ... (playback controller OSC)           │
+│                                                                    │
+│ SuperDirt / audio output                                           │
+└────────────────────────────────────────────────────────────────────┘
 ```
+
+**Why keep OSC on localhost:** avoids exposing Tidal's OSC ports to the network. Expose only the Intent Bridge (HTTP) on a trusted LAN/VPN.
 
 ## Music Intent Vocabulary
 
@@ -80,12 +115,87 @@ Keep it small and composable — these map cleanly to both continuous morphing a
 
 ## Mapping to Video Events
 
-| Video Event | Music Response | Implementation |
-|-------------|----------------|----------------|
-| **Prompt change** | Update intent values | OSC `/ctrl` for each control |
-| **Soft cut** (plasticity window) | Morph parameters + Tidal transition | `xfadeIn`, `clutchIn`, `interpolateIn` |
-| **Hard cut** (cache reset) | Hush + new pattern bank | `/hush` → `tidal_eval` new patterns |
-| **Transition start** | Begin parameter interpolation | Ramp intent values over N chunks |
+This proposal aligns to real Scope controls:
+
+| Video Event | Scope Mechanism | Music Response |
+|-------------|-----------------|----------------|
+| **Prompt change** | `prompts=[...]` | Update intent values (OSC `/ctrl`) |
+| **Soft cut** | `_rcp_soft_transition` (REST `/realtime/soft-cut`) | Interpolate controls over N chunks; optionally trigger Tidal transition |
+| **Hard cut** | `reset_cache=true` (REST `/realtime/hard-cut`) | `/hush` + (later) pattern bank switch |
+| **Style change** | `_rcp_set_style` | Optional: change "palette" (EQ, kit bank, FX macro) |
+| **World state update** | `_rcp_world_state` | Derive intent or look up cue metadata |
+
+**Note:** Scope "soft cut" is specifically a temporary bias override in video. Music should interpret that as a "plasticity window" for smoother morphing, not as a hard scene break.
+
+---
+
+## Event Envelope Format
+
+Standardize on one event contract for video→music communication:
+
+```json
+{
+  "type": "music_intent",        // "music_intent" | "music_action" | "cue"
+  "source": "scope",
+  "ts_unix_ms": 1735260000000,
+  "chunk_index": 1234,           // optional but recommended
+  "cue_id": "akira_042",         // optional
+  "payload": { ... }
+}
+```
+
+**Payloads:**
+
+`music_intent`:
+```json
+{
+  "controls": { "energy": 0.7, "tension": 0.4, "density": 0.6, ... },
+  "ramp": { "mode": "linear", "seconds": 2.0 }   // optional smoothing hint
+}
+```
+
+`music_action`:
+```json
+{ "action": "hush", "focus": "drums" }
+```
+
+---
+
+## Alignment with Scope Control-Plane Semantics
+
+### Where the music intent should be emitted
+
+**Goal:** if a prompt/world/style update is applied at a chunk boundary, the corresponding audio update should be emitted at that same boundary.
+
+#### Option A (recommended): Reserved keys consumed in FrameProcessor
+
+Add reserved key handlers analogous to snapshot/step:
+
+```python
+# Consumed in FrameProcessor; never forwarded to pipeline
+"_rcp_music_intent": { "energy": 0.7, "tension": 0.2, ... }
+"_rcp_music_action": { "action": "hush", "focus": "drums" }
+"_rcp_music_cue":    { "cue_id": "akira_042", "transition": {...} }
+```
+
+These keys:
+- Flow through `parameters_queue` (thread-safe)
+- Are drained/merged (mailbox semantics)
+- Are consumed in `process_chunk()` and **never forwarded to pipeline**
+
+**Important:** do not do network IO in the hot path. Instead:
+- `FrameProcessor` enqueues events to a lightweight emitter queue
+- A separate emitter thread performs HTTP sends
+
+#### Option B: Emit from the REST layer
+
+Add Scope-side code so `/realtime/soft-cut` and `/realtime/hard-cut` also call a music client directly.
+
+Simpler but: bypasses chunk-boundary ordering and can drift relative to actual generation boundaries.
+
+**Recommendation:** Option A for correct alignment; Option B okay for early experiments.
+
+---
 
 ## Cue Sheet Format
 
@@ -146,6 +256,19 @@ Aligned with video prompt playlists:
 ```
 
 ## Implementation Phases
+
+### Phase 0: Offline Scoring Workflow (First 5-10 Minutes of Akira)
+
+**Goal:** Rehearse the control vocabulary and patch without networking complexity.
+
+**Steps:**
+1. Write a cue sheet aligned to your prompt playlist (manual values)
+2. Run a script on the music machine that "plays" the cue sheet (timestamped or step-advanced)
+3. Iterate: adjust cue values, replay, repeat
+
+**Outcome:** A stable Tidal patch + a set of cue values that "works" before adding network integration.
+
+---
 
 ### Phase 1: OSC Parameter Steering (MVP)
 
@@ -320,15 +443,28 @@ Tidal supports Ableton Link for shared tempo/phase:
 - Music box can interpolate/schedule based on chunk rate (~4 FPS)
 - More precise than wall-clock, less complex than Link
 
+## Reliability and Safety
+
+- **Do not block realtime generation:** All HTTP sends must be async / background from the video thread
+- **Rate-limit:** Cap intent sends (10-30 Hz max) and coalesce updates (mailbox semantics)
+- **Allowlist + clamp:** Never accept arbitrary OSC paths from the network
+- **Auth:** Optional bearer token for the bridge if exposed beyond localhost
+- **Logging:** Log events so you can replay a "performance" offline
+
+---
+
 ## Files to Create
 
 | File | Purpose |
 |------|---------|
-| `src/scope/integrations/tidal/bridge.py` | FastAPI HTTP→OSC bridge |
-| `src/scope/integrations/tidal/client.py` | Client for video box to emit intent |
-| `src/scope/integrations/tidal/schema.py` | Pydantic models for intent/actions |
-| `examples/tidal/parametric_patch.tidal` | Reference Tidal patch |
-| `examples/tidal/akira_cues.json` | Example cue sheet |
+| `src/scope/integrations/tidal/schema.py` | Pydantic models: `MusicIntent`, `MusicAction`, event envelope |
+| `src/scope/integrations/tidal/client.py` | HTTP client used by video box emitter |
+| `src/scope/integrations/tidal/emitter.py` | Background sender (queue + coalesce + retry policy) |
+| `src/scope/integrations/tidal/bridge.py` | FastAPI HTTP→OSC bridge (runs on music machine) |
+| `examples/tidal/parametric_patch.tidal` | Reference parametric patch |
+| `examples/tidal/akira_cues.json` | Example cue sheet aligned to prompts |
+| `tools/play_cue_sheet.py` | Offline cue playback (music machine) |
+| `tools/send_intent.py` | Manual intent override |
 
 ## Dependencies
 
@@ -337,13 +473,22 @@ Tidal supports Ableton Link for shared tempo/phase:
 - **python-osc** — OSC client for bridge
 - **tidal-cycles-mcp-server** — https://github.com/Benedict/tidal-cycles-mcp-server (optional, Phase 4)
 
-## Open Questions
+## Open Questions (with Recommended Defaults)
 
-- [ ] **Network topology:** Same box or remote? Affects OSC routing and latency.
-- [ ] **Sync mechanism:** Manual start, Ableton Link, or chunk-based?
-- [ ] **Control surface:** Open Stage Control, custom UI, or CLI only?
-- [ ] **Pattern banks:** How many pre-composed sections? Scene-tagged or mood-tagged?
-- [ ] **Intent derivation:** Manual per-cue, or auto-derived from scene tags via LLM?
+1. **Network topology:** Same box or remote?
+   - **Default:** Video remote, music local; keep Tidal OSC on localhost; expose only HTTP bridge
+
+2. **Sync mechanism:** Manual, Link, or chunk-based?
+   - **Default:** Manual start + cue boundary resync; add `chunk_index` later if needed
+
+3. **Derivation of intent:** Manual vs heuristics vs narrative engine?
+   - **Default:** Manual cue sheet for first 5-10 minutes; then add simple tag heuristics; then compile from WorldState later
+
+4. **Pattern rewrites:** When?
+   - **Default:** Only after Phase 1-2 feels musically solid; keep human-in-loop; gate to boundaries
+
+5. **Where to emit:** FrameProcessor reserved keys vs REST-side emission?
+   - **Default:** FrameProcessor reserved keys + background emitter (best alignment with chunk semantics)
 
 ## References
 

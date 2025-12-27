@@ -1,7 +1,7 @@
 # Daydream Scope Notes Index
 
 > **Purpose:** Navigate this notes directory quickly
-> **Updated:** 2025-12-26
+> **Updated:** 2025-12-27
 > **Context:** Daydream Interactive AI Video Program (Dec 22 - Jan 9)
 
 ---
@@ -96,6 +96,7 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 
 | File | Description |
 |------|-------------|
+| [FA4/b300/README.md](FA4/b300/README.md) | Entry point + “tiny desk reference” (truth/protocol/logbook/strategy) |
 | [FA4/b300/session-state.md](FA4/b300/session-state.md) | Current B300 state, env setup, profiling results |
 | [FA4/b300/investigation-runbook.md](FA4/b300/investigation-runbook.md) | Systematic debugging guide with 5 hypotheses |
 | [FA4/b300/investigation.md](FA4/b300/investigation.md) | Investigation findings |
@@ -103,6 +104,9 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 | [FA4/b300/setup-guide.md](FA4/b300/setup-guide.md) | B300 environment setup |
 | [FA4/b300/optimization-vision.md](FA4/b300/optimization-vision.md) | Strategic performance roadmap |
 | [FA4/b300/development-plan.md](FA4/b300/development-plan.md) | Concrete B300 plan (priorities + milestones) |
+| [FA4/b300/optimization-ladder.md](FA4/b300/optimization-ladder.md) | Where we are on the optimization ladder + Level 5/6 framing |
+| [FA4/b300/philosophy.md](FA4/b300/philosophy.md) | Learning-first operating principles (why we climb) |
+| [FA4/b300/lessons.md](FA4/b300/lessons.md) | “What we learned” distillation + pointers to evidence |
 | [FA4/b300/experiments.md](FA4/b300/experiments.md) | One-change experiment cards (hypothesis → command → result → lesson) |
 
 ### B200 (Blackwell SM100) Notes
@@ -165,22 +169,28 @@ Future-facing ideas that build on Phase 1 infrastructure.
 
 ---
 
-## 3. Proposals (Ready to Implement)
+## 3. Proposals (Specs + Tracker)
 
 Concrete implementation proposals with specs and checklists.
 
-| File | Description | Status |
-|------|-------------|--------|
-| [proposals/style-swap-mode.md](proposals/style-swap-mode.md) | Instant LoRA switching via preload + runtime_peft | Ready |
-| [proposals/vlm-integration.md](proposals/vlm-integration.md) | Gemini for frame analysis + image editing | Ready |
-| [proposals/frame-buffer-scrubbing.md](proposals/frame-buffer-scrubbing.md) | Ring buffer for instant scrub/replay/branch preview | Ready |
-| [proposals/server-side-session-recorder.md](proposals/server-side-session-recorder.md) | Record control events for offline re-render | Ready |
-| [proposals/session-recording-timeline-export.md](proposals/session-recording-timeline-export.md) | Timeline export on recording stop | Implemented |
-| [proposals/gemini-cookbook.md](proposals/gemini-cookbook.md) | Gemini integration patterns (from comfy_automation) | Reference |
-| [proposals/ndi-pubsub-video-output.md](proposals/ndi-pubsub-video-output.md) | NDI network streaming | Ready |
-| [proposals/tidal-cycles-integration.md](proposals/tidal-cycles-integration.md) | Music sync via OSC | Speculative |
-| [proposals/multi-gpu-scaling.md](proposals/multi-gpu-scaling.md) | Pipeline parallelism for multi-GPU inference | Exploratory |
-| [proposals/transition-prompts.md](proposals/transition-prompts.md) | Transition prompt syntax | Draft |
+Canonical status grid: [proposals/README.md](proposals/README.md)
+
+| File | Description | Repo status |
+|------|-------------|------------|
+| [proposals/README.md](proposals/README.md) | Proposal readiness + implementation tracker | Maintained |
+| [proposals/frame-buffer-scrubbing.md](proposals/frame-buffer-scrubbing.md) | Output frame history ring buffer for scrub/replay | Not started |
+| [proposals/gemini-cookbook.md](proposals/gemini-cookbook.md) | Gemini integration patterns (reference) | Doc-only |
+| [proposals/hardware-control-surface.md](proposals/hardware-control-surface.md) | Stream Deck / MIDI control surface integration | Not started |
+| [proposals/multi-gpu-scaling.md](proposals/multi-gpu-scaling.md) | Multi-GPU scaling for Krea realtime | Exploratory |
+| [proposals/ndi-pubsub-video-output.md](proposals/ndi-pubsub-video-output.md) | NDI output + pub/sub architecture | Not started |
+| [proposals/realtime-voice-integration.md](proposals/realtime-voice-integration.md) | Voice input control (STT / voice chat) | Not started |
+| [proposals/server-side-session-recorder.md](proposals/server-side-session-recorder.md) | Record control events for offline re-render | Implemented (MVP) |
+| [proposals/session-recording-timeline-export.md](proposals/session-recording-timeline-export.md) | Timeline export on recording stop | Implemented (MVP) |
+| [proposals/style-swap-mode.md](proposals/style-swap-mode.md) | Instant style switching via preloaded LoRAs | Partial |
+| [proposals/tidal-cycles-integration.md](proposals/tidal-cycles-integration.md) | Music sync via OSC / intent bridge | Not started |
+| [proposals/transition-prompts.md](proposals/transition-prompts.md) | Transition prompt syntax in playlists | Not started |
+| [proposals/vace-14b-integration.md](proposals/vace-14b-integration.md) | VACE-14B wiring into Krea | Not started |
+| [proposals/vlm-integration.md](proposals/vlm-integration.md) | VLM integration plan (prompt compile / analysis / edit) | Partial |
 
 ---
 
