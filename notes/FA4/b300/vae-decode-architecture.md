@@ -14,27 +14,49 @@ Annotated decode graph with ops, shapes, and markers for:
 
 ---
 
-## VAE Decode Flow
+## VAE Decode Flow (as implemented today)
 
-**Location:** `src/scope/core/pipelines/wan2_1/vae/` or similar
+**Locations (code):**
+- Wrapper / profiling hooks: `src/scope/core/pipelines/wan2_1/vae/wan.py` (`WanVAEWrapper.decode_to_pixel`)
+- Core implementation: `src/scope/core/pipelines/wan2_1/vae/modules/vae.py` (`WanVAE_.stream_decode`)
+
+High-level flow (streaming decode path):
 
 ```
-Input: latent [B, C_latent, T, H, W]
+Input: latent z [B, C_latent, T, H, W]
   │
-  ├─► [Op 1: ?]
-  │     Shape: ? → ?
-  │     Time: ? ms
-  │     Conv3d time-kernel=1? [ ]
+  ├─► apply_scale
+  │     z = z / scale[1] + scale[0]
   │
-  ├─► [Op 2: ?]
-  │     Shape: ? → ?
-  │     Time: ? ms
-  │     Conv3d time-kernel=1? [ ]
+  ├─► conv2 (pointwise conv)
+  │     x = CausalConv3d(z_dim → z_dim, kernel_size=1)(z)
   │
-  ├─► ... (fill in from code audit)
+  ├─► decoder (causal; uses feature caches)
+  │     - first batch: decoder_first (t=1) + decoder_rest (t-1) + cat
+  │     - later batches:
+  │         - loop mode: per-frame decoder (slow)
+  │         - chunk mode: decoder over full chunk (fast)
   │
-  └─► Output: decoded [B, 3, T, H', W']
+  └─► output [B, 3, T, H', W']
 ```
+
+Notes:
+- `WANVAE_STREAM_DECODE_MODE=chunk` is the preferred mode for performance.
+- `WanVAE_.stream_decode` has built-in inner profilers (`PROFILE_WANVAE_DECODE_INNER=1`) which can be used to fill the timing tables below.
+
+---
+
+## Key Building Blocks (from code)
+
+- `CausalConv3d` (`src/scope/core/pipelines/wan2_1/vae/modules/vae.py`)
+  - Optionally uses implicit spatial padding (lets cuDNN handle H/W padding; time padding remains explicit for causality).
+- `ResidualBlock`
+  - Two `CausalConv3d(..., kernel_size=3, padding=1)` (i.e. 3×3×3) + a `shortcut` that is either Identity or `CausalConv3d(..., kernel_size=1)`.
+- `Resample`
+  - Spatial resample is done per-frame via `nn.Conv2d` after rearranging to `(B*T, C, H, W)`.
+  - Temporal resample uses `time_conv = CausalConv3d(..., kernel_size=(3,1,1))` (time-kernel=3, spatial 1×1).
+- `AttentionBlock` (inside encoder/decoder at some scales)
+  - Per-frame attention: reshapes to `(B*T, C, H, W)`, computes QKV via `nn.Conv2d`, runs `F.scaled_dot_product_attention`.
 
 ---
 
@@ -57,12 +79,12 @@ Fill in from code audit of VAE decoder:
 
 ## Conv3d → Conv2d Candidates
 
-Based on audit, these have `kernel_size[0] == 1`:
+From a quick code scan, these have `kernel_size[0] == 1` (time-kernel=1):
 
 | Layer | Current | Proposed Change | Expected Savings |
 |-------|---------|-----------------|------------------|
-| ? | Conv3d(1,k,k) | Per-frame Conv2d | ? ms |
-| ? | Conv3d(1,k,k) | Per-frame Conv2d | ? ms |
+| `WanVAE_.conv2` | `CausalConv3d(z_dim→z_dim, kernel=1)` | per-frame `Conv2d(z_dim→z_dim, kernel=1)` | TBD |
+| `ResidualBlock.shortcut` | `CausalConv3d(in→out, kernel=1)` | per-frame `Conv2d(in→out, kernel=1)` | TBD |
 
 **Pattern to look for:**
 ```python
@@ -72,6 +94,10 @@ nn.Conv3d(..., kernel_size=(1, k, k), stride=(1, s, s))
 # for t in range(T):
 #     out[:, :, t] = conv2d(x[:, :, t])
 ```
+
+Reality check:
+- Most of the heavy decode path uses `kernel_size=3` (3×3×3), so “Conv3d→Conv2d” may be a limited lever in VAE decode compared to where it paid off (patch embedding).
+- Still, it’s worth auditing **time-kernel=1** sites because they’re the easiest safe rewrite and can remove unexpected slow paths.
 
 ---
 

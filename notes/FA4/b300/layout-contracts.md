@@ -1,9 +1,11 @@
 # Layout Contracts: QKV → RoPE → Cache → Attention
 
-> Status: Partial (FA constraints documented, local code audit pending)
+> Status: Partial (FA constraints documented; local code audit for QKV/RoPE/cache done; fast-layout validation pending)
 > Priority: **High** — blocks all fusion/kernel work
 > Date: 2025-12-26
-> Source: `notes/FA4/DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md`
+> Sources:
+> - External constraints: `notes/FA4/DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md`
+> - Local code audit: `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`, `src/scope/core/pipelines/krea_realtime_video/modules/model.py`, `src/scope/core/pipelines/wan2_1/modules/attention.py`
 
 ## Purpose
 
@@ -13,76 +15,75 @@ Document the concrete tensor shapes, dtypes, memory layouts, and alignment requi
 
 ## Contract 1: QKV Projection Output
 
-**Location:** `src/scope/core/pipelines/wan2_1/modules/attention.py` (or similar)
+**Location (self-attn):** `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` (`CausalWanSelfAttention.forward`)
 
-| Property | Value | Notes |
-|----------|-------|-------|
-| Shape | `[B, S, 3*H*D]` or `[B, S, 3, H, D]`? | TBD — check actual output |
-| Dtype | `bfloat16` | Confirm |
-| Layout | Contiguous? Channels-last? | TBD |
-| Alignment | 16-byte? 128-byte? | Affects TMA viability |
-| Producer | cuBLAS GEMM | Via `F.linear` |
+Current behavior (today):
+- Input `x`: `[B, S, dim]` where `dim = H * D`
+- Outputs are reshaped as `[B, S, H, D]`
+
+| Tensor | Shape | Dtype | Notes |
+|--------|-------|-------|------|
+| `q` | `[B, S, H, D]` | BF16 | `q = norm_q(q(x)).view(B,S,H,D)` |
+| `k` | `[B, S, H, D]` | BF16 | `k = norm_k(k(x)).view(B,S,H,D)` |
+| `v` | `[B, S, H, D]` | BF16 | `v = v(x).view(B,S,H,D)` |
 
 **Key questions:**
-- [ ] Is QKV fused (single GEMM) or separate Q/K/V projections?
-- [ ] What's the exact output shape after reshape/view?
-- [ ] Any `.contiguous()` calls immediately after?
+- [ ] Are fused projections enabled in our real runs (`self.fused_projections`)?
+- [ ] Do we force any `.contiguous()` when switching between `[B, S, H, D]` and `[B, H, S, D]` (real copies)?
 
 ---
 
 ## Contract 2: RoPE Inputs/Outputs
 
-**Location:** `src/scope/core/pipelines/wan2_1/modules/rope.py` (or similar)
+**Location:** `src/scope/core/pipelines/krea_realtime_video/modules/model.py` (`rope_apply`)
 
 ### Input
 
 | Property | Value | Notes |
 |----------|-------|-------|
-| Q shape | `[B, H, S, D]`? | TBD |
-| K shape | `[B, H, S, D]`? | TBD |
-| cos/sin shape | `[S, D]` or `[1, 1, S, D]`? | TBD |
-| Dtype | `bfloat16` | Confirm |
+| Q shape | `[B, S, H, D]` | called as `rope_apply(q, grid_sizes, freqs)` |
+| K shape | `[B, S, H, D]` | called as `rope_apply(k, grid_sizes, freqs)` |
+| cos/sin shape | derived from `freqs` + `grid_sizes` | cached via `get_rope_cos_sin(...)` |
+| Dtype | BF16 | outputs are cast to `v.dtype` at call sites (`.type_as(v)`) |
 
 ### Output
 
 | Property | Value | Notes |
 |----------|-------|-------|
-| Q_rotated shape | Same as input? | TBD |
-| K_rotated shape | Same as input? | TBD |
-| In-place? | Yes/No | TBD |
+| Q_rotated shape | `[B, S, H, D]` | same as input |
+| K_rotated shape | `[B, S, H, D]` | same as input |
+| In-place? | No | fallback path returns a new tensor (`clone` + write) |
 
-**Key questions:**
-- [ ] Is RoPE applied in-place or does it allocate?
-- [ ] What's the cos/sin table format (interleaved, split, complex)?
-- [ ] Any precision sensitivity (fp32 intermediates)?
+**Notes / gotchas (relevant to fusion):**
+- RoPE can currently allocate (clone) on the fallback paths; this can show up as `aten::copy_` stacks in profiles.
+- There are optional Triton fast paths (`triton_rope_fused_3way`, `triton_apply_rotary`) which change which kernels appear; treat them as separate “contracts” when measuring.
 
 ---
 
 ## Contract 3: KV Cache Write Layout
 
-**Location:** `src/scope/core/pipelines/krea_realtime_video/` (cache management)
+**Location:** `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` (`CausalWanSelfAttention.forward`)
 
 ### Write Path
 
 | Property | Value | Notes |
 |----------|-------|-------|
-| K_cache shape | `[B, H, MaxS, D]`? | TBD |
-| V_cache shape | `[B, H, MaxS, D]`? | TBD |
-| Write pattern | Append at position? Scatter? | TBD |
-| Dtype | `bfloat16` | Confirm |
+| K_cache shape | `[B, MaxS, H, D]` | updated via slice assignment |
+| V_cache shape | `[B, MaxS, H, D]` | updated via slice assignment |
+| Write pattern | append; optional eviction/roll | eviction uses `.clone()` slices when cache fills |
+| Dtype | BF16 | matches `v.dtype` |
 
 ### Read Path (for attention)
 
 | Property | Value | Notes |
 |----------|-------|-------|
-| K shape expected by attention | ? | TBD |
-| V shape expected by attention | ? | TBD |
-| Contiguous requirement? | ? | TBD |
+| Cached K slice | `[B, Lk, H, D]` | `cached_k = kv_cache["k"][:, kv_start:kv_end]` (view) |
+| Cached V slice | `[B, Lk, H, D]` | `cached_v = kv_cache["v"][:, kv_start:kv_end]` (view) |
+| Stride gotcha (B=1) | normalize via `[0].unsqueeze(0)` | avoids FA4 “leading dim” inference failure for cache slices |
 
 **Key questions:**
-- [ ] Is cache pre-allocated or grown dynamically?
-- [ ] Any packing/unpacking between write and read?
-- [ ] Position indexing: absolute or relative?
+- [ ] How often do we hit eviction/roll (and how much time do the `.clone()` shifts cost)?
+- [ ] Can we write K/V directly in the “fast layout” the attention backend wants (to avoid later transposes/contiguous)?
 
 ---
 
@@ -140,7 +141,7 @@ Document the concrete tensor shapes, dtypes, memory layouts, and alignment requi
 |----------|-------------|-------|
 | Dtype | **BF16 only** | No FP16, no FP8 yet |
 | Direction | **Forward only** | Backward not implemented |
-| Target | SM100 (B200) | 5-stage pipeline, CuTe DSL |
+| Target | SM100+ (B200) | Official; SM103 (B300) works in this repo with patches |
 | score_mod | `def score_mod(score, batch, head, q_idx, k_idx)` | All idx args are `torch.int` scalars |
 | score_mod constraint | **No trainable parameters** inside | Pure function only |
 
@@ -152,9 +153,9 @@ Document the concrete tensor shapes, dtypes, memory layouts, and alignment requi
 | Wrong head_dim alignment | Pad internally |
 | K-major when MN-major expected (or vice versa) | Transpose |
 
-#### Accepted vs Fast Layouts
+#### Accepted vs Fast Layouts (Rule of Thumb)
 
-> **Key insight from 5pro01.md**: Even when multiple layouts are *accepted*, only some are *fast-path*.
+Even when multiple layouts are *accepted*, only some are truly “fast-path” (i.e. no internal repacking/transposes). Treat this as a measurement requirement: verify which layouts are fast in our workload.
 
 | Layout | Accepted? | Fast? | Notes |
 |--------|-----------|-------|-------|
@@ -188,12 +189,12 @@ Document the concrete tensor shapes, dtypes, memory layouts, and alignment requi
 
 Based on profiling, these ops appear between the contracts above:
 
-| Op | Location | Why It Exists | Can Fuse? |
-|----|----------|---------------|-----------|
-| `aten::transpose` | ? | Layout mismatch | TBD |
-| `aten::contiguous` | ? | Non-contiguous input | TBD |
-| `aten::_to_copy` | ? | Dtype conversion | TBD |
-| `aten::view` | ? | Reshape | Usually free |
+| Op | Location | Why It Exists | Notes |
+|----|----------|---------------|------|
+| `rope_apply(...).clone()` | RoPE fallback | produces new rotated tensor | can be fusion target |
+| `.transpose(2, 1).contiguous()` | block-mask flex_attention / Triton Kernel B | expects `[B, H, S, D]` contiguous | real copies |
+| `torch.cat([...])` padding | block-mask / flex fallback | aligns to 128 / flex alignment | alloc + copy |
+| cache eviction `.clone()` | KV cache | shift/roll window when cache fills | can spike `copy_` |
 
 ---
 
@@ -211,4 +212,4 @@ Based on profiling, these ops appear between the contracts above:
 - FlashAttention repo: https://github.com/Dao-AILab/flash-attention
 - PyTorch flex_attention: https://pytorch.org/docs/stable/generated/torch.nn.attention.flex_attention.html
 - Current attention impl: `src/scope/core/pipelines/wan2_1/modules/attention.py`
-- Current RoPE impl: `src/scope/core/pipelines/wan2_1/modules/rope.py`
+- Current RoPE impl: `src/scope/core/pipelines/krea_realtime_video/modules/model.py`

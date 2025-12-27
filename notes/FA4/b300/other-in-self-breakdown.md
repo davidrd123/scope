@@ -3,13 +3,15 @@
 > Status: Stub (needs profiling run to fill in)
 > Priority: **High** — can't optimize what we haven't measured
 > Date: 2025-12-26
-> Source: `notes/FA4/DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/5pro01.md`
+> Sources:
+> - External references + constraints: `notes/FA4/DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md`
+> - “Don’t guess, measure” decision rules: `notes/FA4/DeepResearch/2025-12-26/B300_step_back/round01/5pro_rp02.md`
 
 ---
 
 ## Execution Sequence (Do This First!)
 
-> **From 5pro01.md**: The fastest "first execution" sequence to prevent spending weeks on a gorgeous kernel that targets the wrong layout.
+The fastest "first execution" sequence to prevent spending weeks on a gorgeous kernel that targets the wrong thing:
 
 1. **Fill `layout-contracts.md`** for exactly one representative shape end-to-end
 2. **Do ONE stack-attributed `other_in_self` run** and fill this breakdown table
@@ -42,6 +44,12 @@ The profiler shows "other_in_self" as the majority of self_attn time after FA4 K
 
 ## How to Generate This Data
 
+### Step 0: Get the coarse breakdown (cheap)
+
+Enable `PROFILE_ATTENTION=1` and record the report at exit. This tells you how much `self_attn` time is KV-bias vs everything else, and also records sub-blocks like `qkv_projection`, `rope_apply`, and `cache_update` when enabled.
+
+### Step 1: Stack-attributed op profiling (to find the real copy sources)
+
 ```bash
 DISABLE_FLEX_ATTENTION_COMPILE=1 \
 WANVAE_STREAM_DECODE_MODE=chunk \
@@ -54,10 +62,16 @@ SCOPE_KV_BIAS_BACKEND=fa4 \
   --kv-bias-backend fa4 \
   --quantization none \
   --cudnn-benchmark \
-  --with-stack --stack-n 12
+  --with-stack --stack-n 12 \
+  --stack-key aten::contiguous \
+  --stack-key aten::transpose \
+  --stack-key aten::_to_copy \
+  --stack-key aten::copy_ \
+  --stack-key aten::fill_ \
+  --summary outputs/b300_other_in_self_summary.md
 ```
 
-Filter output for self_attn-related stacks.
+Filter output for self-attn-related stacks (look for call stacks that include `CausalWanSelfAttention.forward`).
 
 ---
 
