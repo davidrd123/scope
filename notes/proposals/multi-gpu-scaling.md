@@ -6,7 +6,11 @@
 
 ## Summary
 
-Enable multi-GPU inference for the KREA realtime pipeline to scale FPS beyond single-GPU limits. StreamDiffusionV2 demonstrates this is viable, achieving **58 FPS with 14B models on 4× H100** using pipeline parallelism.
+Enable multi-GPU inference for the KREA realtime pipeline to scale FPS beyond single-GPU limits.
+
+Key framing: **multi-GPU only helps if we can overlap work** (or otherwise avoid turning “more devices” into “more copies + more latency”).
+
+StreamDiffusionV2 reports multi-GPU viability (including **~58 FPS with a 14B model on 4× H100**) using pipeline-parallel style orchestration, but we should treat those numbers as *reported* until we reproduce comparable behavior in our stack.
 
 ## What We Know
 
@@ -15,15 +19,15 @@ Enable multi-GPU inference for the KREA realtime pipeline to scale FPS beyond si
 | Strategy | Feasibility | Notes |
 |----------|-------------|-------|
 | **Pipeline Parallel** | ✅ Proven | Consecutive DiT stages across GPUs |
-| **Tensor Parallel** | ❌ Not viable | Spatial activations = prohibitive communication |
-| **Sequence Parallel** | ❌ Unstable | Unpredictable latency jitter |
+| **Tensor Parallel** | ⚠️ Likely poor fit | Their claim: spatial activations make comm prohibitive |
+| **Sequence Parallel** | ⚠️ Risky | Their claim: unpredictable latency jitter |
 
 Key mechanisms:
 - **SLO-aware batching scheduler** - respects latency guarantees
 - **Dynamic block scheduler** - reallocates work based on runtime measurements
 - **VAE on separate device** - encode/decode don't compete with transformer
 
-Their usage: `torchrun --nproc_per_node=N`
+Note: their distributed setup uses `torchrun --nproc_per_node=N`, but our **first prototype** (VAE offload) can likely be done in a single process without `torch.distributed`.
 
 ### Current KREA Pipeline State
 
@@ -81,8 +85,13 @@ Move VAE encode/decode to a second GPU while transformer runs on primary.
 
 **Cons:**
 - Limited scaling (2 GPUs max benefit)
-- Cross-GPU tensor copies for latents
+- Cross-GPU tensor copies for latents (and possibly decoded frames)
+- **Only a win if we overlap** decode with denoise across chunks (i.e., pipeline stages); sequential offload can be neutral/negative
 - Layout considerations: VAE benefits from `channels_last_3d` (`WANVAE_DECODE_CHANNELS_LAST_3D=1`), need to ensure cross-GPU copies preserve this
+
+**Upper bound intuition (if perfectly overlapped, ignoring copy overhead):**
+- Speedup is capped by the larger stage share: `speedup <= 1 / max(denoise_share, decode_share)`
+- With the current compiled breakdown (~65% denoise / ~35% decode), best-case is ~`1/0.65 ≈ 1.54×` (then subtract copy/jitter costs)
 
 **Complexity:** Low
 
@@ -131,6 +140,18 @@ Split spatial patches across GPUs ([DistriFusion paper](https://arxiv.org/abs/24
 
 **Complexity:** High
 
+## Prototype Prereqs / “Measure Before Building” (Especially for VAE Offload)
+
+Before writing orchestration code, measure the two things that decide if Approach A is viable:
+
+1) **Peer-to-peer feasibility and copy cost**
+- Does `cuda:0 → cuda:1` support P2P? (NVLink vs PCIe matters a lot.)
+- What’s the measured time to copy the relevant latent tensors between devices?
+
+2) **Overlap feasibility**
+- Can decode run concurrently with denoise without fighting for CPU scheduling / streams?
+- Does the server architecture make it easy to pipeline across chunks (queue latents, decode previous while denoising next)?
+
 ## Suggested Investigation Path
 
 ### Phase 1: Measure (Before Building)
@@ -147,8 +168,8 @@ Split spatial patches across GPUs ([DistriFusion paper](https://arxiv.org/abs/24
 
 ### Phase 3: Prototype (Simplest First)
 
-1. **VAE offload** - move decode to GPU 1, measure impact
-2. If beneficial, try encode offload too
+1. **VAE decode offload** - run decode on GPU 1 *with pipelining* (decode chunk N-1 while denoise chunk N), measure impact
+2. If beneficial, try encode offload too (or keep encode on GPU 0 if it’s not dominant)
 3. Only then consider transformer partitioning
 
 ### Phase 4: Production Hardening (If Warranted)
