@@ -12,11 +12,11 @@
 
 ---
 
-## ⚠️ Incoming Material (79 files - Needs Permanent Home)
+## ⚠️ Incoming Material (~78 files - Needs Permanent Home)
 
-**Location:** `research/2025-12-24/incoming/` + `FA4/explainers/15-18`
+**Location:** `research/2025-12-24/incoming/` (recount: `find notes/research/2025-12-24/incoming -type f | wc -l`)
 
-### Performance (22 files) → FA4 docs
+### Performance (29 files) → FA4 docs
 | Path | Contents |
 |------|----------|
 | `perf/blogs/` | 15 blog posts: torch-compile, flexattn, thunderkittens-blackwell, warp-specialization, verda-b200-b300, etc. |
@@ -24,7 +24,7 @@
 | `perf/ref/` | 7 reference docs: torchao-compat, SM103, CUDA 12.9/13.1, Blackwell arch |
 | `perf/` | ACTIONABLE_ITEMS_SUMMARY.md, NVFP4.md, cuda_repoprompt_req.md |
 
-### Style Assets (~35 files) → guides/ or assets/
+### Style Assets (37 files) → guides/ or assets/
 | Path | Contents |
 |------|----------|
 | `style/Akira/` | Prompting guide, captioning (v4 + lexicon), prompts (videodrome, FightClub chapters, 2001) |
@@ -38,23 +38,15 @@
 |------|----------|
 | `skills/RAT/` | Skill.md + Pillars I-IV (Constitution, Cast, Art Direction, Story Engine) |
 
-### Specs (4 files) → plans/ or reference/
+### Specs (3 files) → plans/ or reference/
 | Path | Contents |
 |------|----------|
-| Top-level | project_knowledge.md, context_editing_and_console_spec.md, interface_specifications.md, gemini-integration.md |
+| Top-level | project_knowledge.md, context_editing_and_console_spec.md, interface_specifications.md |
 
 ### REST Endpoint (4 files) → close out or archive
 | Path | Contents |
 |------|----------|
 | `rest_endpoint/` | testing_cmds.md, 5pro_rest_feedback.md, test images |
-
-### FA4 Explainers (4 files) → update refs in this index + FA4/README.md
-| File | Topic |
-|------|-------|
-| `FA4/explainers/15-scope-to-fa4-call-path.md` | End-to-end call path from TUI to kernel |
-| `FA4/explainers/16-numerics-and-fp8.md` | KV-bias math, exp2, FP8 tradeoffs |
-| `FA4/explainers/17-backend-selection-and-knobs.md` | Complete knobs reference |
-| `FA4/explainers/18-debugging-cookbook.md` | Symptom → cause → fix guide |
 
 **Process:** See [research/PROCESS.md](research/PROCESS.md) for raw → distilled → integrated workflow.
 
@@ -64,7 +56,10 @@
 
 | What you want | Where to go |
 |---------------|-------------|
-| Current session state | [FA4/SESSION-HANDOFF-2025-12-24.md](FA4/SESSION-HANDOFF-2025-12-24.md) |
+| **Internal vision (why & where)** | [VISION.md](VISION.md) |
+| Project session state | [session-state-2025-12-25.md](session-state-2025-12-25.md) |
+| FA4 session handoff | [FA4/SESSION-HANDOFF-2025-12-24.md](FA4/SESSION-HANDOFF-2025-12-24.md) |
+| B300 session state | [FA4/b300/session-state.md](FA4/b300/session-state.md) |
 | Project pitch (vision) | [daydream/cohort-pitch.md](daydream/cohort-pitch.md) |
 | Project overview (internal map) | [PROJECT-OVERVIEW.md](PROJECT-OVERVIEW.md) |
 | Latest cohort-style update | [daydream/cohort-update-2025-12-25.md](daydream/cohort-update-2025-12-25.md) |
@@ -126,6 +121,10 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 | [FA4/explainers/README.md](FA4/explainers/README.md) | Index of all explainers (Phase 1–3) |
 | [FA4/explainers/13-optimization-bootstrapping.md](FA4/explainers/13-optimization-bootstrapping.md) | Phase 3: optimization playbook |
 | [FA4/explainers/14-blog-patterns-to-experiments.md](FA4/explainers/14-blog-patterns-to-experiments.md) | Phase 3: blog patterns → experiment cards |
+| [FA4/explainers/15-scope-to-fa4-call-path.md](FA4/explainers/15-scope-to-fa4-call-path.md) | End-to-end call path from TUI to kernel |
+| [FA4/explainers/16-numerics-and-fp8.md](FA4/explainers/16-numerics-and-fp8.md) | KV-bias math, exp2, FP8 tradeoffs |
+| [FA4/explainers/17-backend-selection-and-knobs.md](FA4/explainers/17-backend-selection-and-knobs.md) | Complete knobs reference |
+| [FA4/explainers/18-debugging-cookbook.md](FA4/explainers/18-debugging-cookbook.md) | Symptom → cause → fix guide |
 
 ### RoPE Optimization
 
@@ -151,7 +150,40 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 
 ---
 
-## 2. Feature Development
+## 2. Concepts (Phase 2 Vision)
+
+Future-facing ideas that build on Phase 1 infrastructure.
+
+| File | Description |
+|------|-------------|
+| [concepts/narrative-engine.md](concepts/narrative-engine.md) | **Phase 2** - Trajectories, information topology, multi-agent stakeholders, intent/subtext layers |
+| [concepts/prompt-engineering-workflow.md](concepts/prompt-engineering-workflow.md) | Loom-like branching for visual behavior R&D (prompt iteration, A/B testing) |
+| [concepts/context-editing-spec.md](concepts/context-editing-spec.md) | Context editing mechanism |
+| [concepts/creative-workflows.md](concepts/creative-workflows.md) | Creative workflow patterns |
+| [concepts/prompt-sequences.md](concepts/prompt-sequences.md) | Prompt sequence design |
+| [concepts/tui-director.md](concepts/tui-director.md) | TUI director concept |
+
+---
+
+## 3. Proposals (Ready to Implement)
+
+Concrete implementation proposals with specs and checklists.
+
+| File | Description | Status |
+|------|-------------|--------|
+| [proposals/style-swap-mode.md](proposals/style-swap-mode.md) | Instant LoRA switching via preload + runtime_peft | Ready |
+| [proposals/vlm-integration.md](proposals/vlm-integration.md) | Gemini for frame analysis + image editing | Ready |
+| [proposals/frame-buffer-scrubbing.md](proposals/frame-buffer-scrubbing.md) | Ring buffer for instant scrub/replay/branch preview | Ready |
+| [proposals/server-side-session-recorder.md](proposals/server-side-session-recorder.md) | Record control events for offline re-render | Ready |
+| [proposals/session-recording-timeline-export.md](proposals/session-recording-timeline-export.md) | Timeline export on recording stop | Implemented |
+| [proposals/gemini-cookbook.md](proposals/gemini-cookbook.md) | Gemini integration patterns (from comfy_automation) | Reference |
+| [proposals/ndi-pubsub-video-output.md](proposals/ndi-pubsub-video-output.md) | NDI network streaming | Ready |
+| [proposals/tidal-cycles-integration.md](proposals/tidal-cycles-integration.md) | Music sync via OSC | Speculative |
+| [proposals/transition-prompts.md](proposals/transition-prompts.md) | Transition prompt syntax | Draft |
+
+---
+
+## 4. Feature Development
 
 ### Roadmaps
 
@@ -185,7 +217,7 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 
 ---
 
-## 3. Architecture & Reference
+## 5. Architecture & Reference
 
 | File | Description |
 |------|-------------|
@@ -196,7 +228,7 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 
 ---
 
-## 4. Ecosystem & Community
+## 6. Ecosystem & Community
 
 | File | Description |
 |------|-------------|
@@ -208,7 +240,7 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 
 ---
 
-## 5. Krea Pipeline Specifics
+## 7. Krea Pipeline Specifics
 
 | File | Description |
 |------|-------------|
@@ -218,7 +250,7 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 
 ---
 
-## 6. Offline Rendering
+## 8. Offline Rendering
 
 | File | Description |
 |------|-------------|
@@ -228,7 +260,7 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 
 ---
 
-## 7. Issues & Known Problems
+## 9. Issues & Known Problems
 
 | File | Description |
 |------|-------------|
@@ -236,7 +268,7 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 
 ---
 
-## 8. Research (by date)
+## 10. Research (by date)
 
 ### 2025-12-24 (Latest)
 
@@ -265,7 +297,7 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 
 ---
 
-## Key Achievements (as of Dec 25)
+## Key Achievements (as of Dec 26)
 
 ### Performance
 - **FA4/CUTE score_mod**: 1.89x faster attention kernel (0.54ms vs 1.02ms Triton)
@@ -275,8 +307,8 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 
 ### Features
 - **REST API** (Phase 5): Complete - `/api/v1/realtime/` endpoints + CLI
-- **Style Layer** (Phase 6a): In progress
-- **VACE-14B** (Phase 6b): Ready to implement
+- **Style Layer** (Phase 6a): Complete (world/style endpoints + `video-cli world|style`)
+- **VACE-14B**: Ready to implement
 
 ---
 
@@ -284,19 +316,24 @@ The kernel optimization campaign - FlashAttention 4, Triton kernels, RoPE fusion
 
 ```
 notes/
+├── VISION.md               # Internal vision (living doc - why & where)
+├── NOTES-INDEX.md          # This file (navigation)
+├── capability-roadmap.md   # Implementation tracking (what's being built)
 ├── FA4/                    # Kernel optimization work
 │   ├── b300/               # B300 investigation
 │   ├── b200/               # B200 bringup
 │   ├── rope/               # RoPE optimization
 │   ├── fa4/                # FA4/CUTE integration
 │   └── DeepResearch/       # AI-assisted research
+├── concepts/               # Phase 2 vision docs (narrative engine, workflows)
+├── proposals/              # Implementation proposals (ready to build)
 ├── research/               # Dated research & specs
 │   └── 2025-12-*/          # By date
-├── plans/                  # Future development plans
+├── plans/                  # Development plans
 ├── issues/                 # Known problems
 ├── offline/                # Offline rendering
 ├── krea/                   # Krea pipeline notes
 ├── reference/              # Code patterns & guides
 ├── vace-14b-integration/   # VACE work
-└── daydream/               # Program info
+└── daydream/               # Program info & cohort materials
 ```

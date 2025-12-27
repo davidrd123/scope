@@ -1,7 +1,7 @@
 # Project Overview: Real-Time Video Generation Instrument
 
 > **Internal Reference Document**
-> **Updated:** 2025-12-25
+> **Updated:** 2025-12-26
 > **Context:** Daydream Interactive AI Video Program (Dec 22 - Jan 9)
 
 ---
@@ -51,12 +51,12 @@ We're building an **interactive instrument for real-time AI video generation** -
 
 | Primitive | Purpose | Status |
 |-----------|---------|--------|
-| **WorldState** | Domain-agnostic truth (beats, emotions, props) | Designed |
-| **StyleManifest** | Per-LoRA prompt vocabulary | Designed |
-| **PromptCompiler** | WorldState + Style → Pipeline prompts | Designed |
-| **ControlBus** | Event queue with chunk-boundary semantics | Designed |
-| **BranchGraph** | DAG of snapshots for fork/resume | Designed |
-| **FrameBus** | Ring buffer for frame distribution | Designed |
+| **WorldState** | Domain-agnostic truth (beats, emotions, props) | Implemented (MVP) |
+| **StyleManifest** | Per-LoRA prompt vocabulary | Implemented (MVP) |
+| **PromptCompiler** | WorldState + Style → Pipeline prompts | Implemented (MVP) |
+| **ControlBus** | Event queue with chunk-boundary semantics | Implemented |
+| **BranchGraph** | DAG of snapshots for fork/resume | Planned (snapshots exist; UI pending) |
+| **FrameBus** | Ring buffer for frame distribution | Planned |
 
 **Key insight:** The pipeline produces 3-frame chunks. Build the interaction system on chunk boundaries - that's where you can safely pause, branch, and modify state.
 
@@ -71,7 +71,7 @@ We're building an **interactive instrument for real-time AI video generation** -
 | **FA4/CUTE score_mod** | 1.89x faster attention | 0.54ms vs 1.02ms Triton |
 | **RoPE fusion** | 1.26x faster RoPE | Triton kernel, no float64 |
 | **B200 tuning** | 20 FPS at 320x576 | Up from ~15 FPS |
-| **B300 environment** | 15 FPS with cu130 | Was 8.8 FPS |
+| **B300 environment** | ~15 FPS typical (22–23 with `--compile`, BF16) | Was 8.8 FPS |
 
 **Key insight:** Profiling first. We found attention was only 27% of self-attention time - QKV projection and RoPE were bigger than expected. Optimization is guided by measurement, not assumptions.
 
@@ -107,29 +107,27 @@ Without the instrument work, you'd have a fast pipeline with no way to control i
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Pipeline (Krea 14B) | ✅ Working | 20 FPS on B200, 15 FPS on B300 |
+| Pipeline (Krea 14B) | ✅ Working | 20 FPS on B200; ~15 FPS on B300 (22–23 with `--compile`, BF16) |
 | FA4 attention | ✅ Integrated | 1.89x faster kernel |
 | RoPE optimization | ✅ Integrated | Triton fused kernel |
-| REST API (basic) | ✅ Working | `/api/v1/realtime/` endpoints |
-| CLI (`video-cli`) | ✅ Working | `prompt`, `step`, `frame` commands |
+| Style Layer (MVP) | ✅ Working | WorldState + StyleManifest + TemplateCompiler; REST + CLI + tests |
+| REST API (basic) | ✅ Working | `/api/v1/realtime/*` (+ `/api/v1/prompt/jiggle`) |
+| CLI (`video-cli`) | ✅ Working | `prompt`, `step`, `frame`, `world`, `style`, `playlist nav` |
 | Prompt playlist | ✅ Working | Navigate caption files |
 
 ### What's Designed (Not Built)
 
 | Component | Status | Doc |
 |-----------|--------|-----|
-| WorldState | 📋 Designed | `realtime_video_architecture.md` |
-| StyleManifest | 📋 Designed | `realtime_video_architecture.md` |
-| PromptCompiler | 📋 Designed | `realtime_video_architecture.md` |
-| ControlBus | 📋 Designed | `realtime_video_architecture.md` |
-| BranchGraph | 📋 Designed | `realtime_video_architecture.md` |
-| Full snapshot/restore | 📋 Designed | Needs pipeline.state integration |
+| BranchGraph UI | 📋 Designed | `realtime_video_architecture.md` |
+| REST snapshot/restore endpoints | 📋 Designed | `realtime-roadmap.md` |
+| Context editing | 📋 Designed | `realtime-roadmap.md` |
 
 ### What's Blocked/Deferred
 
 | Component | Status | Reason |
 |-----------|--------|--------|
-| VACE-14B integration | ⏸️ Ready | Waiting on Style Layer first |
+| VACE-14B integration | ⏸️ Ready | Needs artifact + wiring (see `capability-roadmap.md`) |
 | Context editing | ⏸️ Speculative | Needs validation |
 | VLM feedback loop | ⏸️ Future | Phase 8 |
 

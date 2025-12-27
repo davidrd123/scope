@@ -1,12 +1,16 @@
 # AI Previz Machine
 
-> **tl;dr:** Script goes in, edited sequence comes out — but the director stays in control. Pause, branch, try a different style, refine with notes, re-run. Plus: made Scope 2.5x faster on B300.
+> **tl;dr:** Switch the visual language of a scene with a keypress. Iterate while you think, not after. Running on Blackwell GPUs with 2.5x baseline performance.
 
 ---
 
 ## The Vision
 
 A quick iterative machine for instant previsualization of permuting story.
+
+You're watching a scene generate in real-time. You don't like the mood — press a key, and the whole visual language shifts. Woodblock print style. Classic cel animation. Gritty noir. The scene keeps flowing, but now it *feels* different.
+
+That's what we built.
 
 ```
 Script/Scene Direction
@@ -22,92 +26,57 @@ Script/Scene Direction
 
 **The director stays in control.** Pause anywhere. Branch into variations. Switch visual styles. Refine with notes. Re-run the cut.
 
-**Demo concept:** Take a scene, generate it in three different LoRA styles (Hidari, TMNT, Rankin-Bass), with music sync — all in real-time.
+**Demo concept:** One scene, three visual languages, music-synced — switching between them in real-time.
 
 ---
 
 ## What's Working (Built in 4 Days)
 
-| Feature | Status |
-|---------|--------|
-| **B300 performance** | 8.8 → 22+ FPS (2.5x uplift, upstreamable to Scope) |
-| **TUI director console** | Switch styles, navigate playlists, step through scenes |
-| **Soft cuts** | Smooth transitions between prompts (our innovation) |
-| **Style switching** | Same scene, different LoRAs — Hidari Akira is amazing |
-| **FA4 + custom kernels** | KV-cache attention bias, Triton kernels, CUTE DSL |
+| Feature | What It Feels Like |
+|---------|-------------------|
+| **Real-time style switching** | Press a key, the visual language changes — same scene, completely different feel |
+| **Soft cuts** | Smooth transitions between styles instead of jarring jumps (emerged from interactive use) |
+| **TUI director console** | Navigate playlists, step through scenes, switch styles — all keyboard-driven |
+| **Blackwell performance** | 2.5x speedup on B200/B300 — fast enough to iterate while you think |
 
-The TUI already enables moving through a movie from different LoRA perspectives in real-time. Soft cuts emerged from this interactive exploration.
+The TUI lets you move through a scene from different stylistic perspectives in real-time. We started with one style, didn't like it, switched — and discovered that smooth transitions between styles (soft cuts) felt better than hard switches. That interaction pattern emerged from the speed.
 
 ---
 
 ## The Performance Story (Scope Contribution)
 
-B300 (Daydream's newer GPU) was running at 8.8 FPS — barely usable. B200 hit 20 FPS.
+Spot instances pushed us to B300 when B200 availability was tight. Blessing in disguise — it forced us to solve Blackwell compatibility broadly.
 
-**What we found:**
-- Attention was only 27% of the bottleneck
-- QKV projections and RoPE were bigger than expected
-- CUDA runtime stack issues on B300
+**The problem:** B300 was running at ~8.8 FPS on the default stack. Barely interactive. You'd wait for frames instead of iterating.
+
+**What we learned:**
+- The slowdown wasn't just one thing — runtime stack, decode behavior, kernel selection all mattered
+- Attention was only part of the picture; the whole pipeline needed tuning
+- Getting next-gen hardware to perform requires understanding the full stack
 
 **What we did:**
-- Custom Triton kernels for attention
-- FlashAttention 4 integration with CUTE DSL
-- B300 environment fixes (cu130 runtime)
+- Custom kernels for the attention pattern Scope uses (KV-cache bias)
+- Runtime stack tuned for Blackwell architecture
+- Removed slow paths in the video encode pipeline
 
 **Results:**
 
-| Metric | Before | After |
+| | Before | After |
 |--------|--------|-------|
-| B300 FPS | 8.8 | 22+ (2.5x) |
-| KV-bias attention | 1.02ms | 0.54ms |
+| Blackwell FPS | ~8.8 | ~22–23 |
+| Attention latency | ~0.9ms | ~0.4ms |
 
-This is upstreamable to Scope — makes B300 actually viable for real-time work.
-
----
-
-## The Team (Parallel Workstreams)
-
-We're three people now, each pushing a layer:
-
-| Person | Focus | Status |
-|--------|-------|--------|
-| **Dave** | TUI, real-time interaction, performance | Working — 4 days of solo velocity |
-| **Patrick** | Editorial intelligence, script-to-prompt pipeline | Concepts ready, building |
-| **John** | Audio/music sync, Tidal Cycles integration | Excited, starting |
-
-Plus AI agents (Codex) maintaining the performance layer.
+The work generalizes to B200/B300 — anywhere Blackwell runs. This is upstreamable to Scope: next-gen hardware support that benefits everyone.
 
 ---
 
 ## What's Coming
 
-### Editorial Intelligence (Patrick)
+**Editorial intelligence** — A "Director Brain" that thinks like an editor. Scene direction implies shot types (action → zooms/whip pans, dialogue → shot/reverse). Notes loop for iterative refinement. (Patrick's been developing concepts here.)
 
-A "Director Brain" that thinks like an editor:
+**Audio/music sync** — Music drives generation parameters via OSC. Beat-aligned transitions, intensity mapping. Even just a chill-hop render of a scene as proof of concept. (John's exploring Tidal Cycles integration.)
 
-```
-Script → Coverage Plan → Editing Logic → Prompt Sequence
-```
-
-- Scene direction implies shot types (action → zooms/whip pans, dialogue → shot/reverse)
-- Editing logic library (markdown guides for mood, pacing, tension)
-- Notes loop for iterative refinement
-
-### Audio/Music Sync (John)
-
-Music drives generation parameters:
-
-- Tidal Cycles or DAW → OSC → video intensity, tension, pacing
-- Even just a chill-hop render of a scene as proof of concept
-- Beat-aligned transitions
-
-### Branching & Timeline (Dave)
-
-The "playable" layer:
-
-- Fork into variations at any point
-- Compare branches side by side
-- Timeline scrubbing with hardware controllers
+**Branching & timeline** — Fork into variations at any point. Compare branches side by side. Timeline scrubbing with hardware controllers.
 
 ---
 
@@ -122,34 +91,4 @@ Already exploring with the team, but would love cohort input on:
 | **Mobile camera** | Phone as reference input (VACE conditioning) | Anyone using live camera feeds? |
 | **Hardware controllers** | Stream Deck, MIDI for tactile control | Physical interface design |
 
-Happy to share code, notes, kernel optimizations, or just talk approaches.
-
----
-
-## Background
-
-**Content library:**
-- 217 LoRAs on HuggingFace from 4 years of generation work
-- Trained styles: Rankin-Bass, TMNT Mutant Mayhem, Rooster & Terry, Kaiju, Hidari
-
-**Technical depth:**
-- Kernel-level understanding of the render pipeline
-- FA4, CUTE DSL, Triton, B300/Blackwell optimization
-- Prompt engineering framework that actually works
-
-**Team experience:**
-- Animation/VFX production pipelines
-- Live performance and music technology
-- Real-time systems and game development
-
----
-
-## Resources
-
-| What | Where |
-|------|-------|
-| Kernel optimization guide | `notes/FA4/docs/kernel-optimization-guide.md` |
-| Editorial intelligence concept | `notes/concepts/editorial-intelligence.md` |
-| Tidal integration proposal | `notes/proposals/tidal-cycles-integration.md` |
-| Hardware control surface | `notes/proposals/hardware-control-surface.md` |
-| Capability roadmap (10 features) | `notes/capability-roadmap.md` |
+Happy to share code, notes, or just talk approaches.

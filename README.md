@@ -192,7 +192,7 @@ This error has been encountered on certain Linux machines when the Python header
 
 ## License
 
-The alpha version of this project is licensed under [CC BY-NC-SA 4.0](./LICENSE).
+The alpha version of this project is licensed under [CC BY-NC-SA 4.0](./LICENSE.md).
 
 You may use, modify, and share the code for non-commercial purposes only, provided that proper attribution is given.
 

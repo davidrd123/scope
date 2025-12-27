@@ -6,6 +6,7 @@
 - WorldState, StyleManifest, PromptCompiler abstractions
 - TemplateCompiler, LLMCompiler, CachedCompiler
 - ControlBus integration with FrameProcessor
+- `/api/v1/realtime/world` + `/api/v1/realtime/style` endpoints + `video-cli world|style`
 - See: `notes/plans/phase6-prompt-compilation.md`
 
 ### Phase 6b: Gemini Flash Integration

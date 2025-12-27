@@ -12,7 +12,7 @@ Capability features in the pipeline:
 
 | Feature | Status | Blocking? | Proposal |
 |---------|--------|-----------|----------|
-| **Style Layer (Phase 6a)** | In Progress | No | Below |
+| **Style Layer (Phase 6a)** | Implemented (MVP) | No | Below |
 | **VACE-14B Integration** | Ready to Implement | No | Below |
 | **Server-Side Session Recorder** | Ready to Implement | No | `proposals/server-side-session-recorder.md` |
 | **Style Swap Mode** | Ready to Implement | No | `proposals/style-swap-mode.md` |
@@ -25,13 +25,11 @@ Capability features in the pipeline:
 
 ---
 
-## 1. Style Layer (Phase 6a) — IN PROGRESS
+## 1. Style Layer (Phase 6a) — IMPLEMENTED (MVP)
 
 **What:** Wire WorldState + StyleManifest + TemplateCompiler into live session and REST API.
 
-**Owner:** Codex (implementation in progress)
-
-**Status:** Plan approved, implementation starting.
+**Status:** Implemented (FrameProcessor + REST + CLI); tests in `tests/test_style_integration.py`.
 
 ### Scope
 
@@ -259,7 +257,7 @@ decoded_buffer[:, :1] = anchor_frame
 ### Open Questions
 
 - [ ] What's the Python API for nano-banana?
-- [ ] Latency expectation: <1s? 1-3s?
+- [ ] Latency expectation: ~1s? 1-3s?
 - [ ] Frame format: PIL Image? Tensor? Base64?
 - [ ] How to handle edits that conflict with prompt?
 

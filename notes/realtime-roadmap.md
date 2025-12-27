@@ -4,7 +4,7 @@
 
 **Timeline**: 16 days to hackathon demo (from incoming specs)
 
-**Current State**: Core infrastructure complete. Need interactive UI and context editing.
+**Current State**: Core infrastructure + REST/CLI + basic Style Layer are in place. Next: interactive UI and context editing.
 
 ---
 
@@ -29,8 +29,8 @@ Both feed into the same pipeline. Both are needed for full creative control.
 | 1. FrameProcessor Integration | Done | Drain-all semantics, dict→event translation |
 | 2. Snapshot/Restore | Done | Server-side snapshots, LRU eviction |
 | 3. Step Mode | Done | Generate single chunks while paused |
-| 4. Style Layer | Simplified | Minimal StyleManifest + rich InstructionSheets |
-| 5. CLI + Core API | Next | `video-cli` + REST endpoints |
+| 4. Style Layer | Done | Minimal StyleManifest + TemplateCompiler + Gemini world change |
+| 5. CLI + Core API | Done | `video-cli` + `/api/v1/realtime/*` REST endpoints |
 | 6. Context Editing | Planned | Anchor frame editing via Gemini image model |
 | 7. Interactive UI | Planned | Web console for prompt tuning + editing |
 | 8. VLM Feedback Loop | Planned | Describe-frame for agent evaluation |
@@ -46,10 +46,11 @@ Both feed into the same pipeline. Both are needed for full creative control.
 - Step mode for frame-by-frame
 - **14 fps on B300** (from incoming specs)
 
-**Style layer scaffolding** (tests pass, not wired in):
-- `StyleManifest`: trigger phrase, LoRA path, instruction sheet path
-- `WorldState`: characters, actions, lighting, camera
-- `PromptCompiler`: Template (deterministic), LLM (planned), Cached (memoization)
+**Style layer (wired)**:
+- `StyleManifest` + `StyleRegistry` from `styles/<name>/manifest.yaml`
+- `WorldState` + `TemplateCompiler` (deterministic prompt compilation)
+- REST endpoints: `PUT /api/v1/realtime/world`, `PUT /api/v1/realtime/style`, `GET /api/v1/realtime/style/list`
+- Natural language world updates: `POST /api/v1/realtime/world/change` (Gemini; requires `GEMINI_API_KEY`)
 
 **Pipeline buffers** (key for context editing):
 - `decoded_frame_buffer`: 9 RGB frames (4x temporal downsample)
@@ -61,6 +62,8 @@ Both feed into the same pipeline. Both are needed for full creative control.
 ## Phase 5: CLI + Core API
 
 **Goal**: CLI-first interface for both humans and agents.
+
+**Status:** Implemented. Source of truth: `notes/realtime-devlog.md`.
 
 ### Architecture Decision
 
@@ -88,12 +91,12 @@ See: `notes/research/2025-12-24/incoming/rest_endpoint/5pro_rest_feedback.md`
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/state` | Current driver state, chunk count, prompt |
-| POST | `/api/step` | Generate one chunk |
-| POST | `/api/run` | Start continuous generation |
-| POST | `/api/pause` | Pause generation |
-| PUT | `/api/prompt` | Set prompt text |
-| GET | `/api/frame/latest` | Get current frame as image (non-destructive) |
+| GET | `/api/v1/realtime/state` | Current driver state, chunk count, prompt |
+| POST | `/api/v1/realtime/step` | Generate one chunk |
+| POST | `/api/v1/realtime/run` | Start continuous generation (or `?chunks=N`) |
+| POST | `/api/v1/realtime/pause` | Pause generation |
+| PUT | `/api/v1/realtime/prompt` | Set prompt text |
+| GET | `/api/v1/realtime/frame/latest` | Get current frame as image (non-destructive) |
 
 ### CLI Commands
 
@@ -104,8 +107,10 @@ video-cli run [--chunks N]         # Run N chunks
 video-cli pause                    # Pause generation
 video-cli prompt "text"            # Set prompt
 video-cli frame --out path.png     # Save current frame
-video-cli snapshot                 # Create snapshot
-video-cli restore <id>             # Restore snapshot
+video-cli world --get              # Get current WorldState
+video-cli world '{"action":"run"}' # Set WorldState (JSON)
+video-cli style list|get|set        # Style layer control (see `video-cli style --help`)
+video-cli playlist nav              # Interactive prompt navigation + hard/soft cut toggles
 ```
 
 All commands return JSON for agent automation.
