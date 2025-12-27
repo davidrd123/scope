@@ -166,3 +166,4 @@ If you want the “receipts” (issue IDs / exact spellings) in one place:
 - [`claude_dr.md`](../DeepResearch/2025-12-26/B300_optim_ladder/round02/claude_dr.md)
 - [`README.md`](../DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/README.md)
 - [`claude01.md`](../DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md)
+- [`README.md`](../DeepResearch/2025-12-27/climbing_the_mountain/README.md) (Blackwell/SM103 doc pack; mbarrier vs CUtensorMap alignment; `cuTensorMapEncodeTiled` rank 3–5)
