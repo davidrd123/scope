@@ -1,0 +1,45 @@
+{
+  "meta": {
+    "cuda": "13.0",
+    "cuda_capability": [
+      10,
+      3
+    ],
+    "cuda_device": "NVIDIA B300 SXM6 AC",
+    "latent_device": "cuda:0",
+    "latent_dtype": "torch.bfloat16",
+    "latent_shape": [
+      1,
+      3,
+      16,
+      40,
+      72
+    ],
+    "torch": "2.9.0+cu130",
+    "use_cache": true
+  },
+  "steps": {
+    "get_scale": {
+      "calls": 3,
+      "cpu_ms": 0.1699150016065687,
+      "gpu_ms": 0.127360001206398
+    },
+    "postprocess": {
+      "calls": 3,
+      "cpu_ms": 0.24257399491034448,
+      "gpu_ms": 0.18297599628567696
+    },
+    "prep_permute_cast": {
+      "calls": 3,
+      "cpu_ms": 0.0823480004328303,
+      "gpu_ms": 0.03571200091391802
+    },
+    "stream_decode": {
+      "calls": 3,
+      "cpu_ms": 607.7145160015789,
+      "gpu_ms": 607.6645812988281
+    }
+  },
+  "total_cpu_ms": 608.2093529985286,
+  "total_gpu_ms": 608.0106292972341
+}

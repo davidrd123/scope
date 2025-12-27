@@ -48,6 +48,34 @@ The profiler shows "other_in_self" as the majority of self_attn time after FA4 K
 
 Enable `PROFILE_ATTENTION=1` and record the report at exit. This tells you how much `self_attn` time is KV-bias vs everything else, and also records sub-blocks like `qkv_projection`, `rope_apply`, and `cache_update` when enabled.
 
+**Kickoff baseline (B300 / cu130, BF16, bias=0.3, FA4):**
+- Command (uses the canonical B300 script):
+  - `OUT_PREFIX=outputs/b300_cu130_none_bias0.3_kickoff ITERS=4 SKIP=1 QUANTIZATION=none KV_CACHE_ATTENTION_BIAS=0.3 scripts/profile_b300_denoise_drilldown.sh`
+- Artifacts:
+  - `outputs/b300_cu130_none_bias0.3_kickoff_perf.log`
+  - `outputs/b300_cu130_none_bias0.3_kickoff_blocks_profile.json`
+  - `outputs/b300_cu130_none_bias0.3_kickoff_denoise_steps.json`
+  - `outputs/b300_cu130_none_bias0.3_kickoff_generator_steps.json`
+  - `outputs/b300_cu130_none_bias0.3_kickoff_vae_decode.json`
+  - `outputs/b300_cu130_none_bias0.3_kickoff_vae_decode_inner.json`
+
+**Observed `PROFILE_ATTENTION` report (from `*_perf.log`, profiled iterations only):**
+
+| Component | Total (ms) | Calls | ms/call | Notes |
+|-----------|-----------:|------:|--------:|------|
+| `self_attn` | 747.8 | 600 | 1.25 | Includes KV-bias + all glue |
+| `self_attn_kv_bias_fa4` | 203.6 | 480 | 0.42 | KV-bias portion only |
+| `self_attn_block_mask` | 34.4 | 120 | 0.29 | Recompute / block-mask path |
+| `qkv_projection` | 162.6 | 600 | 0.27 | cuBLAS GEMM(s) + norms |
+| `rope_apply` | 56.8 | 480 | 0.12 | Triton fused RoPE enabled |
+| `cache_update` | 54.8 | 480 | 0.11 | KV-cache writes / indices |
+| `output_projection` | 67.0 | 600 | 0.11 | cuBLAS GEMM |
+
+**Derived (nested) breakdown:**
+- `other_in_self` = **509.8ms** (**68.2%** of `self_attn`) in this run.
+- `kv_bias_total` = **203.6ms** (**27.2%** of `self_attn`).
+- `block_mask` = **34.4ms** (**4.6%** of `self_attn`).
+
 ### Step 1: Stack-attributed op profiling (to find the real copy sources)
 
 ```bash
@@ -72,6 +100,15 @@ SCOPE_KV_BIAS_BACKEND=fa4 \
 ```
 
 Filter output for self-attn-related stacks (look for call stacks that include `CausalWanSelfAttention.forward`).
+
+**Kickoff op+stack snapshot (whole pipeline, 1 iteration):**
+- `outputs/b300_cu130_ops_profile_stack.md`
+- `outputs/b300_cu130_ops_profile_stack.json`
+
+Quick read:
+- Top CUDA self time is dominated by `aten::addmm` (GEMMs).
+- FA4 attention appears as `kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100...`.
+- `aten::copy_`/`aten::fill_` are present; the largest `aten::copy_` stack groups in this snapshot point at VAE Conv3d decode, while attention-related copies exist but are smaller and require stack filtering.
 
 ---
 
