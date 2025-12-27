@@ -83,8 +83,9 @@ class KreaRealtimeVideoPipeline(Pipeline, LoRAEnabledPipeline):
 
         print(f"Loaded diffusion model in {time.time() - start:3f}s")
 
-        for block in generator.model.blocks:
-            block.self_attn.fuse_projections()
+        if os.getenv("SCOPE_DISABLE_FUSED_PROJECTIONS", "0") != "1":
+            for block in generator.model.blocks:
+                block.self_attn.fuse_projections()
 
         # Initialize optional LoRA adapters on the underlying model BEFORE quantization.
         generator.model = self._init_loras(config, generator.model)

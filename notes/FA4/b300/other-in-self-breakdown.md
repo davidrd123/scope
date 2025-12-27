@@ -124,6 +124,22 @@ Key findings (filtered totals, CausalWanSelfAttention only):
 | `aten::fill_` | 0.407 | 240 | `Tensor.fill_` under self-attn (likely scalar index tensors / counters) |
 | `aten::transpose` | 0.000 | 400 | Not a meaningful GPU contributor in this run |
 
+### New lead: fused projections are net-negative on B300
+
+The model currently enables fused QKV projections by default (single `to_qkv(x).chunk(3, dim=-1)`), which creates strided Q/K views. On B300, this appears to trigger extra `contiguous`/`clone` work inside `F.rms_norm` and increases cache-write overhead.
+
+**Experiment (B300): disable fused projections**
+- Set: `SCOPE_DISABLE_FUSED_PROJECTIONS=1`
+- Coarse outcome (`PROFILE_ATTENTION`, 4 iters / skip 1):
+  - Avg FPS: **18.53** (vs **18.09** baseline)
+  - `self_attn`: **1.18 ms/call** (vs **1.25**)
+  - `other_in_self`: **67.4%** of self_attn (vs **68.2%**) and **477.5ms total** (vs **509.8ms**)
+  - `cache_update`: **0.09 ms/call** (vs **0.11**)
+- Op+stack outcome (CausalWanSelfAttention-only filter):
+  - `aten::contiguous`: **no events**
+  - `aten::clone`: **no events**
+  - `aten::copy_`: **3.164ms total** (vs **17.113ms**)
+
 ---
 
 ## Breakdown Template
