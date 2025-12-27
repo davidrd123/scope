@@ -27,13 +27,16 @@ A quiet bedroom at night
 
 - `>` prefix = transition prompt belonging to the *following* scene
 - Transition prompts are optional - not every scene needs one
-- Multiple `>` lines before a scene could chain (TBD)
+- Multiple `>` lines before a scene: **MVP behavior = last `>` wins** (stores a single pending transition prompt). Chaining multiple transition prompts is a possible extension (TBD).
 
-### Backward Compatibility
+### Backward Compatibility / Versioning
 
-- Existing playlists work unchanged
-- Lines starting with `>` are simply ignored by current parser
-- Feature is opt-in per-scene
+- Existing playlists **without** `>` transition lines work unchanged.
+- **Important:** In the current codebase, `PromptPlaylist.from_file()` appends every non-empty line as a prompt. That means lines starting with `>` (and `#`) are **not ignored** today — they will be treated as literal prompts.
+- Therefore, playlists using `>` transition prompts will require a Scope build that implements this proposal.
+- Feature remains opt-in per scene once implemented, but it is **not forward-compatible** with older builds.
+
+> **Note:** This syntax is not supported by current playlist parsing; do not use in production playlists until implemented.
 
 ## Interpolation Behavior
 
@@ -68,8 +71,8 @@ t=1.0: B
 | Case | Behavior |
 |------|----------|
 | First prompt has `>` | Ignore (no source to transition from) |
-| Multiple `>` before scene | Chain them? Use last? TBD |
-| `>` without following scene | Ignore |
+| Multiple `>` before scene | Last `>` wins (MVP); chaining is future extension |
+| `>` without following scene | Ignore (dangling transition) |
 | Hard cut to scene with `>` | Skip transition (no continuity) |
 
 ## Implementation Sketch
@@ -184,19 +187,19 @@ Impressionist painting of a city
 
 ### File Locations
 
-| Component | File | Purpose |
-|-----------|------|---------|
-| **PromptPlaylist** | `src/scope/realtime/prompt_playlist.py` | Playlist parsing and navigation |
-| **EmbeddingBlender** | `src/scope/core/pipelines/blending.py` | Core interpolation logic (LERP/SLERP) |
-| **EmbeddingBlendingBlock** | `src/scope/core/pipelines/wan2_1/blocks/embedding_blending.py` | Pipeline integration, transition lifecycle |
+| Component | File | Key Functions/Classes |
+|-----------|------|----------------------|
+| **PromptPlaylist** | `src/scope/realtime/prompt_playlist.py` | `PromptPlaylist.from_file()`, `next()`, `current` |
+| **EmbeddingBlender** | `src/scope/core/pipelines/blending.py` | `start_transition()`, `get_next_embedding()`, `slerp()` |
+| **EmbeddingBlendingBlock** | `src/scope/core/pipelines/wan2_1/blocks/embedding_blending.py` | `__call__()`, `TransitionConfig` |
 | **TextConditioningBlock** | `src/scope/core/pipelines/wan2_1/blocks/text_conditioning.py` | Prompt encoding |
-| **API Endpoints** | `src/scope/server/app.py:1644-1712` | `/playlist/next` with transition params |
-| **Frame Processor** | `src/scope/server/frame_processor.py:858-1519` | Control message handling, transition completion |
+| **API Endpoints** | `src/scope/server/app.py` | `playlist_next()`, `_apply_playlist_prompt()` |
+| **Frame Processor** | `src/scope/server/frame_processor.py` | `process_chunk()`, transition completion block |
 
 ### Current Data Structure
 
 ```python
-# src/scope/realtime/prompt_playlist.py:20-32
+# src/scope/realtime/prompt_playlist.py — PromptPlaylist class
 @dataclass
 class PromptPlaylist:
     source_file: str = ""
@@ -211,7 +214,7 @@ class PromptPlaylist:
 ### Current Parsing Flow
 
 ```python
-# src/scope/realtime/prompt_playlist.py:59-80
+# src/scope/realtime/prompt_playlist.py — from_file() method
 prompts = []
 for line in lines:
     line = line.strip()
@@ -221,13 +224,13 @@ for line in lines:
     prompts.append(line)  # Just appends the string
 ```
 
-**Hook point:** Lines 59-80 in `from_file()` — this is where `>` parsing would go.
+**Hook point:** The loop in `from_file()` — this is where `>` parsing would go.
 
 ### Current Transition Flow
 
 1. **User calls** `POST /api/v1/realtime/playlist/next?transition=true&transition_chunks=4`
-2. **`app.py:1644-1712`** → `_apply_playlist_prompt(transition=True, transition_chunks=4)`
-3. **`app.py:1512-1567`** builds message:
+2. **`playlist_next()`** → calls `_apply_playlist_prompt(transition=True, transition_chunks=4)`
+3. **`_apply_playlist_prompt()`** builds message:
    ```python
    msg = {
        "transition": {
@@ -239,8 +242,12 @@ for line in lines:
    ```
 4. **Frame processor** receives message, forwards to pipeline
 5. **EmbeddingBlendingBlock** calls `blender.start_transition(source, target, num_steps)`
-6. **Each frame:** `get_next_embedding()` returns interpolated embedding
-7. **Transition complete:** Frame processor promotes target to active prompts
+6. **Each pipeline call / chunk:** `get_next_embedding()` returns the next interpolated embedding (one dequeue per generation call)
+7. **Transition complete:** Frame processor promotes `target_prompts` into `prompts` and clears `transition`
+
+> **Note on `num_steps`:** The current `EmbeddingBlender.start_transition()` uses `torch.linspace(0, 1, steps=num_steps)`, which **includes both endpoints**. This means the first step is exactly the **source** embedding (t=0) and the last step is exactly the **target** embedding (t=1). With `num_steps=2`, the transition is effectively `[source, target]` with no intermediate. For visible interpolation, prefer `num_steps >= 3`.
+
+> **Note on `prompts` during transition:** While a transition is active, `parameters["prompts"]` still reflects the prior prompt. The effective prompt for recording/UI comes from `transition.target_prompts` until the frame processor promotes it on completion.
 
 ### What Needs to Change
 
@@ -264,7 +271,7 @@ class PromptPlaylist:
 #### 2. Parser Changes
 
 ```python
-# src/scope/realtime/prompt_playlist.py:59-80
+# src/scope/realtime/prompt_playlist.py — updated from_file() loop
 entries = []
 pending_transition = None
 
@@ -302,8 +309,10 @@ if entry.transition_prompt and transition:
     # ... send transition to entry.prompt
 ```
 
-**Option A:** Handle in `app.py:_apply_playlist_prompt()` with delayed second message
+**Option A:** Handle in `_apply_playlist_prompt()` with delayed second message
 **Option B:** Extend `EmbeddingBlender` to support waypoints (list of embeddings, not just source→target)
+
+> **Scheduling warning:** A two-stage transition **cannot** be implemented by sending two transition messages back-to-back, because control messages are merged and applied at chunk boundaries (last write wins). The second message must be sent only after stage 1 has progressed (e.g., after N chunks) or after the pipeline signals the transition has completed. This requires orchestration: either a server-side pending state machine, or client-driven follow-up message triggered by completion/elapsed chunks.
 
 #### 4. API Surface
 
