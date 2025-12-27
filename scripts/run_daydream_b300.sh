@@ -108,6 +108,11 @@ fi
 # Best-known KV-bias backend on B300 is FA4/CuTe score_mod (falls back if unavailable).
 export SCOPE_KV_BIAS_BACKEND="${SCOPE_KV_BIAS_BACKEND:-fa4}"
 
+# Small denoise win: when using FA4 score_mod for KV-bias, opt into FA4/CuTe varlen
+# for the plain (non-bias) attention path as well. This can increase warmup/JIT time;
+# set `SCOPE_ENABLE_FA4_VARLEN=0` to disable.
+export SCOPE_ENABLE_FA4_VARLEN="${SCOPE_ENABLE_FA4_VARLEN:-1}"
+
 # Faster steady-state decode mode on B300.
 export WANVAE_STREAM_DECODE_MODE="${WANVAE_STREAM_DECODE_MODE:-chunk}"
 

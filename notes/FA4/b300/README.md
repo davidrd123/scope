@@ -89,6 +89,10 @@ export SCOPE_DISABLE_FUSED_PROJECTIONS=1
 # Experimental: write RoPE(K) directly into the KV cache window (neutral so far).
 export SCOPE_ROPE_K_TO_CACHE=1
 
+# Small denoise win (compiled B300): opt into FA4/CuTe varlen for the *plain* (non-bias)
+# attention path even when `SCOPE_KV_BIAS_BACKEND=fa4`. Increases warmup/JIT time.
+export SCOPE_ENABLE_FA4_VARLEN=1
+
 # Small decode win: use channels-last 3D activations for Conv3d-heavy VAE decode.
 export WANVAE_DECODE_CHANNELS_LAST_3D=1
 

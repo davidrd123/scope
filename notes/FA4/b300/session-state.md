@@ -54,8 +54,8 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
 ### Production-viable (quality-preserving; BF16 / `--quantization none`)
 
 Benchmark harness (`scripts/profile_krea_pipeline_blocks.py`, cu130 env, bias=0.3):
-- **Best-known (today):** `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile` + `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1` + fused projections ON: **~30.08 FPS** (`outputs/b300_cu130_triton351_compile_fuseproj_on_perf.log`)
-- Optional: `SCOPE_TORCH_COMPILE_MODE=max-autotune-no-cudagraphs` can bump this slightly (**~30.21 FPS**) but increases warmup/autotune time (`outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_fuseproj_on_perf_triton351.log`)
+- **Best-known (today):** `SCOPE_KV_BIAS_BACKEND=fa4` + `SCOPE_ENABLE_FA4_VARLEN=1` + `--compile` + `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1` + fused projections ON: **~30.76 FPS** (`outputs/b300_cu130_triton351_compile_fuseproj_on_fa4_varlen_perf.log`)
+- Optional: `SCOPE_TORCH_COMPILE_MODE=max-autotune-no-cudagraphs` can bump this slightly (**~30.93 FPS**) but increases warmup/autotune time (`outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_fuseproj_on_fa4_varlen_perf.log`)
 - Same settings but without the VAE resample contiguity fix (`WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=0`): **~21.45 FPS** (`outputs/b300_cu130_triton351_compile_default_blocks_perf.log`)
 - Historical (needs re-measure post VAE fix): `SCOPE_KV_BIAS_BACKEND=fa4`: **~19.7 FPS**
 
@@ -252,7 +252,7 @@ Server opt-in: set `SCOPE_COMPILE_KREA_PIPELINE=1` before launching. `scripts/ru
   - Guardrail: on SM103 we now ignore `SCOPE_TORCH_COMPILE_MODE=reduce-overhead` unless `SCOPE_ALLOW_REDUCE_OVERHEAD_SM103=1`.
 Recommendation: leave `SCOPE_TORCH_COMPILE_MODE` unset (default) unless you’re explicitly experimenting.
 
-**FA4 varlen opt-in (non-bias attention):** when `SCOPE_KV_BIAS_BACKEND=fa4`, FA4/CuTe varlen attention remains disabled by default (stable FA2 for non-bias attention). You can opt in with `SCOPE_ENABLE_FA4_VARLEN=1`; on B300 this was a small (~1–2%) win but increased warmup/JIT time.
+**FA4 varlen opt-in (non-bias attention):** when `SCOPE_KV_BIAS_BACKEND=fa4`, FA4/CuTe varlen attention remains disabled by default (stable FA2 for non-bias attention). You can opt in with `SCOPE_ENABLE_FA4_VARLEN=1`; on B300 compiled BF16 this was a ~2–3% win (≈`30.08 → 30.76` FPS) but increased warmup/JIT time (≈`12s → 19s`). `scripts/run_daydream_b300.sh` now defaults this to `1` (set `SCOPE_ENABLE_FA4_VARLEN=0` to disable).
 
 Update: FA4 score_mod KV-bias is now working on B300 and is faster than flash segment-combine at the canonical resolution. It required:
 - Removing static `import imageio` debug imports in `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` (cutlass-dsl AST preprocessor imports everything in the module).
