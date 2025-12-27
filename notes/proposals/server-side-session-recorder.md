@@ -5,8 +5,17 @@
 > Reviews:
 > - `notes/proposals/server-side-session-recorder/review01.md`
 > - `notes/proposals/server-side-session-recorder/review02.md`
+> - `notes/proposals/server-side-session-recorder/review03a.md`
 
 ## Revision Summary
+
+### Rev 3 (2025-12-27) — review03a integration
+
+Added an explicit “executable contract” for the MVP:
+- Scope (what is and isn’t recorded)
+- Definition of Done (acceptance checks)
+- File contract + precedence rules (so replay doesn’t churn)
+- Chunk-timebase guidance (to avoid wall-clock drift)
 
 ### Rev 2 (2025-12-27) — review02 fixes
 
@@ -14,16 +23,16 @@
 |-------|-----|
 | **A** | `event.event_type` → `event.type` (attribute name mismatch) |
 | **B** | Status comparison: `"loaded"` (lowercase .value), field `_error_message` not `_error` |
-| **C** | Baseline prompt: prefer `parameters["prompts"]`, `CompiledPrompt.positive` is `list[dict]` |
+| **C** | Baseline prompt: prefer `parameters["prompts"]`; compiler output is not a string (handle `.prompts`/`.prompt`/`.positive` shapes) |
 | **D** | Note: render_timeline.py manual timelines still default to 100.0 (future cleanup) |
 | **Hook** | Use existing soft-cut internal state (`_soft_transition_original_bias`) directly |
-| **Hard cut** | Record when `init_cache=True` actually passed to pipeline, not just on arrival |
+| **Hard cut** | Record when `reset_cache=True` is actually passed as `init_cache=True` (avoid confusing initial warmup init_cache with a user hard cut) |
 
 ### Rev 1 (2025-12-27) — review01 fixes
 
 | Risk | Issue | Fix |
 |------|-------|-----|
-| **A** | `_compiled_prompt` is `CompiledPrompt`, not string | Access `.positive` attribute |
+| **A** | `_compiled_prompt` is a compiler object, not a string | Extract baseline prompt from `.prompts[0]` / `.positive[0]` (shape-dependent) |
 | **B** | Weight scale mixed (1.0 vs 100.0) | Standardized on 1.0 everywhere |
 | **C** | Non-ControlBus prompt changes missed | Added fallback edge detection |
 | **E** | Soft cut restore semantics lost | Added `restoreBias`/`restoreWasSet` fields |
@@ -34,6 +43,59 @@
 ## Purpose
 
 Capture all control events at the server level, regardless of source (CLI, API, frontend). This complements the frontend-only approach which only sees UI-driven changes.
+
+## MVP Spec (Executable Contract)
+
+This is the “freeze the semantics” section: once this is written down, implementation becomes wiring and tests instead of contract churn.
+
+### Scope (MVP)
+
+- **Input mode:** text-only (`settings.inputMode = "text"`). Offline renderer rejects video/VACE today.
+- **Record (MVP):**
+  - prompt updates (including `transition` payloads)
+  - hard cuts (`reset_cache=True` → exported as `initCache=true`)
+  - soft cuts (`_rcp_soft_transition` → exported as `softCut`)
+- **Not recorded (MVP):** LoRA scale changes, seed/denoise step changes, style/world updates (unless they also manifest as a prompt event).
+
+To expand from “timeline recorder” → “full session recorder”, the first high-impact addition is recording and replaying `SET_LORA_SCALES` (otherwise style swaps can diverge visually).
+
+### Definition of Done (MVP acceptance checks)
+
+1. **Hard cut replay fidelity**  
+   If a recorded segment has `initCache: true`, offline replay calls the pipeline with `init_cache=True` for **exactly one** pipeline call at that boundary (one-shot, not sticky).
+
+2. **Soft cut replay fidelity**  
+   If a recorded segment has `softCut: {bias, chunks, restoreBias, restoreWasSet}`, offline replay:
+   - immediately sets `kv_cache_attention_bias=bias`
+   - keeps it for exactly `chunks` pipeline calls
+   - then restores to `restoreBias` if `restoreWasSet=true`, else restores to “unset” (delete the kwarg)
+
+3. **Transition replay fidelity**  
+   If a segment includes transition metadata, offline replay passes a `transition` dict until the pipeline signals completion (`pipeline.state["_transition_active"] == False`), then:
+   - clears `transition`, and
+   - sets `prompts = transition.target_prompts` (so subsequent segments hold the new prompt).
+
+4. **Stop is async, but path is observable**  
+   `POST /api/v1/realtime/session-recording/stop` returns immediately, and `GET /api/v1/realtime/session-recording/status` eventually includes `last_timeline_path`.
+
+5. **No prompt changes still yields a valid timeline**  
+   Starting and stopping recording without any prompt changes produces a replayable timeline. (This implies baseline prompt capture must be pipeline-facing: transition target → `parameters["prompts"]` → `pipeline.state["prompts"]` (warmup fallback) → compiler fallback, and the start endpoint should fail loudly if none exist.)
+
+### File contract + precedence rules (MVP)
+
+- **Version:** include `version` (string). Optionally add `primaryTimebase: "chunk"` for clarity; keep `startTime/endTime` as human-facing secondary timebase.
+- **Prompt weights:** replay uses recorded weights; if absent, default to `1.0` (match server/runtime conventions).
+- **Precedence:**
+  - `initCache=true` should be treated as a boundary cut; do not initiate a transition at that boundary.
+  - `softCut` is orthogonal and may coexist with either cut or transition.
+
+### Scheduling (offline replay)
+
+For fidelity, canonical replay scheduling should be chunk-based (`startChunk/endChunk`). Time-based scheduling (`startTime/endTime`) is a fallback and can drift under stalls/pauses. A practical renderer UX is `--timebase auto|chunk|time` (default `auto`).
+
+### Optional measurability hook (recommended)
+
+Add an opt-in debug mode where the recorder logs (or stores) the exact per-call pipeline kwargs around each recorded event boundary. This makes “record → replay” validation a simple diff of call sequences.
 
 ## Architecture
 
@@ -61,7 +123,7 @@ Capture all control events at the server level, regardless of source (CLI, API, 
 | Prompt change | `prompts` in control message | prompt text, weight |
 | Transition start | `transition` in control message | target_prompts, num_steps, method |
 | Transition-only | `transition` without `prompts` | use target_prompts as new segment |
-| Hard cut | `reset_cache` in control message | flag (may occur without prompt change) |
+| Hard cut | `reset_cache` in control message | flag (record when `reset_cache=True` is actually passed as `init_cache=True`) |
 | Soft cut | `_rcp_soft_transition` reserved key | temp_bias, num_chunks (may occur without prompt change) |
 
 ## Implementation
@@ -389,10 +451,11 @@ class FrameProcessor:
     def _get_current_effective_prompt(self) -> tuple[str | None, float]:
         """Get current effective prompt for baseline recording.
 
-        Priority (FIXED review02-C):
-        1. Transition target prompts (if transition active)
-        2. Current prompts from parameters (PREFERRED - this is what pipeline sees)
-        3. Compiled prompt from style layer (LAST RESORT - complex type)
+	        Priority (FIXED review02-C):
+	        1. Transition target prompts (if transition active)
+	        2. Current prompts from parameters (PREFERRED - this is what pipeline sees)
+	        3. Prompts from `pipeline.state` (fallback when parameters omit prompts; e.g. warmup)
+	        4. Compiled prompt from style layer (LAST RESORT - complex type)
 
         Returns:
             (prompt_text, weight) or (None, 1.0)
@@ -406,21 +469,53 @@ class FrameProcessor:
 
         # PREFERRED: Use current prompts from parameters (what pipeline actually sees)
         # FIXED review02-C: This is more reliable than compiler outputs
-        prompts = self.parameters.get("prompts")
-        if prompts:
-            return prompts[0].get("text"), prompts[0].get("weight", 1.0)
+	        prompts = self.parameters.get("prompts")
+	        if prompts:
+	            return prompts[0].get("text"), prompts[0].get("weight", 1.0)
 
-        # LAST RESORT: compiled prompt from style layer
-        # FIXED review02-C: CompiledPrompt.positive is list[dict], not string!
-        # Must extract text from first item if present
+	        # Fallback: pipeline.state may still hold a prompt (e.g. warmup prompt) even if
+	        # frame_processor.parameters does not include "prompts" yet.
+	        try:
+	            pipeline = self.pipeline_manager.get_pipeline()
+	        except Exception:
+	            pipeline = None
+	        if pipeline is not None and hasattr(pipeline, "state"):
+	            state = getattr(pipeline, "state", None)
+	            state_prompts = None
+	            if state is not None and hasattr(state, "get"):
+	                state_prompts = state.get("prompts")
+	            elif state is not None:
+	                state_prompts = getattr(state, "values", {}).get("prompts")
+	            if state_prompts:
+	                return state_prompts[0].get("text"), state_prompts[0].get("weight", 1.0)
+
+	        # LAST RESORT: compiled prompt from style layer
+	        # NOTE: There are (at least) two "CompiledPrompt" shapes in this repo:
+	        # - prompt_compiler.CompiledPrompt: `.prompts` is list[PromptEntry] (has `.text`/`.weight`), plus `.prompt` convenience str
+	        # - control_state.CompiledPrompt: `.positive` is list[dict] with {"text","weight"}
         if hasattr(self, "_compiled_prompt") and self._compiled_prompt:
-            positive = getattr(self._compiled_prompt, "positive", None)
-            if positive and isinstance(positive, list) and len(positive) > 0:
+            compiled = self._compiled_prompt
+
+            # prompt_compiler.CompiledPrompt: list[PromptEntry] (or dicts in some codepaths)
+            prompts = getattr(compiled, "prompts", None)
+            if isinstance(prompts, list) and prompts:
+                first_item = prompts[0]
+                if hasattr(first_item, "text"):
+                    return getattr(first_item, "text", None), getattr(first_item, "weight", 1.0)
+                if isinstance(first_item, dict):
+                    return first_item.get("text"), first_item.get("weight", 1.0)
+
+            # control_state.CompiledPrompt: list[dict]
+            positive = getattr(compiled, "positive", None)
+            if isinstance(positive, list) and positive:
                 first_item = positive[0]
                 if isinstance(first_item, dict):
                     return first_item.get("text"), first_item.get("weight", 1.0)
-                # Some codepaths may have different shapes - log and skip
-                logger.debug(f"Unexpected CompiledPrompt.positive shape: {type(first_item)}")
+
+            # Fallback: some compiler objects expose `.prompt` as a convenience string.
+            prompt_str = getattr(compiled, "prompt", None)
+            if isinstance(prompt_str, str) and prompt_str.strip():
+                return prompt_str, 1.0
 
         return None, 1.0
 
@@ -671,17 +766,21 @@ class FrameProcessor:
 
         # 6. Existing hard cut handling - note if we're about to pass init_cache
         reset_cache = self.parameters.pop("reset_cache", None)
-        will_init_cache = reset_cache is not None
+        # Record a "hard cut" only when explicitly requested (reset_cache=True).
+        # Do NOT treat the initial warmup/init path (init_cache=True when !is_prepared) as a hard cut.
+        hard_cut_executed = bool(reset_cache)
 
         # 7. Pipeline call
-        # ... existing pipeline call with init_cache=will_init_cache if applicable ...
+        # NOTE: FrameProcessor init_cache semantics are:
+        #   init_cache = (not self.is_prepared) if reset_cache is None else bool(reset_cache)
+        # ... existing pipeline call ...
 
         # 8. Record events AFTER pipeline call
         # FIXED review02: Record hard cut when init_cache is actually passed to pipeline,
         # not just when reset_cache arrives. This is the moment it truly takes effect.
         self._record_control_events_from_bus(
             applied_events,
-            hard_cut_executed=will_init_cache,  # Renamed: actual execution, not request
+            hard_cut_executed=hard_cut_executed,
             soft_cut_bias=soft_cut_bias,
             soft_cut_chunks=soft_cut_chunks,
             soft_cut_restore_bias=restore_bias,
@@ -1033,11 +1132,11 @@ Updated per review01 + review02:
 |------------|--------|-------|
 | **ControlBus event.type** | ✅ FIXED | Was `event.event_type`, now `event.type` (review02-A) |
 | **Status comparison** | ✅ FIXED | Use `"loaded"` lowercase, field `_error_message` (review02-B) |
-| **Baseline prompt type** | ✅ FIXED | Prefer `parameters["prompts"]`, handle `CompiledPrompt.positive` as `list[dict]` (review02-C) |
+| **Baseline prompt type** | ✅ FIXED | Prefer `parameters["prompts"]`; compiler output is not a string (handle `.prompts`/`.prompt`/`.positive` shapes) (review02-C) |
 | **Weight scale** | ✅ FIXED | Recorder uses 1.0; note render_timeline.py manual timelines still default 100.0 (review02-D) |
 | **Non-ControlBus prompt changes** | ✅ FIXED | Added fallback edge detection (review01-C) |
 | **Soft cut restore semantics** | ✅ FIXED | Use internal state `_soft_transition_original_bias` directly (review02) |
-| **Hard cut timing** | ✅ FIXED | Record when `init_cache` passed to pipeline, not on request arrival (review02) |
+| **Hard cut timing** | ✅ FIXED | Record when `reset_cache=True` is actually passed as `init_cache=True`, not on request arrival (review02) |
 | **LoRA/style changes** | ⚠️ NOT RECORDED | Style switches won't replay correctly without LoRA scale events (review02 gap) |
 | **V2V/VACE sessions** | ⚠️ NOT SUPPORTED | render_timeline.py rejects `inputMode != "text"` (review02 gap) |
 | **Recording start mid-transition** | ⚠️ MVP scope | Records target prompt at t=0 (no transition metadata) |
