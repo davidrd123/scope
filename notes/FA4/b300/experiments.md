@@ -498,6 +498,15 @@ Artifacts:
 - `outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_fuseproj_on_fa4_varlen_perf.log`
 - `outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_fuseproj_on_fa4_varlen_blocks_profile.json`
 
+**Update (2025-12-27): current best stack (~34.5 FPS)**  
+- Baseline (default compile mode): `34.49 FPS` (`outputs/b300_cu130_compile_best_blocks_no_kvcache_zero_2025-12-27.log`)  
+- `max-autotune-no-cudagraphs`: `34.65 FPS` (`outputs/b300_cu130_compile_mode_maxautotune_nocg_best_2025-12-27.log`)  
+- Warmup increased (in these runs: `~17.3s` vs `~15.7s`).
+
+Artifacts:
+- `outputs/b300_cu130_compile_mode_maxautotune_nocg_best_2025-12-27.log`
+- `outputs/b300_cu130_compile_mode_maxautotune_nocg_best_2025-12-27_blocks_profile.json`
+
 ### 2025-12-27 — torch.compile strategy: whole model vs per-block (BF16; best config)
 
 **Question:**  
@@ -566,6 +575,14 @@ Prefer per-block compilation (`SCOPE_TORCH_COMPILE_STRATEGY=blocks`) as the defa
 - `outputs/b300_cu130_triton351_compile_blocks_best_blocks_profile.json`  
 - `outputs/b300_cu130_triton351_compile_model_best_perf.log`  
 - `outputs/b300_cu130_triton351_compile_model_best_blocks_profile.json`  
+
+**Update (2025-12-27): current best stack (~34.5 FPS)**  
+- Default (`blocks`): `34.49 FPS`, warmup `~15.7s` (`outputs/b300_cu130_compile_best_blocks_no_kvcache_zero_2025-12-27.log`)  
+- Whole model (`model`): `34.43 FPS`, warmup `~17.3s` (`outputs/b300_cu130_compile_strategy_model_best_2025-12-27.log`)
+
+Artifacts:
+- `outputs/b300_cu130_compile_strategy_model_best_2025-12-27.log`
+- `outputs/b300_cu130_compile_strategy_model_best_2025-12-27_blocks_profile.json`
 
 ### 2025-12-27 — VAE decode: channels-last 3D activations
 

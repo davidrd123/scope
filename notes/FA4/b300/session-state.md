@@ -55,7 +55,7 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
 
 Benchmark harness (`scripts/profile_krea_pipeline_blocks.py`, cu130 env, bias=0.3):
 - **Best-known (today):** `SCOPE_KV_BIAS_BACKEND=fa4` + `SCOPE_ENABLE_FA4_VARLEN=1` + `--compile` + `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1` + fused projections ON: **~34.5 FPS** (Avg FPS `skip=3`; `outputs/b300_cu130_compile_best_blocks_no_kvcache_zero_2025-12-27.log`)
-- Optional (experiment): `SCOPE_TORCH_COMPILE_MODE=max-autotune-no-cudagraphs` can increase autotuning coverage but also increases warmup time; **needs re-measure** under the current best stack.
+- Optional (experiment): `SCOPE_TORCH_COMPILE_MODE=max-autotune-no-cudagraphs`: **~34.65 FPS** (Avg FPS `skip=3`; warmup `~17.3s` vs `~15.7s` default) (`outputs/b300_cu130_compile_mode_maxautotune_nocg_best_2025-12-27.log`)
 - Same settings but without the VAE resample contiguity fix (`WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=0`): **~21.45 FPS** (`outputs/b300_cu130_triton351_compile_default_blocks_perf.log`)
 - Historical (needs re-measure post VAE fix): `SCOPE_KV_BIAS_BACKEND=fa4`: **~19.7 FPS**
 
@@ -244,6 +244,7 @@ Implementation note: we keep CuTe/FA4 calls **opaque** to Dynamo during compilat
 Noise note: if you previously saw `torch/_dynamo` “Backend compiler exception … aten._local_scalar_dense” spam from `triton_rope_fused.py`, it should now be gone (we disable Dynamo for `_as_int3()` which does `.tolist()` scalar extraction).
 
 Server opt-in: set `SCOPE_COMPILE_KREA_PIPELINE=1` before launching. `scripts/run_daydream_b300.sh` defaults it to `1`; the server still disables compile by default when quantization is enabled (override for experiments with `SCOPE_COMPILE_KREA_PIPELINE_ALLOW_QUANTIZATION=1`).
+Convenience: `scripts/run_daydream_b300.sh --max-autotune` sets `SCOPE_TORCH_COMPILE_MODE=max-autotune-no-cudagraphs`.
 
 **Compile mode experiments:** `src/scope/core/pipelines/krea_realtime_video/pipeline.py` supports `SCOPE_TORCH_COMPILE_MODE`, but on B300/SM103:
 - `max-autotune*` can hard-abort with a tcgen05 LLVM intrinsic error (Triton/Inductor SM103). Guardrail: we ignore `max-autotune*` on SM103 unless `SCOPE_ALLOW_MAX_AUTOTUNE_SM103=1` (and you should have `triton>=3.5.1`).
@@ -252,7 +253,9 @@ Server opt-in: set `SCOPE_COMPILE_KREA_PIPELINE=1` before launching. `scripts/ru
   - Guardrail: on SM103 we now ignore `SCOPE_TORCH_COMPILE_MODE=reduce-overhead` unless `SCOPE_ALLOW_REDUCE_OVERHEAD_SM103=1`.
 Recommendation: leave `SCOPE_TORCH_COMPILE_MODE` unset (default) unless you’re explicitly experimenting.
 
-**Compile strategy experiments:** by default we compile **each transformer block** (keeps graph breaks localized). You can force whole-model compilation with `SCOPE_TORCH_COMPILE_STRATEGY=model`, but it’s currently **unmeasured** under the latest best-known BF16 stack (~34.5 FPS).
+**Compile strategy experiments:** by default we compile **each transformer block** (keeps graph breaks localized). Whole-model compilation is slightly worse here and increases warmup:
+- Default (`blocks`): **~34.49 FPS**, warmup `~15.7s` (`outputs/b300_cu130_compile_best_blocks_no_kvcache_zero_2025-12-27.log`)
+- Whole model (`model`): **~34.43 FPS**, warmup `~17.3s` (`outputs/b300_cu130_compile_strategy_model_best_2025-12-27.log`)
 
 **FA4 varlen opt-in (non-bias attention):** when `SCOPE_KV_BIAS_BACKEND=fa4`, FA4/CuTe varlen attention remains disabled by default (stable FA2 for non-bias attention). You can opt in with `SCOPE_ENABLE_FA4_VARLEN=1`; on B300 compiled BF16 this was a ~2–3% win (≈`30.08 → 30.76` FPS) but increased warmup/JIT time (≈`12s → 19s`). `scripts/run_daydream_b300.sh` now defaults this to `1` (set `SCOPE_ENABLE_FA4_VARLEN=0` to disable).
 

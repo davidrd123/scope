@@ -1,0 +1,50 @@
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 for torchao version 0.15.0+cu130             Please see https://github.com/pytorch/ao/issues/2919 for more info
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Fetching 6 files: 100%|██████████| 6/6 [00:00<00:00, 132451.71it/s]
+KV-bias enabled (bias=0.3) using backend=fa4 (fa4_available=True, triton_kernel_b=False)
+Warning: Could not load sageattention: No module named 'sageattention'
+sageattention package is not installed
+SAGEATTN_AVAILABLE: False
+TRITON_ROTARY_AVAILABLE: True, USE_TRITON_ROTARY: True
+TRITON_ROPE_FUSED_AVAILABLE: True, USE_TRITON_ROPE_FUSED: True
+CUDA device: NVIDIA B300 SXM6 AC
+Compute capability: (10, 3)
+torch: 2.9.0+cu130 (cuda=13.0)
+cudnn.benchmark: True
+Loaded diffusion model in 0.077461s
+Loaded text encoder in 0.321777s
+Loaded VAE in 0.139s
+Warmed up (3 runs) in 7.95s
+iter=000 frames=  9 seconds=0.4274 fps=21.06
+iter=001 frames= 12 seconds=0.4724 fps=25.40
+iter=002 frames= 12 seconds=0.4834 fps=24.83
+iter=003 frames= 12 seconds=0.4815 fps=24.92
+iter=004 frames= 12 seconds=0.4804 fps=24.98
+iter=005 frames= 12 seconds=0.4785 fps=25.08
+
+Avg FPS (skip=2): 24.95
+Wrote per-iter JSON: outputs/b300_cu130_none_bias0.3_eager_drilldown_2025-12-27_perf.json
+=== Attention Profiling Report ===
+  self_attn: 895.2ms (40.1%) [800 calls, 1.12ms/call]
+  ffn: 399.1ms (17.9%) [800 calls, 0.50ms/call]
+  self_attn_kv_bias_fa4: 263.8ms (11.8%) [640 calls, 0.41ms/call]
+  cross_attn: 216.2ms (9.7%) [800 calls, 0.27ms/call]
+  qkv_projection: 216.1ms (9.7%) [800 calls, 0.27ms/call]
+  output_projection: 86.3ms (3.9%) [800 calls, 0.11ms/call]
+  rope_apply: 70.9ms (3.2%) [640 calls, 0.11ms/call]
+  self_attn_block_mask: 44.7ms (2.0%) [160 calls, 0.28ms/call]
+  cache_update: 37.5ms (1.7%) [640 calls, 0.06ms/call]
+  TOTAL: 2229.7ms
+=== Transformer Block Split (top-level) ===
+  self_attn: 895.2ms (59.3%)
+  cross_attn: 216.2ms (14.3%)
+  ffn: 399.1ms (26.4%)
+=== p_bias vs p_recompute ===
+  p_bias (Kernel B):     85.5%
+  p_recompute (Kernel A): 14.5%
+  p_plain (FA path):     0.0%
+=== self_attn Breakdown (nested) ===
+  kv_bias_total:   263.8ms (29.5% of self_attn)
+  block_mask:      44.7ms (5.0% of self_attn)
+  plain_kv:        0.0ms (0.0% of self_attn)
+  other_in_self:   586.7ms (65.5% of self_attn)
