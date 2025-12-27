@@ -69,7 +69,7 @@ Daydream end-to-end (cu130 env): **TBD re-measure** (historical note: pre patch-
 
 `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, `scripts/b300_env_fix_cu130.sh` now tries `torchao==0.15.0+cu130` from the cu130 index (then PyPI as fallback). **As of 2025-12-26**, `torchao==0.15.0+cu130` still prints `Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 ...` (likely upstream; no FPS change observed).
 
-This is roughly a **3.3× throughput improvement** over the repo-default baseline (~8.8 → ~29.4 FPS in the benchmark harness).
+This is roughly a **3.5× throughput improvement** over the repo-default baseline (~8.8 → ~30.7 FPS in the benchmark harness).
 
 External doc brief (for RepoPrompt / web research): [`blackwell-docs.md`](blackwell-docs.md)
 
@@ -263,33 +263,49 @@ Update: FA4 score_mod KV-bias is now working on B300 and is faster than flash se
 - Normalizing B=1 K/V slice stride (use `[0].unsqueeze(0)` views) before calling FA4, to avoid “Can't decude the leading dimension…” when slicing from the KV cache tensor.
 - Default-disabling FlashAttention 4 (CuTe) for non-bias attention when `SCOPE_KV_BIAS_BACKEND=fa4` (opt-in via `SCOPE_ENABLE_FA4_VARLEN=1`) to avoid mixing CuTe module variants.
 
-## New Evidence (Zoom-Out Block Profile)
+## Block Profile (Current Best Config)
 
-Artifact: `outputs/b300_pipeline_blocks_profile.json` (generated via `PROFILE_PIPELINE_BLOCKS=1`).
+**Config:** cu130 env, BF16, `--compile`, FA4 KV-bias + FA4 varlen, `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1`
 
-Per-block GPU time breakdown (4 pipeline calls):
+Per-call breakdown (~30.7 FPS):
 
-| Block | GPU ms | Share (of total GPU) | Per-call |
-|------:|-------:|----------------------:|---------:|
+| Block | Per-call | Share | Notes |
+|------:|-------:|------:|-------|
+| `denoise` | ~267 ms | ~69% | Dominant; next optimization target |
+| `recompute_kv_cache` | ~62 ms | ~16% | Non-trivial; matters more as denoise improves |
+| `decode` | ~60 ms | ~15% | **Solved** (was ~195ms before resample fix) |
+
+**Interpretation:** VAE decode is no longer the bottleneck. The mountain is now `denoise` + `recompute_kv_cache`.
+
+### Historical: Pre-Optimization Block Profiles
+
+<details>
+<summary>Repo-default stack (~8.8 FPS)</summary>
+
+Artifact: `outputs/b300_pipeline_blocks_profile.json`
+
+| Block | GPU ms | Share | Per-call |
+|------:|-------:|------:|---------:|
 | `denoise` | ~4208 | ~46% | ~1052 ms |
 | `decode` | ~3010 | ~33% | ~752 ms |
 | `recompute_kv_cache` | ~1218 | ~13% | ~305 ms |
 | `text_conditioning` | ~655 | ~7% | ~164 ms |
 
-**Interpretation:** End-to-end throughput is largely compute-bound inside `denoise` (+ `decode`), so swapping KV-bias backends (Triton Kernel B vs FA4 vs segment-combine) won’t materially move FPS unless it changes time inside `denoise` (or reduces work in `decode` / `recompute_kv_cache`).
+</details>
 
-### Update: cu130 + FlashAttention Block Profile (Much Better)
+<details>
+<summary>cu130 + FlashAttention, pre-VAE fix (~19-20 FPS)</summary>
 
-Artifact: `outputs/b300_cu130_fp8_bias03_blocks_profile.json` (generated via `--profile-blocks` in the cu130 env).
+Artifact: `outputs/b300_cu130_fp8_bias03_blocks_profile.json`
 
-Aggregated GPU time breakdown (4 pipeline calls):
-
-| Block | GPU ms | Share (of total GPU) | Per-call |
-|------:|-------:|----------------------:|---------:|
+| Block | GPU ms | Share | Per-call |
+|------:|-------:|------:|---------:|
 | `denoise` | ~2113 | ~62% | ~528 ms |
 | `decode` | ~833 | ~25% | ~208 ms |
 | `recompute_kv_cache` | ~410 | ~12% | ~102 ms |
 | `text_conditioning` | ~36 | ~1% | ~9 ms |
+
+</details>
 
 ## New Evidence (Deeper Drill: Decode Dominates)
 
@@ -408,17 +424,24 @@ The `flash-attention` symlink was shadowing the working FA4 package. Removed it,
 
 This originally suggested a “hard limiter”, but the block profile above points to a more mundane explanation: **the slow path is dominated by non-attention work** (`denoise` / `decode` / `recompute_kv_cache`).
 
-## Two Codex Agents Working
+## Historical: Two Codex Agents (Completed)
 
-### Codex1: FA4 score_mod fix (preferred approach)
-- Patching `flash-attention.bak` to replace `FastDivmodDivisor` with custom `FastDivmod`
+<details>
+<summary>FA4 score_mod + Segment-combine work (both complete)</summary>
+
+### Codex1: FA4 score_mod fix (preferred approach) — ✅ DONE
+- Patched `flash-attention.bak` to replace `FastDivmodDivisor` with custom `FastDivmod`
 - Files modified: `fast_math.py`, `tile_scheduler.py`, `paged_kv.py`, `flash_fwd.py`, `flash_fwd_sm100.py`, `flash_fwd_combine.py`, `flash_bwd_sm100.py`
-- **Status: Still working**
+- **Status: Complete, working on B300**
 
-### Codex2: Segment-combine fallback
+### Codex2: Segment-combine fallback — ✅ DONE
 - Added `_kv_bias_flash_combine()` - splits KV into 3 segments, runs FA4 on each, merges with LSE
 - Auto-detects SM103 → defaults to "flash" backend
 - **Status: Complete, merged into causal_model.py**
+
+Both approaches work. FA4 score_mod (`SCOPE_KV_BIAS_BACKEND=fa4`) is now the recommended default on B300.
+
+</details>
 
 ## Current Code State
 

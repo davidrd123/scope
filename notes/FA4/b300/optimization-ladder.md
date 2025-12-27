@@ -90,11 +90,13 @@ Knobs map: [`17-backend-selection-and-knobs.md`](../explainers/17-backend-select
 
 ## ✅ YOU ARE HERE: Between Level 4 and 5
 
-Current state:
-- B300 (cu130): **~19–20 FPS** baseline (BF16) and **~22–23 FPS** with `--compile` (BF16, config-dependent). FP8 can benchmark higher, but is currently **not a usable win** on B300 because FP8 output quality is broken (gray/noise) — see [`session-state.md`](session-state.md).
-- Solved the “white whale” mystery: the original ~8.8 FPS wasn’t an attention backend cap; it was dominated by runtime stack + decode/cuDNN behavior and SM103 backend pitfalls
+Current state (2025-12-27):
+- B300 (cu130): **~30.7–30.9 FPS** with best-known config (BF16 + `--compile` + FA4 varlen + resample-contiguous). This is **3.5× the repo-default baseline** (~8.8 FPS).
+- FP8 is currently **broken** on B300 (garbage output due to TorchAO/torch 2.9 incompatibility) — use BF16.
+- Solved the "white whale" mystery: the original ~8.8 FPS wasn't an attention backend cap; it was dominated by runtime stack + decode/cuDNN behavior and SM103 backend pitfalls
+- VAE decode is **solved** (~60ms/call, down from ~195ms pre-fix, ~760ms on repo-default)
 - Have documented, reproducible optimizations
-- Recent “big win” pattern: eliminating hidden slow paths (e.g. Conv3d patch-embed → per-frame Conv2d) can dwarf attention micro-tuning by removing `aten::copy_`/`aten::fill_` storms
+- Recent "big win" pattern: eliminating hidden slow paths (Conv3d resample contiguity, Conv3d patch-embed → per-frame Conv2d) can dwarf attention micro-tuning
 
 What's missing for Level 5:
 - RoPE is still separate from attention, and attention-adjacent glue (casts/copies/layout fixes) is still sizable
@@ -263,15 +265,21 @@ Ideas:
 
 ## Reference: Current B300 Performance Stack
 
-Representative recent cu130 drilldown signal (for intuition; always re-measure):
+**Best-known config (2025-12-27):** ~30.7 FPS
 
-- Block-level time is dominated by `denoise`, then `decode`, then `recompute_kv_cache` (see `outputs/b300_cu130_*_drilldown_blocks_profile.json`)
-- Inside the transformer (example `outputs/b300_cu130_none_bias0.3_drilldown_perf.log`):
-  - `self_attn` is the largest bucket
-  - KV-bias share depends on backend (roughly ~35–40% of `self_attn` on `flash`, ~20–30% on `fa4`); **the remaining “other_in_self” is still the majority**
-  - `rope_apply` is present but relatively small in recent runs
+Block breakdown (per-call):
+| Block | Time | Share |
+|-------|------|-------|
+| `denoise` | ~267 ms | ~69% |
+| `recompute_kv_cache` | ~62 ms | ~16% |
+| `decode` | ~60 ms | ~15% |
 
-Takeaway: after the cu130 decode fix + FA4 KV-bias, the next wins are more likely to come from reducing the remaining self-attn overhead (QKV projection / non-bias attention / data movement) and expanding safe `torch.compile` coverage, rather than “RoPE fusion alone.”
+Inside the transformer:
+- `self_attn` is the largest bucket
+- KV-bias share depends on backend (~35–40% of `self_attn` on `flash`, ~20–30% on `fa4`)
+- **The remaining "other_in_self" is still the majority** (QKV projection + non-bias attention + glue)
+
+Takeaway: VAE decode is solved. The next wins come from `denoise` (QKV projection / non-bias attention / data movement) and `recompute_kv_cache`.
 
 ---
 
