@@ -1,0 +1,250 @@
+{
+  "cached": {
+    "k_slice": {
+      "device": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "is_contiguous": true,
+      "shape": [
+        1,
+        2160,
+        40,
+        128
+      ],
+      "storage_offset": 0,
+      "stride": [
+        22118400,
+        5120,
+        128,
+        1
+      ]
+    },
+    "v_slice": {
+      "device": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "is_contiguous": true,
+      "shape": [
+        1,
+        2160,
+        40,
+        128
+      ],
+      "storage_offset": 0,
+      "stride": [
+        22118400,
+        5120,
+        128,
+        1
+      ]
+    }
+  },
+  "fa4_b1_normalized_views": {
+    "k": {
+      "device": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "is_contiguous": true,
+      "shape": [
+        1,
+        2160,
+        40,
+        128
+      ],
+      "storage_offset": 0,
+      "stride": [
+        11059200,
+        5120,
+        128,
+        1
+      ]
+    },
+    "q": {
+      "device": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "is_contiguous": true,
+      "shape": [
+        1,
+        2160,
+        40,
+        128
+      ],
+      "storage_offset": 0,
+      "stride": [
+        11059200,
+        5120,
+        128,
+        1
+      ]
+    },
+    "v": {
+      "device": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "is_contiguous": true,
+      "shape": [
+        1,
+        2160,
+        40,
+        128
+      ],
+      "storage_offset": 0,
+      "stride": [
+        11059200,
+        5120,
+        128,
+        1
+      ]
+    }
+  },
+  "kv_cache": {
+    "k_full": {
+      "device": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "is_contiguous": true,
+      "shape": [
+        1,
+        4320,
+        40,
+        128
+      ],
+      "storage_offset": 0,
+      "stride": [
+        22118400,
+        5120,
+        128,
+        1
+      ]
+    },
+    "v_full": {
+      "device": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "is_contiguous": true,
+      "shape": [
+        1,
+        4320,
+        40,
+        128
+      ],
+      "storage_offset": 0,
+      "stride": [
+        22118400,
+        5120,
+        128,
+        1
+      ]
+    }
+  },
+  "meta": {
+    "SCOPE_DISABLE_FUSED_PROJECTIONS": "1",
+    "SCOPE_KV_BIAS_BACKEND": "fa4",
+    "WANVAE_STREAM_DECODE_MODE": "chunk",
+    "device_cc": [
+      10,
+      3
+    ],
+    "device_name": "NVIDIA B300 SXM6 AC",
+    "torch_cuda_version": "13.0",
+    "torch_version": "2.9.0+cu130"
+  },
+  "qkv": {
+    "k": {
+      "device": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "is_contiguous": true,
+      "shape": [
+        1,
+        2160,
+        40,
+        128
+      ],
+      "storage_offset": 0,
+      "stride": [
+        11059200,
+        5120,
+        128,
+        1
+      ]
+    },
+    "q": {
+      "device": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "is_contiguous": true,
+      "shape": [
+        1,
+        2160,
+        40,
+        128
+      ],
+      "storage_offset": 0,
+      "stride": [
+        11059200,
+        5120,
+        128,
+        1
+      ]
+    },
+    "v": {
+      "device": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "is_contiguous": true,
+      "shape": [
+        1,
+        2160,
+        40,
+        128
+      ],
+      "storage_offset": 0,
+      "stride": [
+        11059200,
+        5120,
+        128,
+        1
+      ]
+    }
+  },
+  "rope": {
+    "roped_key": {
+      "device": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "is_contiguous": true,
+      "shape": [
+        1,
+        2160,
+        40,
+        128
+      ],
+      "storage_offset": 0,
+      "stride": [
+        11059200,
+        5120,
+        128,
+        1
+      ]
+    },
+    "roped_query": {
+      "device": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "is_contiguous": true,
+      "shape": [
+        1,
+        2160,
+        40,
+        128
+      ],
+      "storage_offset": 0,
+      "stride": [
+        11059200,
+        5120,
+        128,
+        1
+      ]
+    }
+  },
+  "self_attn": {
+    "current_end": 2160,
+    "current_start": 0,
+    "frame_seqlen": 720,
+    "fused_projections": false,
+    "kv_cache_attention_bias": 0.3,
+    "kv_start_idx": 0,
+    "local_end_index": 2160,
+    "local_start_index": 0
+  }
+}
