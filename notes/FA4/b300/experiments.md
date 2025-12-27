@@ -672,6 +672,74 @@ Treat `max-autotune*` as an experiment on SM103:
 - `outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_blocks_perf.log`
 - `outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_blocks_profile.json`
 
+### 2025-12-27 — Self-attn: eliminate CUDA scalar sync from KV-cache indices
+
+**Status:** Done (removes `Memcpy DtoH` sync hazard in self-attn)
+
+**Question:**  
+Are we triggering GPU→CPU sync inside `CausalWanSelfAttention` due to implicit scalar reads (`aten::item` / `_local_scalar_dense`)?
+
+**Hypothesis:**  
+Yes: 1-element CUDA tensors used in Python control flow / slice bounds force `.item()` conversions, which show up as `Memcpy DtoH (Device -> Pinned)` during compiled self-attn.
+
+**Change (one thing):**  
+In `initialize_kv_cache(...)`, keep `kv_cache["global_end_index"]` / `kv_cache["local_end_index"]` as **CPU** tensors (still tensors so identity stays stable across iterations).
+
+**Benchmark config:**  
+- GPU: B300 (SM103)  
+- Env: cu130 decode env + Triton 3.5.1 (`.venv-b300-cu130-triton351`)  
+- Settings: `320x576`, bias=`0.3`, quantization=`none`, compile=`True`  
+
+**Command(s):**
+```bash
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_ENABLE_FA4_VARLEN=1 \
+PYTHONPATH=src \
+.venv-b300-cu130-triton351/bin/python scripts/profile_krea_pipeline_ops.py \
+  --height 320 --width 576 \
+  --iters 1 --pre-iters 1 \
+  --kv-cache-attention-bias 0.3 \
+  --kv-bias-backend fa4 \
+  --quantization none \
+  --cudnn-benchmark \
+  --compile \
+  --with-stack --stack-n 12 \
+  --stack-key aten::item \
+  --stack-key aten::_local_scalar_dense \
+  --stack-key \"Memcpy DtoH (Device -> Pinned)\" \
+  --stack-include CausalWanSelfAttention \
+  --stack-filter-top 40
+```
+
+**Baseline:**  
+From `outputs/b300_cu130_triton351_ops_profile_selfattn_item_stack_2025-12-27.md`:
+- `Memcpy DtoH (Device -> Pinned)`: present (1280 calls)
+- `aten::item`: non-zero device time (CUDA sync)
+
+**Result:**  
+From `outputs/b300_cu130_triton351_ops_profile_selfattn_item_stack_cpuindices_2025-12-27.md`:
+- `Memcpy DtoH (Device -> Pinned)`: **(no events)**
+- `aten::item`: still present, but **device_ms=0.000** (no CUDA sync)
+
+**Decision:**  
+Keep. Even if the absolute time is small, CUDA scalar syncs are “poison” for smooth execution and can interact badly with compilation/cudagraph capture.
+
+**Artifacts:**  
+- `outputs/b300_cu130_triton351_ops_profile_selfattn_item_stack_2025-12-27.md`  
+- `outputs/b300_cu130_triton351_ops_profile_selfattn_item_stack_2025-12-27.json`  
+- `outputs/b300_cu130_triton351_ops_profile_selfattn_item_stack_2025-12-27.log`  
+- `outputs/b300_cu130_triton351_ops_profile_selfattn_item_stack_cpuindices_2025-12-27.md`  
+- `outputs/b300_cu130_triton351_ops_profile_selfattn_item_stack_cpuindices_2025-12-27.json`  
+- `outputs/b300_cu130_triton351_ops_profile_selfattn_item_stack_cpuindices_2025-12-27.log`  
+
+**Lessons:**  
+- Don’t store “index counters” on CUDA if they’ll ever be used in Python control flow or slicing — it creates implicit `.item()` syncs.  
+- If you need stable identity for compile/cudagraph friendliness, a 1-element CPU tensor works as a low-risk compromise.  
+
 ### 2025-12-26 — Baseline choice: `--quantization none` vs `fp8_e4m3fn` (B300 cu130)
 
 **Status:** Done

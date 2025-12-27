@@ -145,8 +145,24 @@ Key findings (filtered to `CausalWanSelfAttention` stacks):
 | `aten::fill_` | 0.291 | 160 | Small counters/indices |
 
 Notable from the **stack-filtered top-op table** in the same artifact:
-- `aten::item` + `Memcpy DtoH`: **2.237ms**, **1280 calls** (device→host scalar reads inside self-attn stacks; likely worth eliminating/hoisting if they cause sync)
+- `aten::item` + `Memcpy DtoH`: **2.237ms**, **1280 calls** (implicit device→host scalar reads inside self-attn stacks; fixed below)
 - The bulk of time is still in GEMMs (`aten::addmm` / NVJET kernels) and the FA4/CuTe forward kernel.
+
+#### Scalar sync cleanup (fixed)
+
+We observed a high-volume `Memcpy DtoH (Device -> Pinned)` + `aten::item` pattern inside `CausalWanSelfAttention` stacks.
+Root cause: `initialize_kv_cache(...)` stored `kv_cache["global_end_index"]` / `kv_cache["local_end_index"]` as **1-element CUDA tensors**, and these
+ended up used in Python control-flow / slicing, triggering implicit `.item()` conversions and GPU→CPU sync.
+
+Fix: keep the index tensors on **CPU** (still tensors, so the object identity stays stable across iterations for compile/cudagraph friendliness).
+
+Evidence:
+- Before: `outputs/b300_cu130_triton351_ops_profile_selfattn_item_stack_2025-12-27.md`
+  - `Memcpy DtoH (Device -> Pinned)`: present (1280 calls)
+  - `aten::item`: non-zero device time (sync)
+- After: `outputs/b300_cu130_triton351_ops_profile_selfattn_item_stack_cpuindices_2025-12-27.md`
+  - `Memcpy DtoH (Device -> Pinned)`: **(no events)**
+  - `aten::item`: still present, but **device_ms=0.000** (no CUDA sync)
 
 **Historical snapshot (pre-triton351 / different config):**
 - `outputs/b300_cu130_ops_profile_selfattn_stack.md` (shows `aten::contiguous` / `aten::clone` present under self-attn stacks)
