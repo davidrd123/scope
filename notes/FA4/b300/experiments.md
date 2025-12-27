@@ -1299,3 +1299,76 @@ To confirm, check the input-vs-pipeline cap logic in `FrameProcessor.get_output_
 **Artifacts:**  
 - `outputs/b300_v2v_256_cpu_v2_perf.log`, `outputs/b300_v2v_256_cpu_v2_blocks.json`, `outputs/b300_v2v_256_cpu_v2_wanvae_encode.json`  
 - `outputs/b300_v2v_256_gpu_v2_perf.log`, `outputs/b300_v2v_256_gpu_v2_blocks.json`, `outputs/b300_v2v_256_gpu_v2_wanvae_encode.json`
+
+---
+
+### 2025-12-27 — Level 6 kickoff refresh (self_attn budget + copy survivors)
+
+**Goal:**  
+Refresh the Level 6 “budget” after recent wins by re-measuring:
+- no-compile `PROFILE_ATTENTION` breakdown (trustworthy nested numbers)
+- compile+stack op profile inside `CausalWanSelfAttention` (what overhead survives `--compile`)
+
+**Setup:**  
+- GPU: B300 (SM103)  
+- Resolution: `320x576`  
+- Quantization: `none` (BF16)  
+- Bias: `kv_cache_attention_bias=0.3`  
+- KV-bias backend: `SCOPE_KV_BIAS_BACKEND=fa4`  
+
+**Command(s):**
+```bash
+# 1) No-compile drilldown (enables PROFILE_ATTENTION)
+OUT_PREFIX=outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_kickoff \
+ITERS=4 SKIP=1 \
+scripts/profile_b300_denoise_drilldown.sh
+
+# 2) Compile+stack op profile (focus on self-attn call stacks)
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_ENABLE_FA4_VARLEN=1 \
+PYTHONPATH=src \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_ops.py \
+  --height 320 --width 576 \
+  --quantization none --kv-cache-attention-bias 0.3 \
+  --iters 1 --pre-iters 1 \
+  --compile \
+  --with-stack --stack-include CausalWanSelfAttention --stack-filter-top 25 \
+  --summary outputs/b300_cu130_ops_profile_selfattn_compile_fa4_stack_2025-12-27_kickoff.md \
+  --json outputs/b300_cu130_ops_profile_selfattn_compile_fa4_stack_2025-12-27_kickoff.json
+
+# 3) Microbench: strided vs contiguous KV write (packed QKV → V is strided)
+.venv-b300-cu130-decode/bin/python scripts/bench_attention_packing.py \
+  --b 1 --s 2160 --h 40 --d 128 --kv-cache-size 4320 --dtype bf16 \
+  --warmup 20 --iters 200 \
+  | tee outputs/b300_attention_packing_bench_2025-12-27_kickoff.log
+```
+
+**Results (no-compile drilldown, profiled iters only):**
+- `self_attn`: `665.3ms` (600 calls, `1.11ms/call`)
+- `other_in_self`: `437.8ms` (**65.8%** of `self_attn`)
+- `rope_apply`: `50.8ms` (480 calls, `0.11ms/call`)
+- `cache_update`: `27.5ms` (480 calls, `0.06ms/call`)
+- `qkv_projection`: `165.4ms` (600 calls, `0.28ms/call`)
+- `output_projection`: `63.9ms` (600 calls, `0.11ms/call`)
+
+**Results (compile+stack, filtered to `CausalWanSelfAttention`):**
+- `aten::copy_`: `~5.310ms` (322 calls, stack-filtered device time)
+- `direct_copy_kernel_cuda`: `~4.426ms` (stack-filtered device time)
+
+**Microbench (KV write):**
+- Copy into cache from contiguous src: `~0.006ms`
+- Copy into cache from strided src: `~0.018ms` (**~3× slower**)
+
+**Interpretation / next step:**  
+Level 6 remains a **layout/copy deletion** problem (not “attention kernel is slow”).
+The fused-projection path produces a strided `v` view (see `outputs/b300_layout_contract_fuseproj_2025-12-27.json`), which plausibly feeds the copy kernels that show up inside compiled self-attn. Next action is to prototype a minimal “pack/write” improvement behind a flag (Option A/B in `notes/FA4/b300/level6-prospectus.md`).
+
+**Artifacts:**  
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_kickoff_perf.log` (+ sibling JSONs)  
+- `outputs/b300_cu130_ops_profile_selfattn_compile_fa4_stack_2025-12-27_kickoff.md` (+ JSON)  
+- `outputs/b300_attention_packing_bench_2025-12-27_kickoff.log`

@@ -41,6 +41,7 @@ Current behavior (today):
 - [x] Are fused projections enabled in our real runs (`self.fused_projections`)?
   - By default, the pipeline enables fused projections (`block.self_attn.fuse_projections()`) unless `SCOPE_DISABLE_FUSED_PROJECTIONS=1` is set.
 - [ ] Do we force any `.contiguous()` when switching between `[B, S, H, D]` and `[B, H, S, D]` (real copies)?
+  - **Observed (fused projections):** `v` can be a **strided view** (`is_contiguous=false`) which then gets materialized into a contiguous layout for downstream use (see `fa4_b1_normalized_views.v` in the JSON dump). This is a likely source of `aten::copy_` / `direct_copy_kernel_cuda` time inside compiled self-attn.
 
 ### Representative layout dumps (B300, `320x576`, BF16, bias=0.3)
 
@@ -61,6 +62,15 @@ Observed (example sample):
 | `q` | on | `[1, 2160, 40, 128]` | `[11059200, 5120, 128, 1]` | ✓ | Likely materialized by `rms_norm` (watch for `contiguous`/`clone` stacks) |
 | `k` | on | `[1, 2160, 40, 128]` | `[11059200, 5120, 128, 1]` | ✓ | Likely materialized by `rms_norm` |
 | `v` | on | `[1, 2160, 40, 128]` | `[33177600, 15360, 128, 1]` | ✗ | Strided view from `to_qkv(...).chunk(...)` (increases cache-write copy cost) |
+
+### Evidence: copy/pack overhead survives `--compile`
+
+In a compile+stack op profile filtered to `CausalWanSelfAttention`, we still see meaningful copy time:
+- `outputs/b300_cu130_ops_profile_selfattn_compile_fa4_stack_2025-12-27_kickoff.md`
+  - `aten::copy_`: `~5.310ms` (stack-filtered device time, 320 calls)
+  - `direct_copy_kernel_cuda`: `~4.426ms` (stack-filtered device time, 160 calls)
+
+This reinforces that the Level 6 target should be **layout/copy deletion** (pack/KV-write) rather than “more math fusion” first.
 
 ---
 

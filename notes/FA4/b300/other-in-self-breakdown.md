@@ -69,6 +69,15 @@ scripts/profile_b300_denoise_drilldown.sh
 **Previous snapshot (same config, earlier run):**
 - `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_perf.log`
 
+**Kickoff refresh (same config; 2025-12-27):**
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_kickoff_perf.log`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_kickoff_perf.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_kickoff_blocks_profile.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_kickoff_denoise_steps.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_kickoff_generator_steps.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_kickoff_vae_decode.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_kickoff_vae_decode_inner.json`
+
 **Observed `PROFILE_ATTENTION` report (latest, from `*_resume_perf.log`, profiled iterations only):**
 
 | Component | Total (ms) | Calls | ms/call | Notes |
@@ -89,6 +98,24 @@ scripts/profile_b300_denoise_drilldown.sh
 **Remainder estimate (why Level 5 exists):**
 - `other_in_self` includes `qkv_projection` + `rope_apply` + `cache_update` + `output_projection`, **plus** additional overhead not explicitly labeled.
 - Remainder ≈ `446.7ms - (165.3 + 53.5 + 28.5 + 65.3)ms = 134.1ms` (≈**30%** of `other_in_self`) → this is the “what is it?” bucket we need stack attribution for.
+
+**Observed `PROFILE_ATTENTION` report (kickoff refresh; from `*_kickoff_perf.log`, profiled iterations only):**
+
+| Component | Total (ms) | Calls | ms/call | Notes |
+|-----------|-----------:|------:|--------:|------|
+| `self_attn` | 665.3 | 600 | 1.11 | Includes KV-bias + all glue |
+| `self_attn_kv_bias_fa4` | 194.3 | 480 | 0.40 | KV-bias portion only |
+| `self_attn_block_mask` | 33.2 | 120 | 0.28 | Recompute / block-mask path |
+| `qkv_projection` | 165.4 | 600 | 0.28 | cuBLAS GEMM(s) + norms |
+| `rope_apply` | 50.8 | 480 | 0.11 | Triton fused RoPE enabled |
+| `cache_update` | 27.5 | 480 | 0.06 | KV-cache writes / indices |
+| `output_projection` | 63.9 | 600 | 0.11 | cuBLAS GEMM |
+
+**Derived (nested) breakdown (kickoff refresh):**
+- `other_in_self` = **437.8ms** (**65.8%** of `self_attn`)
+- `kv_bias_total` = **194.3ms** (**29.2%** of `self_attn`)
+- `block_mask` = **33.2ms** (**5.0%** of `self_attn`)
+- Unlabeled remainder inside `other_in_self` ≈ `437.8 - (165.4 + 50.8 + 27.5 + 63.9) = 130.2ms` (≈**29.7%** of `other_in_self`)
 
 ### Step 1: Stack-attributed op profiling (to find the real copy sources)
 
