@@ -30,7 +30,7 @@ We should not estimate “ms/frame” by inventing call counts. Instead:
 
 ### Example budget (latest drilldown run)
 
-From `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_perf.log` (no compile; `iters=4`, `skip=1`):
+From `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_resume_perf.log` (no compile; `iters=4`, `skip=1`):
 - Profiled iters: 3 (`iter=001..003`)
 - Frames per iter: 12
 - **Frames profiled:** 36
@@ -42,10 +42,15 @@ From `notes/FA4/b300/other-in-self-breakdown.md` (same run), call counts:
 
 Per-frame contributions in that run:
 - `rope_apply`: 0.11ms/call × 13.33 ≈ **~1.5ms/frame**
-- `cache_update`: 0.11ms/call × 13.33 ≈ **~1.5ms/frame**
+- `cache_update`: 0.06ms/call × 13.33 ≈ **~0.8ms/frame**
 - “unlabeled remainder” inside `other_in_self` (see breakdown doc): **~4–5ms/frame** (needs stack attribution to name)
 
 **Interpretation:** Level 6 is only worth it if we can delete **real, repeated overhead** (layout/packing/kv-write) that survives `--compile` and is not already dwarfed by GEMMs / FA4.
+
+**Extra signal (compile+stack):** `outputs/b300_cu130_ops_profile_selfattn_compile_fa4_stack_2025-12-27_resume.md` shows non-trivial
+`aten::copy_` + `direct_copy_kernel_cuda` time inside `CausalWanSelfAttention` stacks, pointing at the RoPE call sites. This strongly suggests a
+“RoPE on padded tensors” tax (e.g. tail-preservation copies). If that’s correct, the first “Option A” prototype should prioritize **prefix-only**
+RoPE/pack (write only active tokens) rather than fusing more compute.
 
 ---
 
@@ -66,7 +71,7 @@ Per-frame contributions in that run:
 
 **Difficulty:** Medium
 **Expected savings:** Express as **% of (RoPE + cache_update)**, not fixed ms:
-- If a fused kernel removes ~25–50% of `rope_apply + cache_update` (≈3ms/frame in the example run), that’s **~0.8–1.5ms/frame**.
+- If a fused kernel removes ~25–50% of `rope_apply + cache_update` (≈2.3ms/frame in the example run), that’s **~0.6–1.2ms/frame**.
 **Learning value:** High (TMA write patterns, fusion boundary design)
 
 ---
@@ -133,6 +138,11 @@ Per-frame contributions in that run:
 3. TMA write patterns are typically simpler than TMA reads
 4. It’s a good learning kernel even if the end-to-end win is modest
 5. Can prototype in Triton first, then go CuTe/CUTLASS if warranted
+
+**Concrete “first cut” inside Option A (based on compile+stack):**
+- Prioritize deleting RoPE-related copy kernels (e.g. `aten::copy_` / `direct_copy_kernel_cuda`) that appear at the RoPE call sites under
+  `CausalWanSelfAttention`. Treat this as a **prefix-only RoPE/pack** problem first, not a “fuse more math” problem.
+- Keep `SCOPE_ROPE_K_TO_CACHE=1` as an optional follow-up; the quick A/B so far suggests it’s not the dominant lever by itself.
 
 ---
 

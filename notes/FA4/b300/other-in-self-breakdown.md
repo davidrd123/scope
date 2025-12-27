@@ -58,34 +58,37 @@ scripts/profile_b300_denoise_drilldown.sh
 ```
 
 **Artifacts (latest):**
-- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_perf.log`
-- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_perf.json`
-- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_blocks_profile.json`
-- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_denoise_steps.json`
-- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_generator_steps.json`
-- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_vae_decode.json`
-- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_vae_decode_inner.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_resume_perf.log`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_resume_perf.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_resume_blocks_profile.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_resume_denoise_steps.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_resume_generator_steps.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_resume_vae_decode.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_resume_vae_decode_inner.json`
 
-**Observed `PROFILE_ATTENTION` report (latest, from `*_clean_perf.log`, profiled iterations only):**
+**Previous snapshot (same config, earlier run):**
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_perf.log`
+
+**Observed `PROFILE_ATTENTION` report (latest, from `*_resume_perf.log`, profiled iterations only):**
 
 | Component | Total (ms) | Calls | ms/call | Notes |
 |-----------|-----------:|------:|--------:|------|
-| `self_attn` | 734.4 | 600 | 1.22 | Includes KV-bias + all glue |
-| `self_attn_kv_bias_fa4` | 199.7 | 480 | 0.42 | KV-bias portion only |
-| `self_attn_block_mask` | 34.1 | 120 | 0.28 | Recompute / block-mask path |
-| `qkv_projection` | 162.1 | 600 | 0.27 | cuBLAS GEMM(s) + norms |
-| `rope_apply` | 53.6 | 480 | 0.11 | Triton fused RoPE enabled |
-| `cache_update` | 54.1 | 480 | 0.11 | KV-cache writes / indices |
-| `output_projection` | 65.8 | 600 | 0.11 | cuBLAS GEMM |
+| `self_attn` | 675.0 | 600 | 1.13 | Includes KV-bias + all glue |
+| `self_attn_kv_bias_fa4` | 195.6 | 480 | 0.41 | KV-bias portion only |
+| `self_attn_block_mask` | 32.8 | 120 | 0.27 | Recompute / block-mask path |
+| `qkv_projection` | 165.3 | 600 | 0.28 | cuBLAS GEMM(s) + norms |
+| `rope_apply` | 53.5 | 480 | 0.11 | Triton fused RoPE enabled |
+| `cache_update` | 28.5 | 480 | 0.06 | KV-cache writes / indices |
+| `output_projection` | 65.3 | 600 | 0.11 | cuBLAS GEMM |
 
 **Derived (nested) breakdown (latest):**
-- `other_in_self` = **500.6ms** (**68.2%** of `self_attn`)
-- `kv_bias_total` = **199.7ms** (**27.2%** of `self_attn`)
-- `block_mask` = **34.1ms** (**4.6%** of `self_attn`)
+- `other_in_self` = **446.7ms** (**66.2%** of `self_attn`)
+- `kv_bias_total` = **195.6ms** (**29.0%** of `self_attn`)
+- `block_mask` = **32.8ms** (**4.9%** of `self_attn`)
 
 **Remainder estimate (why Level 5 exists):**
 - `other_in_self` includes `qkv_projection` + `rope_apply` + `cache_update` + `output_projection`, **plus** additional overhead not explicitly labeled.
-- Remainder ≈ `500.6ms - (162.1 + 53.6 + 54.1 + 65.8)ms = 165.0ms` (≈**33%** of `other_in_self`) → this is the “what is it?” bucket we need stack attribution for.
+- Remainder ≈ `446.7ms - (165.3 + 53.5 + 28.5 + 65.3)ms = 134.1ms` (≈**30%** of `other_in_self`) → this is the “what is it?” bucket we need stack attribution for.
 
 ### Step 1: Stack-attributed op profiling (to find the real copy sources)
 
@@ -129,24 +132,35 @@ Quick read:
 - FA4 attention appears as `kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100...`.
 - `aten::copy_`/`aten::fill_` are present; the largest `aten::copy_` stack groups in this snapshot point at VAE Conv3d decode, while attention-related copies exist but are smaller and require stack filtering.
 
-**Self-attn–scoped stack filter (current best env, compile on; CausalWanSelfAttention-only):**
-- `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.md`
-- `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.json`
-- `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.log`
+**Self-attn–scoped stack filter (latest, compile on; CausalWanSelfAttention-only):**
+- `outputs/b300_cu130_ops_profile_selfattn_compile_fa4_stack_2025-12-27_resume.md`
+- `outputs/b300_cu130_ops_profile_selfattn_compile_fa4_stack_2025-12-27_resume.json`
 
 Key findings (filtered to `CausalWanSelfAttention` stacks):
 
 | Op key | device_ms (total) | calls | Notes |
 |--------|------------------:|------:|------|
-| `aten::copy_` | 5.606 | 480 | Stacks point at RoPE call sites in `causal_model.py:1190–1196` (`... .type_as(v)`) |
+| `aten::copy_` | 5.305 | 328 | Stacks point at RoPE call sites in `causal_model.py:1190–1196` (likely tail-preservation copy in `rope_fused_3way`, not a dtype cast) |
 | `aten::contiguous` | (no events) | 0 | Good: no obvious layout fixups attributed here in this config |
 | `aten::clone` | (no events) | 0 | |
 | `aten::_to_copy` | (no events) | 0 | |
-| `aten::fill_` | 0.291 | 160 | Small counters/indices |
+| `aten::to` | (no events) | 0 | |
+| `aten::fill_` | ~0.000 | 8 | Small counters/indices (near-zero on GPU) |
 
 Notable from the **stack-filtered top-op table** in the same artifact:
-- `aten::item` + `Memcpy DtoH`: **2.237ms**, **1280 calls** (implicit device→host scalar reads inside self-attn stacks; fixed below)
-- The bulk of time is still in GEMMs (`aten::addmm` / NVJET kernels) and the FA4/CuTe forward kernel.
+- The bulk of time is still in GEMMs (NVJET / `aten::mm` / `aten::addmm`) and the FA4/CuTe forward kernel.
+- Non-trivial “glue” survives compile inside self-attn stacks:
+  - `aten::copy_`: **5.305ms** total
+  - `direct_copy_kernel_cuda` (elementwise copy): **4.421ms** total
+  - `Memcpy DtoD`: **0.884ms** total
+
+**Quick A/B (sanity check):** enabling the existing K-side fused path (`SCOPE_ROPE_K_TO_CACHE=1`) was a very small/noisy win in a short run
+(`iters=6,skip=2`: `~33.41 → ~33.55 FPS`), suggesting K-side cache-write fusion is **not** the dominant remaining overhead.
+
+**Previous snapshot (triton351 env):**
+- `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.md`
+- `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.json`
+- `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.log`
 
 #### Scalar sync cleanup (fixed)
 
