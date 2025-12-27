@@ -13,6 +13,7 @@ This document is the **“why”** for how we operate.
 - For **current truth / commands / caveats**, start at [`README.md`](README.md) → [`session-state.md`](session-state.md).
 - For **how to measure**, see [`investigation-runbook.md`](investigation-runbook.md).
 - For **one-change experiment cards**, write in [`experiments.md`](experiments.md).
+- For the **“what we learned” distillation**, see [`lessons.md`](lessons.md).
 - For any **kernel work**, use [`kernel-experiment-template.md`](kernel-experiment-template.md) as the gate (perf + quality).
 
 ## The Core Thesis
