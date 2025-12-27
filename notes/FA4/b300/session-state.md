@@ -1,4 +1,4 @@
-# B300 Session State - 2025-12-26 (Updated)
+# B300 Session State - 2025-12-27 (Updated)
 
 ## Navigation
 
@@ -12,7 +12,7 @@
 
 ## Quality Gate (Read This First)
 
-**We prioritize output quality over speed.** As of 2025-12-26 on B300/SM103, **FP8 quantization is off-limits** for “real” runs because it produces **garbage output** (gray/noise).  
+**We prioritize output quality over speed.** As of 2025-12-27 on B300/SM103, **FP8 quantization is off-limits** for “real” runs because it produces **garbage output** (gray/noise).  
 Use `--quantization none` (BF16) for the best-known quality. FP8 measurements are kept only as *perf-only* debugging breadcrumbs for upstream work.
 
 ## Upstream refs (source-backed quick links)
@@ -45,7 +45,7 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
 - **Triton/Inductor SM103 tcgen05 LLVM abort (“tcgen05.wait.st”)**
   - This can hard-abort the process during compilation on B300/SM103 for some Triton/TensorCore codegen paths.
   - Upstream: `triton-lang/triton#8473` / `triton-lang/triton#8481` (see [`triton-sm103-tcgen05-llvm-abort.md`](../../issues/triton-sm103-tcgen05-llvm-abort.md)).
-  - **Version note:** our cu130 env currently has `triton==3.5.0`; Triton **v3.5.1** includes the SM103 fix (release notes: https://github.com/triton-lang/triton/releases/tag/v3.5.1). Treat “upgrade Triton” as a first-class experiment before spending more time on SM103 compile hazards.
+  - **Version note:** our cu130 env currently has `triton==3.5.1` (includes the SM103 fix; release notes: https://github.com/triton-lang/triton/releases/tag/v3.5.1).
 
 ## Current Status
 
@@ -54,10 +54,9 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
 ### Production-viable (quality-preserving; BF16 / `--quantization none`)
 
 Benchmark harness (`scripts/profile_krea_pipeline_blocks.py`, cu130 env, bias=0.3):
-- `SCOPE_KV_BIAS_BACKEND=fa4`: **~19.7 FPS**
-- `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile`: **~22.8 FPS**
-- `SCOPE_KV_BIAS_BACKEND=flash`: **~17.2 FPS**
-- `SCOPE_KV_BIAS_BACKEND=flash` + `--compile`: **~21.4 FPS**
+- **Best-known (today):** `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile` + `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1`: **~29.36 FPS** (`outputs/b300_cu130_triton351_compile_default_blocks_perf_ensurecontig.log`)
+- Same settings but without the VAE resample contiguity fix (`WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=0`): **~21.45 FPS** (`outputs/b300_cu130_triton351_compile_default_blocks_perf.log`)
+- Historical (needs re-measure post VAE fix): `SCOPE_KV_BIAS_BACKEND=fa4`: **~19.7 FPS**
 
 Daydream end-to-end (cu130 env): **TBD re-measure** (historical note: pre patch-embed fastpath it was ~`14.8–15.0 FPS`; do not rely on that number now).
 
@@ -69,7 +68,7 @@ Daydream end-to-end (cu130 env): **TBD re-measure** (historical note: pre patch-
 
 `torchao` note: repo pins `torchao==0.13.0` (torch 2.8 ABI). For torch `2.9.0+cu130`, `scripts/b300_env_fix_cu130.sh` now tries `torchao==0.15.0+cu130` from the cu130 index (then PyPI as fallback). **As of 2025-12-26**, `torchao==0.15.0+cu130` still prints `Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 ...` (likely upstream; no FPS change observed).
 
-This is roughly a **2.6× throughput improvement** over the repo-default baseline (~8.8 → ~22.8 FPS in the benchmark harness).
+This is roughly a **3.3× throughput improvement** over the repo-default baseline (~8.8 → ~29.4 FPS in the benchmark harness).
 
 External doc brief (for RepoPrompt / web research): [`blackwell-docs.md`](blackwell-docs.md)
 
@@ -90,12 +89,15 @@ SCOPE_KV_BIAS_BACKEND=fa4 \
 TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
 DISABLE_FLEX_ATTENTION_COMPILE=1 \
 WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
 .venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
   --height 320 --width 576 \
   --iters 6 --skip 2 \
   --quantization none \
   --kv-cache-attention-bias 0.3 \
-  --cudnn-benchmark
+  --cudnn-benchmark \
+  --compile
 ```
 
 Or for a one-shot denoise/decode drill-down (writes JSON artifacts under `outputs/`):
@@ -178,7 +180,7 @@ KV-bias backend A/B (B300, cu130, `320x576`, `kv_cache_attention_bias=0.3`, quan
 
 ### Quantization Note (B300)
 
-> **⚠️ WARNING (2025-12-26): FP8 produces garbage output on B300.**
+> **⚠️ WARNING (2025-12-27): FP8 produces garbage output on B300.**
 >
 > While benchmark scripts report FPS numbers, the actual server output with FP8 quantization is **gray distorted noise** — not usable video. This affects both `--compile-fp8` and FP8-only (no compile) modes.
 >
@@ -196,7 +198,7 @@ The FPS numbers below are from benchmark scripts and **do not reflect usable out
   - `--quantization none` (bf16 weights): **~19.7 FPS** (works)
 - With compile:
   - `--compile --quantization fp8_e4m3fn`: **~25.1 FPS** (garbage output; requires PerTensor-only TorchAO `as_strided` monkeypatch)
-  - `--compile --quantization none`: **~22.8 FPS** (works)
+  - `--compile --quantization none`: **~29.36 FPS** (works; requires `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1` for the current best number)
 
 Interpretation: FP8 is currently broken on B300/torch 2.9+cu130 due to TorchAO cpp extension incompatibility. Use BF16 (`--quantization none`) for working output.
 
@@ -227,10 +229,12 @@ Takeaway: the `SCOPE_KV_BIAS_BACKEND=fa4` safety disable can cost ~1 FPS **when 
 
 ### torch.compile Status (B300)
 
-As of 2025-12-26:
+As of 2025-12-27:
 
 - **Quantization none:** `scripts/profile_krea_pipeline_blocks.py --compile` now works on B300 and improves throughput.
-  - Example (B300, cu130 env, `320x576`, bias `0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`): **~19.7 FPS → ~22.8 FPS**
+  - Example (B300, cu130 env, `320x576`, bias `0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`):
+    - `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=0`: **~21.45 FPS** (`outputs/b300_cu130_triton351_compile_default_blocks_perf.log`)
+    - `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1`: **~29.36 FPS** (`outputs/b300_cu130_triton351_compile_default_blocks_perf_ensurecontig.log`)
   - Tradeoff: longer warmup due to compilation (expect ~10–30s depending on cache state).
 - **FP8 (torchao):** ⚠️ **BROKEN on B300** — produces garbage output (gray noise). The `as_strided` monkeypatch is applied but TorchAO cpp extensions are skipped due to torch 2.9+cu130 incompatibility, causing FP8 kernels to malfunction. Use `--quantization none` (BF16) instead. Patch code: `src/scope/core/compat/torchao_float8_as_strided.py` (upstream issue: [`torchao-as-strided-dispatch.md`](../../issues/torchao-as-strided-dispatch.md)).
 
@@ -374,6 +378,14 @@ This avoids one explicit K copy by writing the RoPE’d K directly into the KV c
 This uses `torch.channels_last_3d` for the Conv3d-heavy VAE decode activations (small but measurable win on B300).
 
 - Set `WANVAE_DECODE_CHANNELS_LAST_3D=1` (default in `scripts/run_daydream_b300.sh`)
+
+6) **VAE decode: keep `Resample` outputs contiguous (big win)**
+
+In streaming decode, the `Resample(upsample3d)` cached branch can emit a non-contiguous 5D tensor that forces many Conv3d ops onto
+`aten::slow_conv_dilated3d` (vol2col). Enabling this knob re-contiguates the 5D activation (channels-last-3d when enabled), restoring cuDNN/CUTLASS conv3d.
+
+- Set `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1` (default in `scripts/run_daydream_b300.sh`)
+- Measured (B300, cu130, `320x576`, bias `0.3`, quantization `none`, `--compile`, FA4): ~`21.45 → 29.36 FPS` and decode `~195ms → ~60ms` (see `experiments.md`)
 
 ## Key Discovery This Session
 

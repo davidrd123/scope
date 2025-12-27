@@ -33,6 +33,8 @@ _WANVAE_UPSAMPLE_FORCE_FP32 = os.getenv("WANVAE_UPSAMPLE_FORCE_FP32", "0") == "1
 _WANVAE_CONV3D_IMPLICIT_SPATIAL_PADDING = (
     os.getenv("WANVAE_CONV3D_IMPLICIT_SPATIAL_PADDING", "1") == "1"
 )
+_WANVAE_DECODE_CHANNELS_LAST_3D = os.getenv("WANVAE_DECODE_CHANNELS_LAST_3D", "0") == "1"
+_WANVAE_RESAMPLE_ENSURE_CONTIGUOUS = os.getenv("WANVAE_RESAMPLE_ENSURE_CONTIGUOUS", "0") == "1"
 
 
 def _should_profile_wanvae_decode_inner() -> bool:
@@ -356,6 +358,13 @@ class Resample(nn.Module):
         x = rearrange(x, "b c t h w -> (b t) c h w")
         x = self.resample(x)
         x = rearrange(x, "(b t) c h w -> b c t h w", t=t)
+        if _WANVAE_RESAMPLE_ENSURE_CONTIGUOUS and x.is_cuda and x.ndim == 5:
+            if _WANVAE_DECODE_CHANNELS_LAST_3D:
+                if not x.is_contiguous(memory_format=torch.channels_last_3d):
+                    x = x.contiguous(memory_format=torch.channels_last_3d)
+            else:
+                if not x.is_contiguous():
+                    x = x.contiguous()
 
         if self.mode == "downsample3d":
             if feat_cache is not None:

@@ -1,8 +1,8 @@
 # VAE Decode Architecture Map
 
-> Status: Partial (cuDNN constraints documented, code audit pending)
+> Status: Updated (decode slow-path root-caused; major win gated behind a knob)
 > Priority: Medium — drives Conv3d→Conv2d hunt and cuDNN planning
-> Date: 2025-12-26
+> Date: 2025-12-27
 > Source: [`claude01.md`](../DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md)
 
 ## Purpose
@@ -43,6 +43,7 @@ Input: latent z [B, C_latent, T, H, W]
 Notes:
 - `WANVAE_STREAM_DECODE_MODE=chunk` is the preferred mode for performance.
 - `WanVAE_.stream_decode` has built-in inner profilers (`PROFILE_WANVAE_DECODE_INNER=1`) which can be used to fill the timing tables below.
+- **New (B300):** `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1` keeps 5D activations contiguous across `Resample` boundaries and prevents `Conv3d` from falling back to `aten::slow_conv_dilated3d` (vol2col).
 
 ---
 
@@ -55,6 +56,7 @@ Notes:
 - `Resample`
   - Spatial resample is done per-frame via `nn.Conv2d` after rearranging to `(B*T, C, H, W)`.
   - Temporal resample uses `time_conv = CausalConv3d(..., kernel_size=(3,1,1))` (time-kernel=3, spatial 1×1).
+  - **Important (streaming):** on `upsample3d`, the cached branch (`feat_cache[idx]` already set) can produce a **non-contiguous 5D tensor** with “odd” strides. That layout forces later `Conv3d` calls onto `aten::slow_conv_dilated3d` unless we re-contiguate.
 - `AttentionBlock` (inside encoder/decoder at some scales)
   - Per-frame attention: reshapes to `(B*T, C, H, W)`, computes QKV via `nn.Conv2d`, runs `F.scaled_dot_product_attention`.
 
@@ -213,13 +215,13 @@ From `profile_krea_pipeline_blocks.py`:
 | vae_decode | ? | ? |
 | vae_decode_inner | ? | ? |
 
-**New measurement (B300, cu130, `--compile`, 320x576, bias=0.3):**
-- Baseline decode: ~`199.9ms/call` (`outputs/b300_cu130_none_bias0.3_no_fuseproj_compile_blocks_profile.json`)
-- With `WANVAE_DECODE_CHANNELS_LAST_3D=1`: ~`195.1ms/call` (~`-2.4%`) (`outputs/b300_cu130_none_bias0.3_no_fuseproj_compile_blocks_cl3d_profile.json`)
+**Measurements (B300, cu130, `--compile`, 320x576, bias=0.3, quantization=none):**
+- Baseline: decode `~194.8ms/call` (`outputs/b300_cu130_triton351_compile_default_blocks_profile.json`), avg FPS `21.45` (`outputs/b300_cu130_triton351_compile_default_blocks_perf.log`)
+- With `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1`: decode `~60.4ms/call` (`outputs/b300_cu130_triton351_compile_default_blocks_profile_ensurecontig.json`), avg FPS `29.36` (`outputs/b300_cu130_triton351_compile_default_blocks_perf_ensurecontig.log`)
 
 ### Decode Op Timing
 
-From `profile_krea_pipeline_ops.py --with-stack`:
+From `scripts/profile_wanvae_decode_ops.py`:
 
 | Op | Time (ms) | Call Count | Top Stack |
 |----|-----------|------------|-----------|
@@ -229,15 +231,25 @@ From `profile_krea_pipeline_ops.py --with-stack`:
 | aten::upsample_* | ? | ? | ? |
 | aten::copy_ | ? | ? | ? |
 
+**Key observation (root cause):**
+- Baseline VAE decode is dominated by `aten::slow_conv_dilated3d` + `vol2col_kernel` (see `outputs/b300_cu130_triton351_wanvae_decode_ops_i10_stack.md`).
+- Enabling `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1` removes `slow_conv_dilated3d`/`vol2col` from the top ops and shifts work to cuDNN/CUTLASS conv kernels (see `outputs/b300_cu130_triton351_wanvae_decode_ops_i50_ensurecontig.md`).
+
+**Mechanism (why `slow_conv_dilated3d` happens):**
+- In `Resample.forward` (mode `upsample3d`), once streaming caches are “live” (`feat_cache[idx]` already populated), the temporal upsample path produces a **non-contiguous** 5D tensor (example from a small repro):
+  - shape `(1, 192, 6, 20, 36)`, stride `(829440, 720, 138240, 36, 1)` → not contiguous (and not `channels_last_3d`)
+- Forcing `x = x.contiguous(memory_format=torch.channels_last_3d)` after `Resample` restores an NDHWC-like layout and lets PyTorch route Conv3d through cuDNN/CUTLASS instead of vol2col.
+
 ---
 
 ## Action Items
 
-1. [ ] **Code audit:** Walk through VAE decoder, document each layer
-2. [ ] **Profile:** Run ops profiler focused on decode
-3. [ ] **Identify Conv2d candidates:** grep for `kernel_size=(1,` or `kernel_size=[1,`
-4. [ ] **Test Conv2d rewrite:** One layer, measure impact
-5. [ ] **cuDNN graph experiment:** Try planning smallest fusion
+1. [x] **Profile decode ops:** identify dominant kernels (`slow_conv_dilated3d` + `vol2col`)
+2. [x] **Root-cause layout:** streaming `Resample(upsample3d)` can emit non-contiguous 5D activations
+3. [x] **Unblock cuDNN path:** add `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1` (gated) to re-contiguate
+4. [ ] **Decide default:** if stable, make the knob default-on for B300 (run script + docs)
+5. [ ] **Code audit:** document each decoder stage (map which blocks are conv3d-heavy at each resolution)
+6. [ ] **Next levers:** Conv3d→Conv2d candidates (`kernel_size[0]==1`), conv+act fusion, cuDNN frontend planning
 
 ---
 

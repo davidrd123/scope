@@ -1,0 +1,1474 @@
+{
+  "events": [
+    {
+      "count": 310,
+      "cpu_time_total_us": 5151.699999999185,
+      "device_time_total_us": 35529.95100000033,
+      "key": "aten::div",
+      "self_device_time_total_us": 35469.471000000354
+    },
+    {
+      "count": 4,
+      "cpu_time_total_us": 3468.8299999999654,
+      "device_time_total_us": 6135.940999999959,
+      "key": "Activity Buffer Request",
+      "self_device_time_total_us": 6135.940999999959
+    },
+    {
+      "count": 35308,
+      "cpu_time_total_us": 896419.3570000024,
+      "device_time_total_us": 75500.35499999914,
+      "key": "cudaLaunchKernel",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 210,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 35469.471000000354,
+      "key": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::DivFunctor<c10::BFloat16> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::DivFunctor<c10::BFloat16> > const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::DivFunctor<c10::BFloat16> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::DivFunctor<c10::BFloat16> > const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 35469.471000000354
+    },
+    {
+      "count": 460,
+      "cpu_time_total_us": 13252.251999999738,
+      "device_time_total_us": 18810.92700000031,
+      "key": "aten::add",
+      "self_device_time_total_us": 18312.814999999908
+    },
+    {
+      "count": 152,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 11827.365999999503,
+      "key": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<c10::BFloat16> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<c10::BFloat16> const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<c10::BFloat16> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<c10::BFloat16> const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 11827.365999999503
+    },
+    {
+      "count": 340,
+      "cpu_time_total_us": 1656819.8190000022,
+      "device_time_total_us": 986216.213999995,
+      "key": "aten::conv3d",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 390,
+      "cpu_time_total_us": 1662986.849000001,
+      "device_time_total_us": 1045847.689999994,
+      "key": "aten::convolution",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 390,
+      "cpu_time_total_us": 1662514.4129999997,
+      "device_time_total_us": 1045847.689999994,
+      "key": "aten::_convolution",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 190,
+      "cpu_time_total_us": 8703.773999998575,
+      "device_time_total_us": 55749.39099999937,
+      "key": "aten::cudnn_convolution",
+      "self_device_time_total_us": 19795.179000000197
+    },
+    {
+      "count": 348,
+      "cpu_time_total_us": 7094.576999999888,
+      "device_time_total_us": 44248.13300000012,
+      "key": "cuLaunchKernelEx",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 7,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 27.903999999938378,
+      "key": "cutlass3x_sm100_tensorop_s256x64x16implicit_gemm_fprop_bf16_bf16_f32_void_bf16_f32_256x64x64_dyn_cga_ndhwc_ndhwc_ndhwc_align8_2sm_relu_valpha",
+      "self_device_time_total_us": 27.903999999938378
+    },
+    {
+      "count": 190,
+      "cpu_time_total_us": 33339.59899999981,
+      "device_time_total_us": 9614.277999999602,
+      "key": "aten::add_",
+      "self_device_time_total_us": 6466.595999999659
+    },
+    {
+      "count": 480,
+      "cpu_time_total_us": 5054.021000000687,
+      "device_time_total_us": 8817.28699999843,
+      "key": "aten::clone",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 48510,
+      "cpu_time_total_us": 1354955.121999999,
+      "device_time_total_us": 79727.31699999193,
+      "key": "aten::copy_",
+      "self_device_time_total_us": 77451.1189999935
+    },
+    {
+      "count": 272,
+      "cpu_time_total_us": 2659.945000000487,
+      "device_time_total_us": 80.45000000059372,
+      "key": "cudaMemcpyAsync",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 272,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 867.5869999995653,
+      "key": "Memcpy DtoD (Device -> Device)",
+      "self_device_time_total_us": 867.5869999995653
+    },
+    {
+      "count": 340,
+      "cpu_time_total_us": 7918.579000000927,
+      "device_time_total_us": 39516.73400000065,
+      "key": "aten::cat",
+      "self_device_time_total_us": 39450.748000000036
+    },
+    {
+      "count": 160,
+      "cpu_time_total_us": 1634.8609999993519,
+      "device_time_total_us": 3411.809999999597,
+      "key": "aten::contiguous",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 33428,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 116034.27999999397,
+      "key": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 116034.27999999397
+    },
+    {
+      "count": 77,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 3493.663000000161,
+      "key": "cutlass3x_sm100_tensorop_s128x128x16implicit_gemm_fprop_bf16_bf16_f32_void_bf16_f32_128x128x64_dyn_cga_ndhwc_ndhwc_ndhwc_align8_2sm_relu_valpha",
+      "self_device_time_total_us": 3493.663000000161
+    },
+    {
+      "count": 300,
+      "cpu_time_total_us": 3247.1749999998738,
+      "device_time_total_us": 7231.847000000959,
+      "key": "aten::linalg_vector_norm",
+      "self_device_time_total_us": 7094.311000000588
+    },
+    {
+      "count": 77,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 335.3920000003882,
+      "key": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<c10::BFloat16, at::native::NormTwoOps<c10::BFloat16, float, c10::BFloat16>, unsigned int, c10::BFloat16, 4, 4> >(at::native::ReduceOp<c10::BFloat16, at::native::NormTwoOps<c10::BFloat16, float, c10::BFloat16>, unsigned int, c10::BFloat16, 4, 4>)",
+      "self_device_time_total_us": 335.3920000003882
+    },
+    {
+      "count": 300,
+      "cpu_time_total_us": 8057.61800000083,
+      "device_time_total_us": 491.9420000006046,
+      "key": "aten::clamp_min",
+      "self_device_time_total_us": 461.70200000057025
+    },
+    {
+      "count": 203,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 461.70200000057025,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#9}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#9}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 461.70200000057025
+    },
+    {
+      "count": 600,
+      "cpu_time_total_us": 6079.932999999923,
+      "device_time_total_us": 42513.757000000085,
+      "key": "aten::mul",
+      "self_device_time_total_us": 42443.80499999998
+    },
+    {
+      "count": 203,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 8951.84800000026,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::AUnaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul> >(int, at::native::AUnaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 8951.84800000026
+    },
+    {
+      "count": 203,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 33491.95699999972,
+      "key": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 33491.95699999972
+    },
+    {
+      "count": 203,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 8950.699000000239,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<c10::BFloat16>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<c10::BFloat16>, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 8950.699000000239
+    },
+    {
+      "count": 290,
+      "cpu_time_total_us": 2317.989000000455,
+      "device_time_total_us": 12281.829999999209,
+      "key": "aten::silu",
+      "self_device_time_total_us": 12254.566999999406
+    },
+    {
+      "count": 196,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 12254.566999999406,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::silu_kernel(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#6}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::silu_kernel(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#6}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 12254.566999999406
+    },
+    {
+      "count": 88,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 4001.3459999998236,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul>)",
+      "self_device_time_total_us": 4001.3459999998236
+    },
+    {
+      "count": 50,
+      "cpu_time_total_us": 6592.862999999753,
+      "device_time_total_us": 59631.475999999006,
+      "key": "aten::conv2d",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 14,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 99.00600000001305,
+      "key": "nvjet_tst_192x128_64x6_2x1_2cta_v_bz_TNT",
+      "self_device_time_total_us": 99.00600000001305
+    },
+    {
+      "count": 10,
+      "cpu_time_total_us": 416.7859999999173,
+      "device_time_total_us": 1923.1699999999923,
+      "key": "aten::scaled_dot_product_attention",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 10,
+      "cpu_time_total_us": 348.3580000001007,
+      "device_time_total_us": 1923.1699999999923,
+      "key": "aten::_scaled_dot_product_efficient_attention",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 10,
+      "cpu_time_total_us": 250.62000000033913,
+      "device_time_total_us": 1923.1699999999923,
+      "key": "aten::_efficient_attention_forward",
+      "self_device_time_total_us": 1923.1699999999923
+    },
+    {
+      "count": 7,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 1923.1699999999923,
+      "key": "fmha_cutlassF_bf16_aligned_32x128_gmem_sm80(PyTorchMemEffAttention::AttentionKernel<cutlass::bfloat16_t, cutlass::arch::Sm80, true, 32, 128, 65536, true, true>::Params)",
+      "self_device_time_total_us": 1923.1699999999923
+    },
+    {
+      "count": 13,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 3592.09900000003,
+      "key": "cutlass3x_sm100_tensorop_s256x128x16implicit_gemm_fprop_bf16_bf16_f32_void_bf16_f32_256x128x64_dyn_cga_ndhwc_ndhwc_ndhwc_align8_2sm_relu_valpha",
+      "self_device_time_total_us": 3592.09900000003
+    },
+    {
+      "count": 20,
+      "cpu_time_total_us": 431.9640000003178,
+      "device_time_total_us": 1040.8969999997748,
+      "key": "aten::stack",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 30,
+      "cpu_time_total_us": 2411.9330000001546,
+      "device_time_total_us": 22232.687999999995,
+      "key": "aten::_upsample_nearest_exact2d",
+      "self_device_time_total_us": 12356.07200000001
+    },
+    {
+      "count": 20,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 12356.07200000001,
+      "key": "void at::native::(anonymous namespace)::upsample_nearest2d_out_frame<c10::BFloat16, &at::native::nearest_neighbor_exact_compute_source_index>(c10::BFloat16 const*, c10::BFloat16*, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, float, float)",
+      "self_device_time_total_us": 12356.07200000001
+    },
+    {
+      "count": 40,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 6019.68400000037,
+      "key": "void cudnn::engines_precompiled::nchwToNhwcKernel<__nv_bfloat16, __nv_bfloat16, float, false, true, (cudnnKernelDataType_t)0>(cudnn::engines_precompiled::nchw2nhwc_params_t<float>, __nv_bfloat16 const*, __nv_bfloat16*)",
+      "self_device_time_total_us": 6019.68400000037
+    },
+    {
+      "count": 14,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 3853.9229999999807,
+      "key": "cutlass3x_sm100_tensorop_s256x256x16implicit_gemm_fprop_bf16_bf16_f32_void_bf16_f32_256x256x64_dyn_cga_ndhwc_ndhwc_ndhwc_align8_2sm_relu_valpha",
+      "self_device_time_total_us": 3853.9229999999807
+    },
+    {
+      "count": 20,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 2601.090999999551,
+      "key": "void cudnn::engines_precompiled::nhwcToNchwKernel<__nv_bfloat16, __nv_bfloat16, float, true, false, (cudnnKernelDataType_t)0>(cudnn::engines_precompiled::nhwc2nchw_params_t<float>, __nv_bfloat16 const*, __nv_bfloat16*)",
+      "self_device_time_total_us": 2601.090999999551
+    },
+    {
+      "count": 7,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 107.80900000015117,
+      "key": "nvjet_tst_320x192_64x4_2x1_2cta_v_bz_NNT",
+      "self_device_time_total_us": 107.80900000015117
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 1618724.388,
+      "device_time_total_us": 980306.3259999949,
+      "key": "aten::slow_conv_dilated3d",
+      "self_device_time_total_us": 832341.579000001
+    },
+    {
+      "count": 48030,
+      "cpu_time_total_us": 1405751.4620000098,
+      "device_time_total_us": 70910.02999999351,
+      "key": "aten::fill_",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 126,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 6758.9190000002,
+      "key": "void at::native::reduce_kernel<128, 4, at::native::ReduceOp<c10::BFloat16, at::native::NormTwoOps<c10::BFloat16, float, c10::BFloat16>, unsigned int, c10::BFloat16, 4, 4> >(at::native::ReduceOp<c10::BFloat16, at::native::NormTwoOps<c10::BFloat16, float, c10::BFloat16>, unsigned int, c10::BFloat16, 4, 4>)",
+      "self_device_time_total_us": 6758.9190000002
+    },
+    {
+      "count": 132,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 682135.9969999996,
+      "key": "void at::native::vol2col_kernel<c10::BFloat16>(long, c10::BFloat16 const*, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, c10::BFloat16*)",
+      "self_device_time_total_us": 682135.9969999996
+    },
+    {
+      "count": 42,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 12116.427000000569,
+      "key": "nvjet_tst_320x192_64x4_2x1_2cta_v_badd_NNT",
+      "self_device_time_total_us": 12116.427000000569
+    },
+    {
+      "count": 7,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 543.8720000002904,
+      "key": "nvjet_tst_128x256_64x6_2x1_2cta_v_badd_NNT",
+      "self_device_time_total_us": 543.8720000002904
+    },
+    {
+      "count": 41,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 44824.41900000002,
+      "key": "nvjet_tst_128x192_64x5_4x1_v_badd_NNT",
+      "self_device_time_total_us": 44824.41900000002
+    },
+    {
+      "count": 1171,
+      "cpu_time_total_us": 822033.8529999997,
+      "device_time_total_us": 119828.93799999985,
+      "key": "Command Buffer Full",
+      "self_device_time_total_us": 119828.93799999985
+    },
+    {
+      "count": 72,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 74785.1700000004,
+      "key": "nvjet_tst_256x96_64x5_2x1_2cta_v_badd_NNT",
+      "self_device_time_total_us": 74785.1700000004
+    },
+    {
+      "count": 36,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 5128.93299999999,
+      "key": "nvjet_tst_128x96_64x7_4x1_v_badd_NNT",
+      "self_device_time_total_us": 5128.93299999999
+    },
+    {
+      "count": 12,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 12124.839999999967,
+      "key": "nvjet_tst_512x8_64x3_2x1_v_badd_NNT",
+      "self_device_time_total_us": 12124.839999999967
+    },
+    {
+      "count": 6,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 681.9210000001185,
+      "key": "nvjet_tst_64x8_64x16_2x1_v_badd_NNT",
+      "self_device_time_total_us": 681.9210000001185
+    }
+  ],
+  "meta": {
+    "cudnn_benchmark": true,
+    "device_cc": [
+      10,
+      3
+    ],
+    "device_name": "NVIDIA B300 SXM6 AC",
+    "dtype": "bf16",
+    "height": 320,
+    "iters": 10,
+    "pre_iters": 10,
+    "profiled_wall_time_s": 3.7332620979941566,
+    "record_shapes": false,
+    "stack_exclude": null,
+    "stack_include": null,
+    "stack_keys": [
+      "aten::slow_conv_dilated3d",
+      "aten::cudnn_convolution",
+      "aten::copy_"
+    ],
+    "stack_limit": 25,
+    "stack_n": 8,
+    "t": 3,
+    "torch_cuda_version": "13.0",
+    "torch_version": "2.9.0+cu130",
+    "wanvae_conv3d_implicit_spatial_padding": "1",
+    "wanvae_decode_channels_last_3d": "1",
+    "wanvae_stream_decode_mode": "chunk",
+    "wanvae_upsample_force_fp32": null,
+    "width": 576,
+    "with_stack": true
+  },
+  "stack_groups": {
+    "aten::copy_": [
+      {
+        "count": 7680,
+        "cpu_time_total_us": 31403.33899999846,
+        "device_time_total_us": 9541.262000001283,
+        "self_device_time_total_us": 9541.262000001283,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_20",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(311): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 3840,
+        "cpu_time_total_us": 259320.31299999883,
+        "device_time_total_us": 5362.017999999382,
+        "self_device_time_total_us": 4778.527999999653,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_16",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 3840,
+        "cpu_time_total_us": 361629.78699999733,
+        "device_time_total_us": 5201.640999999118,
+        "self_device_time_total_us": 4765.514000000275,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_14",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 3840,
+        "cpu_time_total_us": 395587.74100000266,
+        "device_time_total_us": 5185.59199999858,
+        "self_device_time_total_us": 4759.030999998331,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_15",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 3840,
+        "cpu_time_total_us": 16160.321000001415,
+        "device_time_total_us": 4785.562999998128,
+        "self_device_time_total_us": 4783.610999998196,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_19",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 3840,
+        "cpu_time_total_us": 15106.881999997833,
+        "device_time_total_us": 4777.798999999846,
+        "self_device_time_total_us": 4777.798999999846,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_17",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 3840,
+        "cpu_time_total_us": 15082.572999999837,
+        "device_time_total_us": 4767.546000000948,
+        "self_device_time_total_us": 4767.546000000948,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_18",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 1920,
+        "cpu_time_total_us": 7486.419000002767,
+        "device_time_total_us": 2914.74600000013,
+        "self_device_time_total_us": 2914.74600000013,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_25",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 1920,
+        "cpu_time_total_us": 7577.91600000098,
+        "device_time_total_us": 2880.25300000087,
+        "self_device_time_total_us": 2880.25300000087,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_23",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 1920,
+        "cpu_time_total_us": 7385.846000000944,
+        "device_time_total_us": 2876.2569999982807,
+        "self_device_time_total_us": 2876.2569999982807,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_24",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 1920,
+        "cpu_time_total_us": 7763.7799999997005,
+        "device_time_total_us": 2872.4179999993503,
+        "self_device_time_total_us": 2872.4179999993503,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_22",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 1920,
+        "cpu_time_total_us": 7850.255999999197,
+        "device_time_total_us": 2867.2099999986312,
+        "self_device_time_total_us": 2867.2099999986312,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_21",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 1920,
+        "cpu_time_total_us": 8469.899999999936,
+        "device_time_total_us": 2604.353000000381,
+        "self_device_time_total_us": 2604.353000000381,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_26",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 960,
+        "cpu_time_total_us": 67828.81499999724,
+        "device_time_total_us": 2510.74300000137,
+        "self_device_time_total_us": 2231.990000001286,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_28",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 960,
+        "cpu_time_total_us": 66282.55500000218,
+        "device_time_total_us": 2509.020000000455,
+        "self_device_time_total_us": 2230.4560000002384,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_32",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 960,
+        "cpu_time_total_us": 65359.90400000239,
+        "device_time_total_us": 2487.4329999976617,
+        "self_device_time_total_us": 2231.1459999982617,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_30",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 960,
+        "cpu_time_total_us": 3793.5739999979705,
+        "device_time_total_us": 2236.7319999989704,
+        "self_device_time_total_us": 2236.7319999989704,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_31",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 960,
+        "cpu_time_total_us": 3849.130000000958,
+        "device_time_total_us": 2228.7110000000102,
+        "self_device_time_total_us": 2228.7110000000102,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_29",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 960,
+        "cpu_time_total_us": 3840.9220000005007,
+        "device_time_total_us": 2228.508000000482,
+        "self_device_time_total_us": 2228.508000000482,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_27",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 62.72499999959837,
+        "device_time_total_us": 1467.6490000001068,
+        "self_device_time_total_us": 1467.6490000001068,
+        "stack": [
+          "<built-in function _upsample_nearest_exact2d>",
+          "torch/nn/functional.py(4530): interpolate",
+          "torch/nn/modules/upsampling.py(171): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(220): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Upsample_2",
+          "torch/nn/modules/container.py(245): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 20,
+        "cpu_time_total_us": 96.19799999963288,
+        "device_time_total_us": 953.0569999998988,
+        "self_device_time_total_us": 953.0569999998988,
+        "stack": [
+          "<built-in method clone of Tensor object at 0x7040def2d130>",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: ResidualBlock_12",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(666): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Decoder3d_0",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(875): stream_decode"
+        ]
+      },
+      {
+        "count": 20,
+        "cpu_time_total_us": 96.24400000007881,
+        "device_time_total_us": 952.5449999999255,
+        "self_device_time_total_us": 952.5449999999255,
+        "stack": [
+          "<built-in method clone of Tensor object at 0x7040def2d130>",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: ResidualBlock_13",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(666): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Decoder3d_0",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(875): stream_decode"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 57.13799999989351,
+        "device_time_total_us": 852.5450000000419,
+        "self_device_time_total_us": 852.5450000000419,
+        "stack": [
+          "<built-in function _upsample_nearest_exact2d>",
+          "torch/nn/functional.py(4530): interpolate",
+          "torch/nn/modules/upsampling.py(171): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(220): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Upsample_1",
+          "torch/nn/modules/container.py(245): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 20,
+        "cpu_time_total_us": 164.93600000007427,
+        "device_time_total_us": 616.2229999996343,
+        "self_device_time_total_us": 616.2229999996343,
+        "stack": [
+          "<built-in method clone of Tensor object at 0x7040def2d130>",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: ResidualBlock_11",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(666): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Decoder3d_0",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(875): stream_decode"
+        ]
+      },
+      {
+        "count": 20,
+        "cpu_time_total_us": 90.64799999997922,
+        "device_time_total_us": 567.037999999724,
+        "self_device_time_total_us": 567.037999999724,
+        "stack": [
+          "<built-in method clone of Tensor object at 0x7040def2d130>",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: ResidualBlock_10",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(666): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Decoder3d_0",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(875): stream_decode"
+        ]
+      }
+    ],
+    "aten::cudnn_convolution": [
+      {
+        "count": 10,
+        "cpu_time_total_us": 4542.761999999915,
+        "device_time_total_us": 43923.08499999941,
+        "self_device_time_total_us": 8784.616999999882,
+        "stack": [
+          "<built-in method conv2d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(530): _conv_forward",
+          "torch/nn/modules/conv.py(547): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Conv2d_4",
+          "torch/nn/modules/container.py(245): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Sequential_2"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 369.2049999998635,
+        "device_time_total_us": 6303.556999999906,
+        "self_device_time_total_us": 6303.556999999906,
+        "stack": [
+          "<built-in method conv2d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(530): _conv_forward",
+          "torch/nn/modules/conv.py(547): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Conv2d_3",
+          "torch/nn/modules/container.py(245): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Sequential_1"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 272.719999999872,
+        "device_time_total_us": 879.9030000000857,
+        "self_device_time_total_us": 879.9030000000857,
+        "stack": [
+          "<built-in method conv2d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(530): _conv_forward",
+          "torch/nn/modules/conv.py(547): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Conv2d_2",
+          "torch/nn/modules/container.py(245): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Sequential_0"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 247.1340000000132,
+        "device_time_total_us": 418.5270000001765,
+        "self_device_time_total_us": 340.9600000000969,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_4",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 209.2939999996438,
+        "device_time_total_us": 417.69600000044875,
+        "self_device_time_total_us": 341.1840000002553,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_5",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 239.7009999999068,
+        "device_time_total_us": 417.6000000000158,
+        "self_device_time_total_us": 341.24799999996867,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_11",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 218.35399999987203,
+        "device_time_total_us": 417.44000000024516,
+        "self_device_time_total_us": 340.92800000013585,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_9",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 237.69099999996092,
+        "device_time_total_us": 417.3099999998815,
+        "self_device_time_total_us": 342.01400000000353,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_2",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 207.88199999966128,
+        "device_time_total_us": 417.24800000002006,
+        "self_device_time_total_us": 340.12899999998945,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_7",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 204.2940000001745,
+        "device_time_total_us": 416.6719999996999,
+        "self_device_time_total_us": 339.74399999976185,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_6",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 220.03300000000354,
+        "device_time_total_us": 416.5469999997863,
+        "self_device_time_total_us": 340.51299999989214,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_3",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 200.00299999977733,
+        "device_time_total_us": 415.99999999991496,
+        "self_device_time_total_us": 339.0080000001849,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_8",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 259.7109999999511,
+        "device_time_total_us": 415.3929999996876,
+        "self_device_time_total_us": 339.0719999998387,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_10",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 246.66199999989203,
+        "device_time_total_us": 126.68699999997261,
+        "self_device_time_total_us": 98.72000000005846,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_12",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(311): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 265.85200000026066,
+        "device_time_total_us": 111.00700000001575,
+        "self_device_time_total_us": 88.86300000003371,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_1",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(666): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 192.66599999995105,
+        "device_time_total_us": 107.80900000015117,
+        "self_device_time_total_us": 107.80900000015117,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_13",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 200.18299999983174,
+        "device_time_total_us": 64.73399999997173,
+        "self_device_time_total_us": 64.73399999997173,
+        "stack": [
+          "<built-in method conv2d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(530): _conv_forward",
+          "torch/nn/modules/conv.py(547): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Conv2d_0",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(465): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: AttentionBlock_0"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 150.27600000004622,
+        "device_time_total_us": 34.27200000004132,
+        "self_device_time_total_us": 34.27200000004132,
+        "stack": [
+          "<built-in method conv2d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(530): _conv_forward",
+          "torch/nn/modules/conv.py(547): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Conv2d_1",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(465): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: AttentionBlock_0"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 219.3509999999792,
+        "device_time_total_us": 27.903999999938378,
+        "self_device_time_total_us": 27.903999999938378,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_0",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(875): stream_decode",
+          "profile_wanvae_decode_ops.py(255): main"
+        ]
+      }
+    ],
+    "aten::slow_conv_dilated3d": [
+      {
+        "count": 10,
+        "cpu_time_total_us": 51723.045999999784,
+        "device_time_total_us": 100595.88300000054,
+        "self_device_time_total_us": 36750.20400000004,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_26",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 71295.11900000015,
+        "device_time_total_us": 76148.17500000075,
+        "self_device_time_total_us": 73639.15500000029,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_32",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 72612.58399999994,
+        "device_time_total_us": 76143.4050000013,
+        "self_device_time_total_us": 73632.66199999992,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_28",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 70223.59599999992,
+        "device_time_total_us": 76125.56899999772,
+        "self_device_time_total_us": 73638.13600000006,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_30",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 8571.50399999992,
+        "device_time_total_us": 75909.0439999993,
+        "self_device_time_total_us": 73672.31200000033,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_31",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 8811.636000000246,
+        "device_time_total_us": 75875.24900000043,
+        "self_device_time_total_us": 73646.74099999995,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_27",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 8604.184000000037,
+        "device_time_total_us": 75873.11799999955,
+        "self_device_time_total_us": 73644.40699999954,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_29",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 693.2070000003296,
+        "device_time_total_us": 73208.02399999977,
+        "self_device_time_total_us": 73135.79900000014,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_33",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(666): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 17722.588000000324,
+        "device_time_total_us": 51871.55799999944,
+        "self_device_time_total_us": 42871.45500000009,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_22",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 16481.01000000009,
+        "device_time_total_us": 45785.43400000002,
+        "self_device_time_total_us": 42870.68799999989,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_25",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 17440.00799999974,
+        "device_time_total_us": 45757.95999999892,
+        "self_device_time_total_us": 42890.75000000029,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_21",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 16952.674999999865,
+        "device_time_total_us": 45752.73400000105,
+        "self_device_time_total_us": 42872.48100000018,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_23",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 16354.854999999836,
+        "device_time_total_us": 45734.65799999823,
+        "self_device_time_total_us": 42858.40099999995,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_24",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 381846.19799999986,
+        "device_time_total_us": 20537.111999999648,
+        "self_device_time_total_us": 5649.765000000176,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_14",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 277482.12000000017,
+        "device_time_total_us": 16531.977999999217,
+        "self_device_time_total_us": 11169.959999999834,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_16",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 414131.72700000013,
+        "device_time_total_us": 16352.768999998281,
+        "self_device_time_total_us": 11167.176999999701,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_15",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 34465.95300000007,
+        "device_time_total_us": 15969.124999998068,
+        "self_device_time_total_us": 11183.56199999994,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_19",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 32897.172999999995,
+        "device_time_total_us": 15952.911000000076,
+        "self_device_time_total_us": 11175.11200000023,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_17",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 32935.28299999983,
+        "device_time_total_us": 15941.826000000914,
+        "self_device_time_total_us": 11174.279999999966,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_18",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(423): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 10,
+        "cpu_time_total_us": 67479.92199999979,
+        "device_time_total_us": 14239.794000001722,
+        "self_device_time_total_us": 4698.532000000439,
+        "stack": [
+          "<built-in method conv3d of type object at 0x7043fa9d6c40>",
+          "torch/nn/modules/conv.py(699): _conv_forward",
+          "torch/nn/modules/conv.py(716): forward",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(178): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalConv3d_20",
+          "scope/core/pipelines/wan2_1/vae/modules/vae.py(311): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      }
+    ]
+  }
+}

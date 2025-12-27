@@ -238,6 +238,82 @@ Keep as an opt-in knob (do not enable by default). Revisit only if we can make t
 - `outputs/b300_cu130_ops_profile_selfattn_no_fuseproj_stack.md`  
 - `outputs/b300_cu130_ops_profile_selfattn_no_fuseproj_rope_k_to_cache_stack.md`  
 
+### 2025-12-27 — VAE decode: keep Resample outputs contiguous (avoid `slow_conv_dilated3d`)
+
+**Question:**  
+Why is VAE decode spending most of its time in `aten::slow_conv_dilated3d` (vol2col), and can we force the fast cuDNN/CUTLASS conv3d path?
+
+**Hypothesis:**  
+Some streaming `Resample(upsample3d)` branches emit non-contiguous 5D activations; PyTorch routes subsequent Conv3d calls to the slow (im2col/vol2col) implementation. Re-contiguating in the preferred 5D memory format should move Conv3d back onto cuDNN/CUTLASS.
+
+**Change (one thing):**  
+Enable `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1` (gated codepath in `Resample.forward`).
+
+**Benchmark config:**  
+- GPU: B300 (SM103)  
+- Env: cu130 decode env (`.venv-b300-cu130-decode`)  
+- torch / cuda / cudnn: `2.9.0+cu130` / `13.0` / `91300`  
+- Settings: `320x576`, steps=`4`, bias=`0.3`, quantization=`none`  
+- Notes: `--compile`, `SCOPE_KV_BIAS_BACKEND=fa4`, `SCOPE_DISABLE_FUSED_PROJECTIONS=1`, `WANVAE_STREAM_DECODE_MODE=chunk`, `WANVAE_DECODE_CHANNELS_LAST_3D=1`
+
+**Command(s):**
+```bash
+# Baseline
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_COMPILE_KREA_PIPELINE=1 \
+SCOPE_DISABLE_FUSED_PROJECTIONS=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+PROFILE_PIPELINE_BLOCKS=1 PROFILE_PIPELINE_BLOCKS_JSON=outputs/b300_cu130_triton351_compile_default_blocks_profile.json \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 6 --skip 2 \
+  --compile --quantization none \
+  --kv-cache-attention-bias 0.3 \
+  --cudnn-benchmark |& tee outputs/b300_cu130_triton351_compile_default_blocks_perf.log
+
+# Change: keep Resample outputs contiguous (preferred 5D format)
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_COMPILE_KREA_PIPELINE=1 \
+SCOPE_DISABLE_FUSED_PROJECTIONS=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
+PROFILE_PIPELINE_BLOCKS=1 PROFILE_PIPELINE_BLOCKS_JSON=outputs/b300_cu130_triton351_compile_default_blocks_profile_ensurecontig.json \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 6 --skip 2 \
+  --compile --quantization none \
+  --kv-cache-attention-bias 0.3 \
+  --cudnn-benchmark |& tee outputs/b300_cu130_triton351_compile_default_blocks_perf_ensurecontig.log
+```
+
+**Baseline:**  
+- Avg FPS (skip=2): `21.45` (`outputs/b300_cu130_triton351_compile_default_blocks_perf.log`)  
+- Block profile: decode `~194.8ms/call` (`outputs/b300_cu130_triton351_compile_default_blocks_profile.json`)
+
+**Result:**  
+- Avg FPS (skip=2): `29.36` (`outputs/b300_cu130_triton351_compile_default_blocks_perf_ensurecontig.log`)  
+- Block profile: decode `~60.4ms/call` (`outputs/b300_cu130_triton351_compile_default_blocks_profile_ensurecontig.json`)  
+- VAE op profile: `slow_conv_dilated3d` + `vol2col_kernel` disappear from the top ops; conv shifts to cuDNN/CUTLASS (`outputs/b300_cu130_triton351_wanvae_decode_ops_i50_ensurecontig.md`)
+
+**Decision:**  
+Keep the knob; strongly consider default-on for B300 (run script already defaults it on).
+
+**Artifacts:**  
+- `outputs/b300_cu130_triton351_compile_default_blocks_perf_ensurecontig.log`  
+- `outputs/b300_cu130_triton351_compile_default_blocks_profile_ensurecontig.json`  
+- `outputs/b300_cu130_triton351_wanvae_decode_ops_i10_stack.md`  
+- `outputs/b300_cu130_triton351_wanvae_decode_ops_i50_ensurecontig.md`
+
+**Lessons (write like you’re teaching “future you”):**  
+- If you see `aten::slow_conv_dilated3d` + `vol2col_kernel` dominating decode, suspect **layout/stride** issues in streaming resample/caching, not “bad cuDNN”.  
+- Always profile decode in streaming mode (second call) — first-batch behavior can mask the steady-state layout.
+
 ### 2025-12-27 — VAE decode: channels-last 3D activations
 
 **Question:**  

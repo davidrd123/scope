@@ -108,4 +108,9 @@ export WANVAE_STREAM_DECODE_MODE="${WANVAE_STREAM_DECODE_MODE:-chunk}"
 # Small decode win: use channels-last 3D activations for Conv3d-heavy VAE decode.
 export WANVAE_DECODE_CHANNELS_LAST_3D="${WANVAE_DECODE_CHANNELS_LAST_3D:-1}"
 
+# Big decode win: some streaming upsample paths produce non-contiguous 5D tensors
+# that force PyTorch onto `aten::slow_conv_dilated3d` (vol2col) instead of cuDNN.
+# This keeps Resample outputs contiguous in the preferred 5D memory format.
+export WANVAE_RESAMPLE_ENSURE_CONTIGUOUS="${WANVAE_RESAMPLE_ENSURE_CONTIGUOUS:-1}"
+
 exec "$BIN" "${SCRIPT_ARGS[@]}"
