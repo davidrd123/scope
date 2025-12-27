@@ -2,7 +2,9 @@
 
 > Status: Draft (reviewed against codebase)
 > Date: 2025-12-26, reviewed 2025-12-27
-> Review: `notes/proposals/style-swap-mode/oai_5pro01.md`
+> Reviews:
+> - `notes/proposals/style-swap-mode/oai_5pro01.md`
+> - `notes/proposals/style-swap-mode/oai_5pro02.md`
 
 ## Implementation Status
 
@@ -273,9 +275,13 @@ Style swap is not a "server setting" — it's per active session/video track.
 
 ### Instruction sheet lookup must follow style dirs
 
-`prompt_compiler._load_instruction_sheet()` builds path as `styles/<style.name>/instructions.md` relative to repo root.
+`prompt_compiler._load_instruction_sheet()` is hardcoded to `<repo-root>/styles/<style.name>/instructions.md` (code-location-relative).
 
 If multi-dir style discovery is implemented, instruction sheet lookup must follow the same resolution rules, or LLM compiler behavior will be inconsistent.
+
+Additional sharp edges:
+- `StyleManifest.instruction_sheet_path` exists but is currently ignored by `_load_instruction_sheet()`.
+- Style manifest discovery is currently CWD-relative (`Path("styles")`) while instruction sheet lookup is code-location-relative; this can diverge if Scope is run from outside the repo root.
 
 ### Cache reset semantics not enforced
 
@@ -291,6 +297,16 @@ Clean style switches depend on:
 1. Document requirement ("don't disable manage_cache")
 2. Force `reset_cache=True` on style change
 3. Force `init_cache=True` when LoRA updates present
+
+### Selected style without `lora_path` can produce misleading logging
+
+If the selected style has `lora_path = null`, the current `_rcp_set_style` logic can still zero out other styles’ LoRAs and log something like `LoRA switch: None @ 0.85, zeroed …` even though no LoRA was activated.
+
+Mitigation: treat `active_lora_path is None` as “no LoRA activation”; only emit `lora_scales` when an active LoRA path exists (or make the log explicit: “zeroed others, no active LoRA”).
+
+## Documentation gap (worth fixing if we implement this)
+
+Per-LoRA `merge_mode` exists in code (`server/schema.py` supports `loras[].merge_mode`) but is not documented in `docs/api/load.md`. This matters for style swap mode because manifest-driven preload may want to stamp `merge_mode: "runtime_peft"` per adapter.
 
 ---
 
