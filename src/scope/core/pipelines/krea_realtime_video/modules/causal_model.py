@@ -572,6 +572,7 @@ from .model import (
     sinusoidal_embedding_1d,
     triton_apply_rotary,
     triton_rope_fused_3way,
+    triton_rope_fused_3way_out,
 )
 
 _FLEX_ATTENTION_EAGER = flex_attention
@@ -1167,21 +1168,32 @@ class CausalWanSelfAttention(nn.Module):
             # frame_seqlen = math.prod(grid_sizes[0][1:]).item() # torch compile doesn't like this
             frame_seqlen = self.frame_seq_length
             current_start_frame = current_start // frame_seqlen
+            rope_k_to_cache = (
+                os.getenv("SCOPE_ROPE_K_TO_CACHE", "0") == "1"
+                and USE_TRITON_ROPE_FUSED
+                and triton_rope_fused_3way_out is not None
+                and k.is_cuda
+                and k.ndim == 4
+                and k.shape[-1] == 128
+            )
+            roped_key = None
             if _should_profile():
                 with _ProfileBlock("rope_apply"):
                     roped_query = causal_rope_apply(
                         q, grid_sizes, freqs, start_frame=current_start_frame
                     ).type_as(v)
-                    roped_key = causal_rope_apply(
-                        k, grid_sizes, freqs, start_frame=current_start_frame
-                    ).type_as(v)
+                    if not rope_k_to_cache:
+                        roped_key = causal_rope_apply(
+                            k, grid_sizes, freqs, start_frame=current_start_frame
+                        ).type_as(v)
             else:
                 roped_query = causal_rope_apply(
                     q, grid_sizes, freqs, start_frame=current_start_frame
                 ).type_as(v)
-                roped_key = causal_rope_apply(
-                    k, grid_sizes, freqs, start_frame=current_start_frame
-                ).type_as(v)
+                if not rope_k_to_cache:
+                    roped_key = causal_rope_apply(
+                        k, grid_sizes, freqs, start_frame=current_start_frame
+                    ).type_as(v)
 
             current_end = current_start + roped_query.shape[1]
             sink_tokens = self.sink_size * frame_seqlen
@@ -1228,7 +1240,27 @@ class CausalWanSelfAttention(nn.Module):
                             - num_evicted_tokens
                         )
                         local_start_index = local_end_index - num_new_tokens
-                        kv_cache["k"][:, local_start_index:local_end_index] = roped_key
+                        if rope_k_to_cache:
+                            k_out = kv_cache["k"][:, local_start_index:local_end_index]
+                            try:
+                                triton_rope_fused_3way_out(
+                                    k,
+                                    k_out,
+                                    grid_sizes,
+                                    freqs,
+                                    start_frame=int(current_start_frame),
+                                )
+                                roped_key = k_out
+                            except Exception:
+                                if os.environ.get("SCOPE_TRITON_ROPE_FUSED_STRICT", "0") == "1":
+                                    raise
+                                rope_k_to_cache = False
+                        if not rope_k_to_cache:
+                            if roped_key is None:
+                                roped_key = causal_rope_apply(
+                                    k, grid_sizes, freqs, start_frame=current_start_frame
+                                ).type_as(v)
+                            kv_cache["k"][:, local_start_index:local_end_index] = roped_key
                         kv_cache["v"][:, local_start_index:local_end_index] = v
                 else:
                     num_evicted_tokens = (
@@ -1260,7 +1292,27 @@ class CausalWanSelfAttention(nn.Module):
                         - num_evicted_tokens
                     )
                     local_start_index = local_end_index - num_new_tokens
-                    kv_cache["k"][:, local_start_index:local_end_index] = roped_key
+                    if rope_k_to_cache:
+                        k_out = kv_cache["k"][:, local_start_index:local_end_index]
+                        try:
+                            triton_rope_fused_3way_out(
+                                k,
+                                k_out,
+                                grid_sizes,
+                                freqs,
+                                start_frame=int(current_start_frame),
+                            )
+                            roped_key = k_out
+                        except Exception:
+                            if os.environ.get("SCOPE_TRITON_ROPE_FUSED_STRICT", "0") == "1":
+                                raise
+                            rope_k_to_cache = False
+                    if not rope_k_to_cache:
+                        if roped_key is None:
+                            roped_key = causal_rope_apply(
+                                k, grid_sizes, freqs, start_frame=current_start_frame
+                            ).type_as(v)
+                        kv_cache["k"][:, local_start_index:local_end_index] = roped_key
                     kv_cache["v"][:, local_start_index:local_end_index] = v
             else:
                 if _should_profile():
@@ -1272,14 +1324,54 @@ class CausalWanSelfAttention(nn.Module):
                             - kv_cache["global_end_index"]
                         )
                         local_start_index = local_end_index - num_new_tokens
-                        kv_cache["k"][:, local_start_index:local_end_index] = roped_key
+                        if rope_k_to_cache:
+                            k_out = kv_cache["k"][:, local_start_index:local_end_index]
+                            try:
+                                triton_rope_fused_3way_out(
+                                    k,
+                                    k_out,
+                                    grid_sizes,
+                                    freqs,
+                                    start_frame=int(current_start_frame),
+                                )
+                                roped_key = k_out
+                            except Exception:
+                                if os.environ.get("SCOPE_TRITON_ROPE_FUSED_STRICT", "0") == "1":
+                                    raise
+                                rope_k_to_cache = False
+                        if not rope_k_to_cache:
+                            if roped_key is None:
+                                roped_key = causal_rope_apply(
+                                    k, grid_sizes, freqs, start_frame=current_start_frame
+                                ).type_as(v)
+                            kv_cache["k"][:, local_start_index:local_end_index] = roped_key
                         kv_cache["v"][:, local_start_index:local_end_index] = v
                 else:
                     local_end_index = (
                         kv_cache["local_end_index"] + current_end - kv_cache["global_end_index"]
                     )
                     local_start_index = local_end_index - num_new_tokens
-                    kv_cache["k"][:, local_start_index:local_end_index] = roped_key
+                    if rope_k_to_cache:
+                        k_out = kv_cache["k"][:, local_start_index:local_end_index]
+                        try:
+                            triton_rope_fused_3way_out(
+                                k,
+                                k_out,
+                                grid_sizes,
+                                freqs,
+                                start_frame=int(current_start_frame),
+                            )
+                            roped_key = k_out
+                        except Exception:
+                            if os.environ.get("SCOPE_TRITON_ROPE_FUSED_STRICT", "0") == "1":
+                                raise
+                            rope_k_to_cache = False
+                    if not rope_k_to_cache:
+                        if roped_key is None:
+                            roped_key = causal_rope_apply(
+                                k, grid_sizes, freqs, start_frame=current_start_frame
+                            ).type_as(v)
+                        kv_cache["k"][:, local_start_index:local_end_index] = roped_key
                     kv_cache["v"][:, local_start_index:local_end_index] = v
 
             kv_start_idx = max(0, local_end_index - self.max_attention_size)

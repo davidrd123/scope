@@ -698,3 +698,194 @@ def rope_fused_3way(
             )
 
     return out
+
+
+def rope_fused_3way_out(
+    x: torch.Tensor,
+    out: torch.Tensor,
+    grid_sizes: Union[torch.Tensor, Sequence[int]],
+    freqs: torch.Tensor,
+    *,
+    start_frame: int = 0,
+    block_l: Optional[int] = None,
+    num_warps: Optional[int] = None,
+    num_stages: Optional[int] = None,
+) -> torch.Tensor:
+    """
+    Like `rope_fused_3way`, but writes into the provided `out` tensor.
+
+    This is useful to avoid temporary allocations/copies, e.g. writing RoPE(K)
+    directly into a KV cache window.
+
+    Tail handling:
+      - If seq_len < L, copies the tail from x into out: out[:, seq_len:] = x[:, seq_len:].
+    """
+    if x.device.type != "cuda":
+        raise RuntimeError("rope_fused_3way_out requires CUDA tensor")
+
+    if x.ndim != 4:
+        raise ValueError(f"x must be 4D [B,L,H,D], got shape={tuple(x.shape)}")
+    if out.ndim != 4:
+        raise ValueError(f"out must be 4D [B,L,H,D], got shape={tuple(out.shape)}")
+    if out.shape != x.shape:
+        raise ValueError(f"out must match x shape={tuple(x.shape)}, got out shape={tuple(out.shape)}")
+    if out.device != x.device:
+        raise ValueError(f"out.device must match x.device={x.device}, got {out.device}")
+    if out.dtype != x.dtype:
+        raise ValueError(f"out.dtype must match x.dtype={x.dtype}, got {out.dtype}")
+
+    B, L, HN, D = x.shape
+
+    # D=128 only per decision.
+    if D != 128:
+        raise NotImplementedError(f"rope_fused_3way_out only supports D=128, got D={D}")
+
+    if D % 2 != 0:
+        raise ValueError(f"head_dim D must be even, got D={D}")
+
+    f, gh, gw = _as_int3(grid_sizes, batch=B)
+    seq_len = int(f) * int(gh) * int(gw)
+
+    # Layout guard: expects L dimension at x.shape[1]
+    if seq_len > L:
+        raise ValueError(
+            f"Expected x as [B,L,H,D] with L>=seq_len. Got L={L}, seq_len={seq_len}, shape={tuple(x.shape)}"
+        )
+
+    # Chunk sizes are semantic. Compute and assert.
+    C = D // 2
+    c1 = C // 3
+    c2 = C // 3
+    c0 = C - c1 - c2  # == C - 2*(C//3)
+
+    if c0 != C - 2 * (C // 3):
+        raise AssertionError("Chunk size formula mismatch")
+    if (c0 + c1 + c2) != C:
+        raise AssertionError(f"Chunk sizes don't sum to C: {c0}+{c1}+{c2} != {C}")
+
+    # Bounds guard for causal offset (only time axis gets start_frame)
+    start_frame = int(start_frame)
+    if start_frame < 0:
+        raise ValueError(f"start_frame must be >= 0, got {start_frame}")
+    if (start_frame + f) > freqs.shape[0]:
+        raise ValueError(
+            f"start_frame+f out of bounds: start_frame={start_frame}, f={f}, freqs_len={freqs.shape[0]}"
+        )
+    if freqs.shape[1] != C:
+        raise ValueError(f"freqs second dim must be C={C}, got {freqs.shape[1]}")
+
+    # Preserve padding tail semantics (avoid leaving stale cache values).
+    if seq_len < L:
+        out[:, seq_len:] = x[:, seq_len:]
+
+    # Axis tables (cached, float32 contiguous)
+    cos_f, sin_f, cos_h, sin_h, cos_w, sin_w = get_rope_axis_tables(freqs, c0, c1, c2, x.device)
+
+    # A/B switch: v1 (padded) vs v2 (unified 64-pair)
+    impl = os.environ.get("SCOPE_TRITON_ROPE_FUSED_IMPL", "v2").lower()
+
+    if num_warps is None:
+        num_warps = int(os.environ.get("SCOPE_TRITON_ROPE_FUSED_NUM_WARPS", "4"))
+    if num_stages is None:
+        num_stages = int(os.environ.get("SCOPE_TRITON_ROPE_FUSED_NUM_STAGES", "2"))
+
+    hw = int(gh) * int(gw)
+
+    with torch.cuda.device(x.device.index):
+        if impl == "v1":
+            if block_l is None:
+                block_l = int(os.environ.get("SCOPE_TRITON_ROPE_FUSED_BLOCK_L", "128"))
+
+            c0_pad = _next_power_of_2(c0)
+            c1_pad = _next_power_of_2(c1)
+            c2_pad = _next_power_of_2(c2)
+
+            grid = (B * HN, triton.cdiv(seq_len, block_l))
+
+            rope_fused_3way_kernel[grid](
+                x,
+                out,
+                cos_f,
+                sin_f,
+                cos_h,
+                sin_h,
+                cos_w,
+                sin_w,
+                x.stride(0),
+                x.stride(1),
+                x.stride(2),
+                x.stride(3),
+                out.stride(0),
+                out.stride(1),
+                out.stride(2),
+                out.stride(3),
+                cos_f.stride(0),
+                cos_f.stride(1),
+                cos_h.stride(0),
+                cos_h.stride(1),
+                cos_w.stride(0),
+                cos_w.stride(1),
+                L,
+                HN,
+                hw,
+                int(gw),
+                start_frame,
+                seq_len,
+                C0=c0,
+                C1=c1,
+                C2=c2,
+                C0_PAD=c0_pad,
+                C1_PAD=c1_pad,
+                C2_PAD=c2_pad,
+                BLOCK_L=block_l,
+                num_warps=num_warps,
+                num_stages=num_stages,
+            )
+        else:
+            block_m = int(os.environ.get("SCOPE_TRITON_ROPE_FUSED_BLOCK_M", "8"))
+            block_h = int(os.environ.get("SCOPE_TRITON_ROPE_FUSED_BLOCK_H", "2"))
+
+            grid = (
+                triton.cdiv(HN, block_h),
+                triton.cdiv(seq_len, block_m),
+                B,
+            )
+
+            rope_fused_3way_kernel_v2[grid](
+                x,
+                out,
+                cos_f,
+                sin_f,
+                cos_h,
+                sin_h,
+                cos_w,
+                sin_w,
+                x.stride(0),
+                x.stride(1),
+                x.stride(2),
+                x.stride(3),
+                out.stride(0),
+                out.stride(1),
+                out.stride(2),
+                out.stride(3),
+                cos_f.stride(0),
+                cos_f.stride(1),
+                cos_h.stride(0),
+                cos_h.stride(1),
+                cos_w.stride(0),
+                cos_w.stride(1),
+                seq_len,
+                HN,
+                hw,
+                int(gw),
+                start_frame,
+                C0=c0,
+                C1=c1,
+                C2=c2,
+                BLOCK_H=block_h,
+                BLOCK_M=block_m,
+                num_warps=num_warps,
+                num_stages=num_stages,
+            )
+
+    return out

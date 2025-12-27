@@ -78,6 +78,17 @@ export WANVAE_STREAM_DECODE_MODE=chunk
 export TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
 ```
 
+Optional (B300-specific) knobs:
+
+```bash
+# B300 hazard: fused to_qkv(...).chunk(...) can create strided Q/K views and
+# trigger extra copies. Our B300 run script defaults this on.
+export SCOPE_DISABLE_FUSED_PROJECTIONS=1
+
+# Experimental: write RoPE(K) directly into the KV cache window (neutral so far).
+export SCOPE_ROPE_K_TO_CACHE=1
+```
+
 Benchmark harness (BF16, no compile):
 
 ```bash

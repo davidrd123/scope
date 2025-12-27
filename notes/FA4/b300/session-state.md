@@ -344,6 +344,18 @@ If the env ever gets clobbered back to cu128 (e.g. by `uv sync`), restore it wit
 
 `scripts/profile_krea_pipeline_blocks.py --cudnn-benchmark` improved steady-state FPS slightly on B300 (at the cost of slower warmup).
 
+3) **Disable fused QKV projections (B300 hazard)**
+
+On B300/SM103, fused projections (`to_qkv(...).chunk(3, dim=-1)`) can create strided Q/K views and trigger extra materialization work downstream.
+
+- Set `SCOPE_DISABLE_FUSED_PROJECTIONS=1` (default in `scripts/run_daydream_b300.sh`)
+
+4) **Experimental: RoPE(K) directly into KV cache**
+
+This avoids one explicit K copy by writing the RoPE’d K directly into the KV cache window.
+
+- Set `SCOPE_ROPE_K_TO_CACHE=1` (currently ~neutral; keep opt-in)
+
 ## Key Discovery This Session
 
 The `flash-attention` symlink was shadowing the working FA4 package. Removed it, FA4 now imports correctly:

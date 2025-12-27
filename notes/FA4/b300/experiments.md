@@ -118,6 +118,22 @@ WANVAE_STREAM_DECODE_MODE=chunk \
 ```
 
 **Baseline:**  
+- `SCOPE_KV_BIAS_BACKEND=flash`: see `outputs/b300_cu130_ops_profile_flash.json` (historical snapshot; predates the newer no-fuseproj baseline)
+
+**Result:**  
+- `SCOPE_KV_BIAS_BACKEND=fa4`: see `outputs/b300_cu130_ops_profile_fa4.json` and `outputs/b300_cu130_none_bias0.3_drilldown_perf.log` (historical end-to-end run)
+
+**Decision:**  
+Keep FA4 `score_mod` as the preferred KV-bias backend on B300 when the cu130 stack is available.
+
+**Artifacts:**  
+- `outputs/b300_cu130_ops_profile_flash.json`  
+- `outputs/b300_cu130_ops_profile_fa4.json`  
+- `outputs/b300_cu130_none_bias0.3_drilldown_perf.log`  
+
+**Lessons (write like you’re teaching “future you”):**  
+- The KV-bias microkernel can be meaningfully faster with `score_mod`, but end-to-end wins are still bounded by the remaining `self_attn` work (`other_in_self`) + GEMMs + copies.  
+- Once decode is fixed (cu130), attention backend selection becomes “worth doing,” but it’s not the only lever; profiling still matters.
 
 ### 2025-12-27 — Disable fused QKV projections on B300
 
@@ -169,22 +185,58 @@ Treat fused projections as a **B300 hazard**; keep them opt-in on SM103 (default
 - `outputs/b300_cu130_none_bias0.3_no_fuseproj_perf.log`  
 - `outputs/b300_cu130_ops_profile_selfattn_stack.md`  
 - `outputs/b300_cu130_ops_profile_selfattn_no_fuseproj_stack.md`
-`SCOPE_KV_BIAS_BACKEND=flash` ≈ **14.9 FPS**
+
+### 2025-12-27 — RoPE(K) directly into KV cache (avoid K copy)
+
+**Question:**  
+Can we avoid one device-to-device copy by writing the RoPE’d K directly into the KV cache window?
+
+**Hypothesis:**  
+This should reduce `aten::copy_` and memory traffic; end-to-end FPS might improve slightly (or be neutral if already bandwidth-hidden).
+
+**Change (one thing):**  
+Enable `SCOPE_ROPE_K_TO_CACHE=1` (writes K via `triton_rope_fused_3way_out(..., out=kv_cache["k"][...])`). Baseline keeps existing `roped_key -> kv_cache[...] = roped_key`.
+
+**Benchmark config:**  
+- GPU: B300 (SM103)  
+- Env: cu130 decode env (`.venv-b300-cu130-decode`)  
+- torch / cuda: `2.9.0+cu130` / `13.0`  
+- Settings: `320x576`, steps=`4`, bias=`0.3`, quantization=`none`  
+- Notes: `SCOPE_DISABLE_FUSED_PROJECTIONS=1`, `SCOPE_KV_BIAS_BACKEND=fa4`, `WANVAE_STREAM_DECODE_MODE=chunk`, `DISABLE_FLEX_ATTENTION_COMPILE=1`
+
+**Command(s):**
+```bash
+# Baseline
+SCOPE_DISABLE_FUSED_PROJECTIONS=1 \
+ITERS=6 SKIP=2 QUANTIZATION=none KV_CACHE_ATTENTION_BIAS=0.3 \
+OUT_PREFIX=outputs/b300_cu130_none_bias0.3_no_fuseproj_it6_sk2 \
+scripts/profile_b300_denoise_drilldown.sh
+
+# Change: rope K straight into cache
+SCOPE_DISABLE_FUSED_PROJECTIONS=1 \
+SCOPE_ROPE_K_TO_CACHE=1 \
+ITERS=6 SKIP=2 QUANTIZATION=none KV_CACHE_ATTENTION_BIAS=0.3 \
+OUT_PREFIX=outputs/b300_cu130_none_bias0.3_no_fuseproj_rope_k_to_cache_drilldown \
+scripts/profile_b300_denoise_drilldown.sh
+```
+
+**Baseline:**  
+- Avg FPS (skip=2): `18.17`  
 
 **Result:**  
-`SCOPE_KV_BIAS_BACKEND=fa4` ≈ **16.7 FPS**
+- Avg FPS (skip=2): `18.14` (≈ noise / slightly worse in this run)  
+- Self-attn stack filter shows `aten::copy_` reduced, but net end-to-end gain was not observed:
+  - Baseline: `device_ms=3.164, calls=560` (`outputs/b300_cu130_ops_profile_selfattn_no_fuseproj_stack.md`)
+  - Change: `device_ms=2.198, calls=400` (`outputs/b300_cu130_ops_profile_selfattn_no_fuseproj_rope_k_to_cache_stack.md`)
 
 **Decision:**  
-Keep FA4 `score_mod` as the preferred KV-bias backend on B300 when the cu130 stack is available.
+Keep as an opt-in knob (do not enable by default). Revisit only if we can make the write path alignment-friendly or fuse RoPE+pack in a custom kernel.
 
 **Artifacts:**  
-- `outputs/b300_cu130_ops_profile_flash.json`  
-- `outputs/b300_cu130_ops_profile_fa4.json`  
-- `outputs/b300_cu130_none_bias0.3_drilldown_perf.log`  
-
-**Lessons (write like you’re teaching “future you”):**  
-- The KV-bias microkernel can be meaningfully faster with `score_mod`, but end-to-end wins are still bounded by the remaining `self_attn` work (`other_in_self`) + GEMMs + copies.  
-- Once decode is fixed (cu130), attention backend selection becomes “worth doing,” but it’s not the only lever; profiling still matters.
+- `outputs/b300_cu130_none_bias0.3_no_fuseproj_it6_sk2_perf.log`  
+- `outputs/b300_cu130_none_bias0.3_no_fuseproj_rope_k_to_cache_drilldown_perf.log`  
+- `outputs/b300_cu130_ops_profile_selfattn_no_fuseproj_stack.md`  
+- `outputs/b300_cu130_ops_profile_selfattn_no_fuseproj_rope_k_to_cache_stack.md`  
 
 ### 2025-12-26 — Baseline choice: `--quantization none` vs `fp8_e4m3fn` (B300 cu130)
 

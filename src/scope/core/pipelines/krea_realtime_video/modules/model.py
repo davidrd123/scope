@@ -41,11 +41,15 @@ if TRITON_ROTARY_AVAILABLE:
 
 # Try to import Triton fused 3-way RoPE kernel (Step 2)
 try:
-    from scope.core.kernels.triton_rope_fused import rope_fused_3way as triton_rope_fused_3way
+    from scope.core.kernels.triton_rope_fused import (
+        rope_fused_3way as triton_rope_fused_3way,
+        rope_fused_3way_out as triton_rope_fused_3way_out,
+    )
     TRITON_ROPE_FUSED_AVAILABLE = True
 except Exception:
     TRITON_ROPE_FUSED_AVAILABLE = False
     triton_rope_fused_3way = None
+    triton_rope_fused_3way_out = None
 
 # Env var to disable fused RoPE (for debugging/comparison)
 USE_TRITON_ROPE_FUSED = TRITON_ROPE_FUSED_AVAILABLE and os.environ.get("SCOPE_DISABLE_TRITON_ROPE_FUSED", "0") != "1"
