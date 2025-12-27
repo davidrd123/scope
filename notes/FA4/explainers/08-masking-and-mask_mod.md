@@ -410,5 +410,5 @@ However, understanding `mask_mod` matters because:
   - `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd.py`
   - `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py`
   - `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_bwd_sm100.py`
-- Explainer #3: `notes/FA4/explainers/03-score-mod.md`
-- Explainer #7: `notes/FA4/explainers/07-online-softmax.md`
+- Explainer #3: [`03-score-mod.md`](03-score-mod.md)
+- Explainer #7: [`07-online-softmax.md`](07-online-softmax.md)

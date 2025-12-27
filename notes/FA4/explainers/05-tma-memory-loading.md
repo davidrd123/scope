@@ -511,9 +511,9 @@ The multi-stage pipeline (load N+1, compute N, write N-1) makes hook injection t
 
 | Resource | What It Covers |
 |----------|----------------|
-| `notes/research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md` | TMA, mbarrier, tcgen05 tutorial |
-| `notes/research/2025-12-24/incoming/perf/blogs/thunderkittens-blackwell.md` | Warp specialization patterns |
-| `notes/research/2025-12-24/incoming/perf/blogs/warp-specialization.md` | Additional warp specialization notes |
+| [`gau-nerst-tcgen05.md`](../../research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md) | TMA, mbarrier, tcgen05 tutorial |
+| [`thunderkittens-blackwell.md`](../../research/2025-12-24/incoming/perf/blogs/thunderkittens-blackwell.md) | Warp specialization patterns |
+| [`warp-specialization.md`](../../research/2025-12-24/incoming/perf/blogs/warp-specialization.md) | Additional warp specialization notes |
 | [PTX docs - tcgen05](https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05) | Official tcgen05 reference |
 | [PTX docs - TMA](https://docs.nvidia.com/cuda/parallel-thread-execution/#data-movement-and-conversion-instructions-cp-async-bulk-tensor) | TMA instructions |
 

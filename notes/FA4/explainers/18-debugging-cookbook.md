@@ -71,7 +71,7 @@ What to check:
 What to do:
 
 - Follow the SM103 patching notes:
-  - `notes/FA4/b300/fa4-patches.md`
+  - [`fa4-patches.md`](../b300/fa4-patches.md)
 - Keep a strict “don’t mix modules” stance (see #12, #17).
 
 ---
@@ -100,8 +100,8 @@ What to do:
 - If the goal is “keep the system usable”, disable the problematic compile path and log it as a constraint.
 
 References:
-- `notes/FA4/explainers/12-sm103-notes.md`
-- `notes/FA4/b300/investigation.md`
+- [`12-sm103-notes.md`](12-sm103-notes.md)
+- [`investigation.md`](../b300/investigation.md)
 
 ---
 
@@ -138,7 +138,7 @@ What to do:
   - in this repo we use a `q = q[0].unsqueeze(0)` pattern for `B=1` to avoid a costly copy.
 
 Reference:
-- `notes/FA4/explainers/03-score-mod.md`
+- [`03-score-mod.md`](03-score-mod.md)
 - `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
 
 ---
@@ -157,7 +157,7 @@ What to do:
 - Or use external tools like `nsys` if available.
 
 Reference:
-- `notes/FA4/b300/investigation-runbook.md`
+- [`investigation-runbook.md`](../b300/investigation-runbook.md)
 
 ---
 
@@ -174,7 +174,7 @@ What to do:
   - “throughput truth” (profiling flags off)
 
 Reference:
-- `notes/FA4/explainers/13-optimization-bootstrapping.md`
+- [`13-optimization-bootstrapping.md`](13-optimization-bootstrapping.md)
 
 ---
 
@@ -189,14 +189,14 @@ When something fails, capture:
 
 Then append it to:
 
-- `notes/FA4/b300/session-state.md` (if SM103-specific), or
-- the relevant experiment card in `notes/FA4/b200/experiments.md` / `notes/FA4/b300/experiments.md`.
+- [`session-state.md`](../b300/session-state.md) (if SM103-specific), or
+- the relevant experiment card in [`experiments.md`](../b200/experiments.md) / [`experiments.md`](../b300/experiments.md).
 
 ---
 
 ## References
 
-- Call path map: `notes/FA4/explainers/15-scope-to-fa4-call-path.md`
-- Knobs map: `notes/FA4/explainers/17-backend-selection-and-knobs.md`
-- SM103 notes: `notes/FA4/explainers/12-sm103-notes.md`
-- B300 runbook/session truth: `notes/FA4/b300/investigation-runbook.md`, `notes/FA4/b300/session-state.md`
+- Call path map: [`15-scope-to-fa4-call-path.md`](15-scope-to-fa4-call-path.md)
+- Knobs map: [`17-backend-selection-and-knobs.md`](17-backend-selection-and-knobs.md)
+- SM103 notes: [`12-sm103-notes.md`](12-sm103-notes.md)
+- B300 runbook/session truth: [`investigation-runbook.md`](../b300/investigation-runbook.md), [`session-state.md`](../b300/session-state.md)

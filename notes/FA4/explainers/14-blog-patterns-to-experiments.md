@@ -14,11 +14,11 @@ Phase 3 only works if we can repeatedly answer:
 3) **Did it move end-to-end (not just a microbench)?**  
 
 This doc turns the “blog mental models” into *actionable* cards you can paste into:
-- `notes/FA4/b300/experiments.md`
-- `notes/FA4/b200/experiments.md`
+- [`experiments.md`](../b300/experiments.md)
+- [`experiments.md`](../b200/experiments.md)
 
 If you haven’t read the Phase 3 playbook first:
-- `notes/FA4/explainers/13-optimization-bootstrapping.md`
+- [`13-optimization-bootstrapping.md`](13-optimization-bootstrapping.md)
 
 ---
 
@@ -35,9 +35,9 @@ Use:
 - no quality shortcuts
 
 Truth sources:
-- `notes/FA4/optimization-map.md`
-- `notes/FA4/b300/investigation-runbook.md`
-- `notes/FA4/b300/session-state.md`
+- [`optimization-map.md`](../optimization-map.md)
+- [`investigation-runbook.md`](../b300/investigation-runbook.md)
+- [`session-state.md`](../b300/session-state.md)
 
 ### Know what your profiler does
 
@@ -68,8 +68,8 @@ Each item below is intentionally phrased as:
 - Stop condition: if anything is off, fix it before proceeding.
 
 References:
-- `notes/FA4/explainers/12-sm103-notes.md`
-- `notes/FA4/b300/session-state.md`
+- [`12-sm103-notes.md`](12-sm103-notes.md)
+- [`session-state.md`](../b300/session-state.md)
 
 **A2 — KV-bias backend swap: `flash` segment-combine vs `fa4` score_mod**
 
@@ -84,7 +84,7 @@ References:
 - Stop condition: if `fa4` path triggers toolchain failures, record the error + versions and fall back to `flash` to keep the system usable.
 
 References:
-- Why combine exists / what overhead looks like: `notes/FA4/explainers/11-splitk-and-segment-combine.md`
+- Why combine exists / what overhead looks like: [`11-splitk-and-segment-combine.md`](11-splitk-and-segment-combine.md)
 - KV-bias backend implementation: `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
 
 **A3 — FA4 varlen opt-in (when KV-bias uses vendored CuTe)**
@@ -108,8 +108,8 @@ Reference:
 ### B) “Other In Self” (GEMMs + Glue) — The Next Likely Lever
 
 Blog inspiration:
-- “QuACK” memory-bound kernel playbook: `notes/research/2025-12-24/incoming/perf/blogs/getting-mem-bound-kernals-SOL.md`
-- Diffusers compile playbook: `notes/research/2025-12-24/incoming/perf/blogs/torch-compile-and-diffusers.md`
+- “QuACK” memory-bound kernel playbook: [`getting-mem-bound-kernals-SOL.md`](../../research/2025-12-24/incoming/perf/blogs/getting-mem-bound-kernals-SOL.md)
+- Diffusers compile playbook: [`torch-compile-and-diffusers.md`](../../research/2025-12-24/incoming/perf/blogs/torch-compile-and-diffusers.md)
 
 **B1 — Verify QKV projections are fused (they should be)**
 
@@ -137,7 +137,7 @@ Reference:
   - don’t mix quantization modes while comparing kernel experiments; pick one baseline per session.
 
 Reference:
-- B300 vision notes about conversion overhead: `notes/FA4/b300/optimization-vision.md`
+- B300 vision notes about conversion overhead: [`optimization-vision.md`](../b300/optimization-vision.md)
 
 **B3 — Attack copy/to glue with a single hypothesis**
 
@@ -161,8 +161,8 @@ Where to look:
 ### C) Compile + Host Overhead (Treat as Experiments, Not Defaults)
 
 Blog inspiration:
-- `notes/research/2025-12-24/incoming/perf/blogs/torch-compile-and-diffusers.md`
-- `notes/research/2025-12-24/incoming/perf/blogs/modal_host-overhead-inference-efficency.md`
+- [`torch-compile-and-diffusers.md`](../../research/2025-12-24/incoming/perf/blogs/torch-compile-and-diffusers.md)
+- [`modal_host-overhead-inference-efficency.md`](../../research/2025-12-24/incoming/perf/blogs/modal_host-overhead-inference-efficency.md)
 
 **C1 — Regional compile mode sweep**
 
@@ -178,7 +178,7 @@ Blog inspiration:
 
 Reference:
 - Compile wiring: `src/scope/core/pipelines/krea_realtime_video/pipeline.py`
-- Known failures on SM103: `notes/FA4/b300/session-state.md`
+- Known failures on SM103: [`session-state.md`](../b300/session-state.md)
 
 **C2 — Look for host overhead (only once kernels get short)**
 
@@ -191,16 +191,16 @@ Reference:
   - if you find gaps: prioritize fusion / cudagraph style work over more kernel micro-optimizations
 
 Reference:
-- Host overhead mental model: `notes/research/2025-12-24/incoming/perf/blogs/modal_host-overhead-inference-efficency.md`
+- Host overhead mental model: [`modal_host-overhead-inference-efficency.md`](../../research/2025-12-24/incoming/perf/blogs/modal_host-overhead-inference-efficency.md)
 
 ---
 
 ### D) Level 6 R&D (Only After the “Easy Wins” Plateau)
 
 Blog inspiration:
-- Blackwell dataflow + 128×128 tiles: `notes/research/2025-12-24/incoming/perf/blogs/thunderkittens-blackwell.md`
-- Warp specialization compiler support: `notes/research/2025-12-24/incoming/perf/blogs/warp-specialization.md`
-- TMA/mbarrier fundamentals: `notes/research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md`
+- Blackwell dataflow + 128×128 tiles: [`thunderkittens-blackwell.md`](../../research/2025-12-24/incoming/perf/blogs/thunderkittens-blackwell.md)
+- Warp specialization compiler support: [`warp-specialization.md`](../../research/2025-12-24/incoming/perf/blogs/warp-specialization.md)
+- TMA/mbarrier fundamentals: [`gau-nerst-tcgen05.md`](../../research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md)
 
 These are not “quick wins”; they’re longer projects. Still, you can structure them as experiment cards:
 
@@ -220,7 +220,7 @@ These are not “quick wins”; they’re longer projects. Still, you can struct
 
 When you discover a new high-value lever:
 
-1) add a short “blog-inspired principle” to `notes/FA4/explainers/13-optimization-bootstrapping.md`
+1) add a short “blog-inspired principle” to [`13-optimization-bootstrapping.md`](13-optimization-bootstrapping.md)
 2) add a corresponding experiment card recipe here
 3) run it once and link the artifact/log in the experiments file
 
@@ -230,9 +230,9 @@ That’s how Phase 3 stays useful instead of turning into a motivational poster.
 
 ## References
 
-- Phase 3 playbook: `notes/FA4/explainers/13-optimization-bootstrapping.md`
-- B300 protocol: `notes/FA4/b300/investigation-runbook.md`
-- B300 state: `notes/FA4/b300/session-state.md`
-- B300 strategy: `notes/FA4/b300/optimization-vision.md`
+- Phase 3 playbook: [`13-optimization-bootstrapping.md`](13-optimization-bootstrapping.md)
+- B300 protocol: [`investigation-runbook.md`](../b300/investigation-runbook.md)
+- B300 state: [`session-state.md`](../b300/session-state.md)
+- B300 strategy: [`optimization-vision.md`](../b300/optimization-vision.md)
 - Blog notes root: `notes/research/2025-12-24/incoming/perf/blogs/`
 

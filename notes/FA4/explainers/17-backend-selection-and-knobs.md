@@ -163,8 +163,8 @@ If your goal is “keep it working while learning”:
 
 ## References
 
-- Call path map: `notes/FA4/explainers/15-scope-to-fa4-call-path.md`
-- SM103 reality + guardrails: `notes/FA4/explainers/12-sm103-notes.md`
+- Call path map: [`15-scope-to-fa4-call-path.md`](15-scope-to-fa4-call-path.md)
+- SM103 reality + guardrails: [`12-sm103-notes.md`](12-sm103-notes.md)
 - Plain attention selection: `src/scope/core/pipelines/wan2_1/modules/attention.py`
 - KV-bias selection: `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
-- Debugging cookbook: `notes/FA4/explainers/18-debugging-cookbook.md`
+- Debugging cookbook: [`18-debugging-cookbook.md`](18-debugging-cookbook.md)

@@ -16,10 +16,10 @@ Each explainer should:
 
 ## Quick Reference (Running + Knobs)
 
-- **Bench / run options:** `notes/FA4/README.md` (tables + canonical commands)
-- **B200 “what to run today”:** `notes/FA4/b200/session-state.md`
-- **B300 “what to run today”:** `notes/FA4/b300/session-state.md`
-- **Env var knobs map (backend selection, compile, SM103 hazards):** `notes/FA4/explainers/17-backend-selection-and-knobs.md`
+- **Bench / run options:** [`README.md`](../README.md) (tables + canonical commands)
+- **B200 “what to run today”:** [`session-state.md`](../b200/session-state.md)
+- **B300 “what to run today”:** [`session-state.md`](../b300/session-state.md)
+- **Env var knobs map (backend selection, compile, SM103 hazards):** [`17-backend-selection-and-knobs.md`](17-backend-selection-and-knobs.md)
 
 ### Phase 1 (Complete): Forward-Pass Mental Model
 
@@ -107,13 +107,13 @@ vendored/flash_attn_cute_score_mod/flash_attn/
 ```
 
 ### Reference Blogs (already in repo)
-- `notes/research/2025-12-24/incoming/perf/blogs/thunderkittens-blackwell.md`
-- `notes/research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md`
-- `notes/research/2025-12-24/incoming/perf/blogs/warp-specialization.md`
-- `notes/research/2025-12-24/incoming/perf/blogs/flexattention_guide.md`
-- `notes/research/2025-12-24/incoming/perf/blogs/getting-mem-bound-kernals-SOL.md`
-- `notes/research/2025-12-24/incoming/perf/blogs/torch-compile-and-diffusers.md`
-- `notes/research/2025-12-24/incoming/perf/blogs/modal_host-overhead-inference-efficency.md`
+- [`thunderkittens-blackwell.md`](../../research/2025-12-24/incoming/perf/blogs/thunderkittens-blackwell.md)
+- [`gau-nerst-tcgen05.md`](../../research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md)
+- [`warp-specialization.md`](../../research/2025-12-24/incoming/perf/blogs/warp-specialization.md)
+- [`flexattention_guide.md`](../../research/2025-12-24/incoming/perf/blogs/flexattention_guide.md)
+- [`getting-mem-bound-kernals-SOL.md`](../../research/2025-12-24/incoming/perf/blogs/getting-mem-bound-kernals-SOL.md)
+- [`torch-compile-and-diffusers.md`](../../research/2025-12-24/incoming/perf/blogs/torch-compile-and-diffusers.md)
+- [`modal_host-overhead-inference-efficency.md`](../../research/2025-12-24/incoming/perf/blogs/modal_host-overhead-inference-efficency.md)
 
 ---
 

@@ -321,5 +321,5 @@ Even if our current workload uses contiguous KV (not paged KV), this explainer m
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/copy_utils.py`
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py`
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/seqlen_info.py`
-- Explainer #5: `notes/FA4/explainers/05-tma-memory-loading.md`
-- Explainer #6: `notes/FA4/explainers/06-tile-scheduling.md`
+- Explainer #5: [`05-tma-memory-loading.md`](05-tma-memory-loading.md)
+- Explainer #6: [`06-tile-scheduling.md`](06-tile-scheduling.md)

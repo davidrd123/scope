@@ -409,5 +409,5 @@ This naturally leads to:
 ### Related Docs
 
 - [03-score-mod.md](03-score-mod.md) - How we inject KV-bias (score_mod is after QK^T)
-- `notes/FA4/b300/optimization-ladder.md` - Where RoPE fusion fits in the optimization hierarchy
-- `notes/FA4/b300/level5-level6-resources.md` - Resources for Level 5 work
+- [`optimization-ladder.md`](../b300/optimization-ladder.md) - Where RoPE fusion fits in the optimization hierarchy
+- [`level5-level6-resources.md`](../b300/level5-level6-resources.md) - Resources for Level 5 work

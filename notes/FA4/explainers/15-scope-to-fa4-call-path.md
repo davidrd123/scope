@@ -190,4 +190,4 @@ Options:
 - Pipeline entry and block graph: `src/scope/core/pipelines/krea_realtime_video/pipeline.py`, `src/scope/core/pipelines/krea_realtime_video/modular_blocks.py`
 - KV-bias implementation + backend selection: `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
 - Plain attention backend selection: `src/scope/core/pipelines/wan2_1/modules/attention.py`
-- FA4 internals: `notes/FA4/explainers/01-how-fa4-works.md`, `notes/FA4/explainers/02-blackwell-path.md`
+- FA4 internals: [`01-how-fa4-works.md`](01-how-fa4-works.md), [`02-blackwell-path.md`](02-blackwell-path.md)

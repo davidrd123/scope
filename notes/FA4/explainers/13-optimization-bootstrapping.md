@@ -25,8 +25,8 @@ This doc is written explicitly for “future worker boots in and makes progress 
 ## Where We Are (The Journey So Far, in One Page)
 
 **Canonical perf comparisons use** `320x576`, 4 denoise steps, KV-bias `0.3`, and quality-preserving settings:
-- `notes/FA4/optimization-map.md`
-- `notes/FA4/b300/investigation-runbook.md`
+- [`optimization-map.md`](../optimization-map.md)
+- [`investigation-runbook.md`](../b300/investigation-runbook.md)
 
 **B200 (SM100):** ~`20 FPS` class at `320x576` (happy path).
 
@@ -39,9 +39,9 @@ What changed the game on B300:
 - KV-bias got meaningfully faster when expressed as **FA4 `score_mod`** rather than segment-combine
 
 Key truth sources (if numbers disagree):
-- `notes/FA4/b300/session-state.md`
-- `notes/FA4/b300/investigation-runbook.md`
-- `notes/FA4/b300/optimization-vision.md`
+- [`session-state.md`](../b300/session-state.md)
+- [`investigation-runbook.md`](../b300/investigation-runbook.md)
+- [`optimization-vision.md`](../b300/optimization-vision.md)
 
 ---
 
@@ -54,7 +54,7 @@ This is the loop we’ve converged on, and it’s the fastest way to not get los
 Pick *one* baseline command and keep it stable (same resolution/steps/bias/backend).
 
 B300 cu130 example (see session state for the current blessed invocation):
-- `notes/FA4/b300/session-state.md`
+- [`session-state.md`](../b300/session-state.md)
 
 ### Step 1 — Get a breakdown before touching code
 
@@ -68,7 +68,7 @@ If you don’t know which bucket is dominant, optimizing kernels is gambling.
 
 Don’t optimize what feels cool; optimize what moves end-to-end.
 
-Practical heuristics from our own profiling (see `notes/FA4/docs/kernel-optimization-guide.md`):
+Practical heuristics from our own profiling (see [`kernel-optimization-guide.md`](../docs/kernel-optimization-guide.md)):
 - KV-bias kernel speedups help, but are bounded once “other_in_self” dominates.
 - After FA4 `score_mod` KV-bias is in, the next wins often come from:
   - QKV/output projections (GEMMs)
@@ -85,8 +85,8 @@ One change means:
 ### Step 4 — Record an experiment card
 
 If it isn’t written down, it didn’t happen:
-- `notes/FA4/b300/experiments.md`
-- `notes/FA4/b200/experiments.md`
+- [`experiments.md`](../b300/experiments.md)
+- [`experiments.md`](../b200/experiments.md)
 
 Promotion rule:
 - if it becomes “how we should run by default”, update `session-state.md`
@@ -99,14 +99,14 @@ Promotion rule:
 Phase 1–2 explainers were necessary to make these statements confidently:
 
 1. **KV-bias is not “just attention”**: backend choice can turn it into multiple attention calls + logaddexp combine.
-   - Explainer #11: `notes/FA4/explainers/11-splitk-and-segment-combine.md`
+   - Explainer #11: [`11-splitk-and-segment-combine.md`](11-splitk-and-segment-combine.md)
 
 2. **FA4 `score_mod` reduces *functional overhead***: it keeps bias inside the main kernel instead of segmenting KV.
-   - Explainer #3: `notes/FA4/explainers/03-score-mod.md`
+   - Explainer #3: [`03-score-mod.md`](03-score-mod.md)
 
 3. **Once KV-bias is fixed, “other_in_self” dominates** (QKV, projections, copies, glue).
-   - Evidence in B300 vision: `notes/FA4/b300/optimization-vision.md`
-   - Evidence in the broader perf story: `notes/FA4/docs/kernel-optimization-guide.md`
+   - Evidence in B300 vision: [`optimization-vision.md`](../b300/optimization-vision.md)
+   - Evidence in the broader perf story: [`kernel-optimization-guide.md`](../docs/kernel-optimization-guide.md)
 
 So Phase 3 is mostly about attacking “other_in_self”, not endlessly re-tuning KV-bias.
 
@@ -121,7 +121,7 @@ This is the recommended ordering for “future worker wants progress fast.”
 On SM103, “it runs” can still mean “it fell back to something terrible.”
 
 Checklist:
-- confirm torch/CUDA stack (cu130 matters on B300): `notes/FA4/b300/session-state.md`
+- confirm torch/CUDA stack (cu130 matters on B300): [`session-state.md`](../b300/session-state.md)
 - confirm `TRITON_PTXAS_PATH` points at a CUDA that knows `sm_103`: `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
 - confirm KV-bias backend: `SCOPE_KV_BIAS_BACKEND`
 - confirm you’re not mixing CuTe module variants when `SCOPE_KV_BIAS_BACKEND=fa4`:
@@ -164,8 +164,8 @@ Known risks on SM103 (don’t rediscover these from scratch):
 - CUDAGraph modes can fail with “output overwritten” hazards
 
 Current state and caveats:
-- `notes/FA4/b300/session-state.md`
-- `notes/FA4/b300/optimization-vision.md` (Option E)
+- [`session-state.md`](../b300/session-state.md)
+- [`optimization-vision.md`](../b300/optimization-vision.md) (Option E)
 
 ### E) Level 5/6: bigger R&D bets (when the above is exhausted)
 
@@ -174,7 +174,7 @@ If you want to go deeper than “fix glue + GEMMs + compile,” the next tier is
 - Level 6: architecture-specific attention kernels (TMA/warp specialization)
 
 Starting points:
-- `notes/FA4/b300/level5-level6-resources.md`
+- [`level5-level6-resources.md`](../b300/level5-level6-resources.md)
 - ThunderKittens (Blackwell attention) is the canonical “Level 6” reference in our notes
 
 ---
@@ -189,7 +189,7 @@ This section is a “translation layer”: what those posts imply for *our* work
 ### 1) “Blackwell is a dataflow machine” (ThunderKittens)
 
 Source notes:
-- `notes/research/2025-12-24/incoming/perf/blogs/thunderkittens-blackwell.md`
+- [`thunderkittens-blackwell.md`](../../research/2025-12-24/incoming/perf/blogs/thunderkittens-blackwell.md)
 
 What to take away:
 - The core framing is **pipeline bubbles**, not “one clever instruction”.
@@ -211,7 +211,7 @@ How to use it in Phase 3:
 ### 2) Warp specialization is now a compiler feature (Triton / PyTorch)
 
 Source notes:
-- `notes/research/2025-12-24/incoming/perf/blogs/warp-specialization.md`
+- [`warp-specialization.md`](../../research/2025-12-24/incoming/perf/blogs/warp-specialization.md)
 
 What to take away:
 - Warp specialization is a practical way to express “producer vs consumer” roles without manually interleaving instruction streams.
@@ -228,7 +228,7 @@ How to use it in Phase 3:
 ### 3) TMA + mbarrier correctness is the price of admission (tcgen05)
 
 Source notes:
-- `notes/research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md`
+- [`gau-nerst-tcgen05.md`](../../research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md)
 
 What to take away:
 - Blackwell/Hopper-style kernels get their bandwidth via **TMA** (`cp.async.bulk.tensor`) and their correctness via **mbarrier phase accounting** (arrival count + expected bytes).
@@ -248,8 +248,8 @@ How to use it in Phase 3:
 ### 4) `mask_mod` vs `score_mod` is a performance choice (FlexAttention / CuTe DSL)
 
 Source notes:
-- `notes/research/2025-12-24/incoming/perf/blogs/flexattention_guide.md`
-- `notes/research/2025-12-24/incoming/perf/blogs/flexattn-for-inference.md`
+- [`flexattention_guide.md`](../../research/2025-12-24/incoming/perf/blogs/flexattention_guide.md)
+- [`flexattn-for-inference.md`](../../research/2025-12-24/incoming/perf/blogs/flexattn-for-inference.md)
 
 What to take away:
 - `mask_mod` enables **block sparsity** (skip fully-masked blocks, fast-path fully-unmasked blocks).
@@ -258,8 +258,8 @@ What to take away:
 Where it maps here:
 - Our “recompute” path uses block masks (great for sparsity); our KV-bias path uses score modification (best expressed as `score_mod`).
 - Explainers to re-open when optimizing masks:
-  - `notes/FA4/explainers/08-masking-and-mask_mod.md`
-  - `notes/FA4/explainers/03-score-mod.md`
+  - [`08-masking-and-mask_mod.md`](08-masking-and-mask_mod.md)
+  - [`03-score-mod.md`](03-score-mod.md)
 
 How to use it in Phase 3:
 - Don’t accidentally re-encode a mask as a score_mod: you’ll lose the ability to skip work at the block level.
@@ -268,7 +268,7 @@ How to use it in Phase 3:
 ### 5) “Glue” is often memory-bound; treat it like bandwidth engineering (QuACK)
 
 Source notes:
-- `notes/research/2025-12-24/incoming/perf/blogs/getting-mem-bound-kernals-SOL.md`
+- [`getting-mem-bound-kernals-SOL.md`](../../research/2025-12-24/incoming/perf/blogs/getting-mem-bound-kernals-SOL.md)
 
 What to take away:
 - Once you’re in the memory-bound regime, the win is usually “fewer passes over memory” and “better reduction strategy”, not “more math tricks”.
@@ -285,8 +285,8 @@ How to use it in Phase 3:
 ### 6) Compilation and host overhead are part of performance (Diffusers + Modal)
 
 Source notes:
-- `notes/research/2025-12-24/incoming/perf/blogs/torch-compile-and-diffusers.md`
-- `notes/research/2025-12-24/incoming/perf/blogs/modal_host-overhead-inference-efficency.md`
+- [`torch-compile-and-diffusers.md`](../../research/2025-12-24/incoming/perf/blogs/torch-compile-and-diffusers.md)
+- [`modal_host-overhead-inference-efficency.md`](../../research/2025-12-24/incoming/perf/blogs/modal_host-overhead-inference-efficency.md)
 
 What to take away:
 - The best `torch.compile` wins come from **regional compilation**, fewer graph breaks, and fewer recompiles.
@@ -305,7 +305,7 @@ How to use it in Phase 3:
 ## Extending Phase 3
 
 This playbook is meant to grow. The next Phase 3 explainer is:
-- `notes/FA4/explainers/14-blog-patterns-to-experiments.md` (turn blog patterns into concrete experiment cards for this repo)
+- [`14-blog-patterns-to-experiments.md`](14-blog-patterns-to-experiments.md) (turn blog patterns into concrete experiment cards for this repo)
 
 ---
 
@@ -315,7 +315,7 @@ If you’re trying to decide “which explainer should I re-open right now?”, 
 
 - You are debugging **why KV-bias is slower on one backend** → #3 and #11
 - You are debugging **why combine exists / how LSE should be used** → #7 and #11
-- You are debugging **a weird SM103-only failure** → #12 + `notes/FA4/b300/fa4-patches.md`
+- You are debugging **a weird SM103-only failure** → #12 + [`fa4-patches.md`](../b300/fa4-patches.md)
 - You are extending **score_mod or adding new callbacks** → #3 + `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py`
 - You are touching **forward scheduling / loads / pipelining** → #2, #5, #6
 - You are trying to understand **why backward is expensive / structured the way it is** → #10
@@ -324,11 +324,11 @@ If you’re trying to decide “which explainer should I re-open right now?”, 
 
 ## References (Start Here)
 
-- “You are here” map: `notes/FA4/optimization-map.md`
-- Shareable perf story: `notes/FA4/docs/kernel-optimization-guide.md`
-- B300 protocol: `notes/FA4/b300/investigation-runbook.md`
-- B300 current best-known config: `notes/FA4/b300/session-state.md`
-- B300 forward-looking options: `notes/FA4/b300/optimization-vision.md`
-- Level 5/6 reading list: `notes/FA4/b300/level5-level6-resources.md`
+- “You are here” map: [`optimization-map.md`](../optimization-map.md)
+- Shareable perf story: [`kernel-optimization-guide.md`](../docs/kernel-optimization-guide.md)
+- B300 protocol: [`investigation-runbook.md`](../b300/investigation-runbook.md)
+- B300 current best-known config: [`session-state.md`](../b300/session-state.md)
+- B300 forward-looking options: [`optimization-vision.md`](../b300/optimization-vision.md)
+- Level 5/6 reading list: [`level5-level6-resources.md`](../b300/level5-level6-resources.md)
 - Blog notes (local, vendored): `notes/research/2025-12-24/incoming/perf/blogs/`
-- Phase 1–2 explainer index: `notes/FA4/explainers/README.md`
+- Phase 1–2 explainer index: [`README.md`](README.md)

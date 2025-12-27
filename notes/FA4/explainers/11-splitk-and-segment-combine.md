@@ -181,7 +181,7 @@ With `SCOPE_KV_BIAS_BACKEND=fa4`, we express the KV-bias as an in-kernel `score_
 
 See:
 - `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` (`score_mod_kv_bias`, backend selection)
-- Explainer #3: `notes/FA4/explainers/03-score-mod.md`
+- Explainer #3: [`03-score-mod.md`](03-score-mod.md)
 
 ---
 
@@ -233,4 +233,4 @@ This is why `score_mod` tends to win when available: it keeps the whole operatio
 - SM100 forward kernel split handling (`split_idx`, per-split LSE write): `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py`
 - Combine kernel algorithm (`lse_max`, weights, O accumulation): `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_combine.py`
 - KV-bias segment-combine backend: `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
-- Related: Explainer #7 `notes/FA4/explainers/07-online-softmax.md`
+- Related: Explainer #7 [`07-online-softmax.md`](07-online-softmax.md)

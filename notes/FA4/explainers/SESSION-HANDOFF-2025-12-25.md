@@ -12,16 +12,16 @@ Writing an **explainer series** for FA4/CUTE internals. The goal is understandin
 
 ### Documents Created
 
-1. **`notes/NOTES-INDEX.md`** - Navigation hub for all notes
-2. **`notes/PROJECT-OVERVIEW.md`** - Unified view of instrument + engine tracks
-3. **`notes/daydream/cohort-pitch.md`** - Shareable project pitch for cohort
-4. **`notes/daydream/cohort-update-2025-12-25.md`** - Progress update
-5. **`notes/FA4/b300/optimization-ladder.md`** - The "hierarchy of sexy" for GPU optimization
-6. **`notes/FA4/b300/level5-level6-resources.md`** - Resource map for Level 5/6
-7. **`notes/FA4/explainers/README.md`** - Explainer series roadmap
-8. **`notes/FA4/explainers/03-score-mod.md`** - COMPLETED explainer on score_mod
-9. **`notes/FA4/explainers/04-rope.md`** - COMPLETED explainer on RoPE
-10. **`notes/FA4/explainers/05-tma-memory-loading.md`** - COMPLETED explainer on TMA/memory loading
+1. **[`NOTES-INDEX.md`](../../NOTES-INDEX.md)** - Navigation hub for all notes
+2. **[`PROJECT-OVERVIEW.md`](../../PROJECT-OVERVIEW.md)** - Unified view of instrument + engine tracks
+3. **[`cohort-pitch.md`](../../daydream/cohort-pitch.md)** - Shareable project pitch for cohort
+4. **[`cohort-update-2025-12-25.md`](../../daydream/cohort-update-2025-12-25.md)** - Progress update
+5. **[`optimization-ladder.md`](../b300/optimization-ladder.md)** - The "hierarchy of sexy" for GPU optimization
+6. **[`level5-level6-resources.md`](../b300/level5-level6-resources.md)** - Resource map for Level 5/6
+7. **[`README.md`](README.md)** - Explainer series roadmap
+8. **[`03-score-mod.md`](03-score-mod.md)** - COMPLETED explainer on score_mod
+9. **[`04-rope.md`](04-rope.md)** - COMPLETED explainer on RoPE
+10. **[`05-tma-memory-loading.md`](05-tma-memory-loading.md)** - COMPLETED explainer on TMA/memory loading
 
 ### Explainer Status
 
@@ -39,7 +39,7 @@ Writing an **explainer series** for FA4/CUTE internals. The goal is understandin
 
 ## Completed: Explainer #4 - How FA Does RoPE
 
-**File:** `notes/FA4/explainers/04-rope.md`
+**File:** [`04-rope.md`](04-rope.md)
 
 ### Key Insights Captured
 
@@ -53,7 +53,7 @@ Writing an **explainer series** for FA4/CUTE internals. The goal is understandin
 
 ## Completed: Explainer #5 - TMA and Memory Loading
 
-**File:** `notes/FA4/explainers/05-tma-memory-loading.md`
+**File:** [`05-tma-memory-loading.md`](05-tma-memory-loading.md)
 
 ### Key Insights Captured
 
@@ -108,7 +108,7 @@ From Codex's feedback (incorporated into optimization-ladder.md):
 
 ## Completed: Explainer #6 - Tile Scheduling and Pipelining
 
-**File:** `notes/FA4/explainers/06-tile-scheduling.md`
+**File:** [`06-tile-scheduling.md`](06-tile-scheduling.md)
 
 ### Key Insights Captured
 
@@ -138,7 +138,7 @@ self._phase_index += 1  # Encodes both index and phase
 
 ## Completed: Explainer #7 - Online Softmax
 
-**File:** `notes/FA4/explainers/07-online-softmax.md`
+**File:** [`07-online-softmax.md`](07-online-softmax.md)
 
 ### Key Insights Captured
 
@@ -163,7 +163,7 @@ O = O * scale + P_tile @ V_tile
 
 ## Completed: Explainer #2 - The Blackwell Path (SM100)
 
-**File:** `notes/FA4/explainers/02-blackwell-path.md`
+**File:** [`02-blackwell-path.md`](02-blackwell-path.md)
 
 ### Key Insights Captured
 
@@ -194,7 +194,7 @@ smem_desc = (base_addr << 4) | (swizzle_type << 62) | (layout_type << 29)
 
 ## Completed: Explainer #1 - How FA4 Attention Works (Overview)
 
-**File:** `notes/FA4/explainers/01-how-fa4-works.md`
+**File:** [`01-how-fa4-works.md`](01-how-fa4-works.md)
 
 ### Key Insights Captured
 

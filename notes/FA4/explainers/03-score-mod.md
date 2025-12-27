@@ -254,13 +254,13 @@ if not _fa4_bias_tripped:
         logger.warning("FA4 failed; falling back...")
 ```
 
-**SM103 (B300) note:** in our current environment/toolchain, the Triton KV-bias backend can fall onto a catastrophically slow scalar path. For B300, “safe fallback” usually means `flash` (segment-combine), not Triton. (See `notes/FA4/b300/session-state.md` for the practical backend guidance.)
+**SM103 (B300) note:** in our current environment/toolchain, the Triton KV-bias backend can fall onto a catastrophically slow scalar path. For B300, “safe fallback” usually means `flash` (segment-combine), not Triton. (See [`session-state.md`](../b300/session-state.md) for the practical backend guidance.)
 
 ---
 
 ## Performance Results
 
-Example steady-state Kernel B numbers (B200 @ `320x576`, BF16, KV-bias `0.3`). See `notes/FA4/docs/kernel-optimization-guide.md`.
+Example steady-state Kernel B numbers (B200 @ `320x576`, BF16, KV-bias `0.3`). See [`kernel-optimization-guide.md`](../docs/kernel-optimization-guide.md).
 
 | Backend | Time (ms/call) | vs Triton |
 |---------|----------------|-----------|
@@ -365,5 +365,5 @@ def get_score_mod(param1, param2):
 
 - [CUTLASS Python DSL](https://github.com/NVIDIA/cutlass/tree/main/python)
 - [FlashAttention Paper](https://arxiv.org/abs/2205.14135)
-- `notes/FA4/kernel-dev-log.md` - Full development chronicle
-- `notes/FA4/docs/kernel-optimization-guide.md` - Technical deep dive
+- [`kernel-dev-log.md`](../kernel-dev-log.md) - Full development chronicle
+- [`kernel-optimization-guide.md`](../docs/kernel-optimization-guide.md) - Technical deep dive

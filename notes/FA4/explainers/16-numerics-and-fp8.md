@@ -34,8 +34,8 @@ Even when Q/K/V are bf16/fp16:
 - LSE (`logsumexp`) is conceptually a float32 quantity because it’s used to combine segments stably and (in training) for backward.
 
 Explainers that go deeper:
-- Online softmax mechanics: `notes/FA4/explainers/07-online-softmax.md`
-- LSE combine: `notes/FA4/explainers/11-splitk-and-segment-combine.md`
+- Online softmax mechanics: [`07-online-softmax.md`](07-online-softmax.md)
+- LSE combine: [`11-splitk-and-segment-combine.md`](11-splitk-and-segment-combine.md)
 
 ### Layer C — “Glue” numerics (casts, layout conversions, scaling)
 
@@ -174,6 +174,6 @@ When you’re comparing numerics/perf experiments:
 
 - KV-bias implementation: `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
 - Pipeline quantization wiring: `src/scope/core/pipelines/krea_realtime_video/pipeline.py`
-- Online softmax + LSE: `notes/FA4/explainers/07-online-softmax.md`
-- Segment-combine math: `notes/FA4/explainers/11-splitk-and-segment-combine.md`
-- SM103 hazards: `notes/FA4/explainers/12-sm103-notes.md`
+- Online softmax + LSE: [`07-online-softmax.md`](07-online-softmax.md)
+- Segment-combine math: [`11-splitk-and-segment-combine.md`](11-splitk-and-segment-combine.md)
+- SM103 hazards: [`12-sm103-notes.md`](12-sm103-notes.md)

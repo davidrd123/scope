@@ -43,7 +43,7 @@ On B300, the CuTe / tcgen05 stack often wants `sm_103a` (not `sm_100a/sm_100f`).
 Older or unpatched `nvidia-cutlass-dsl` builds reject SM103, so FA4/CuTe can fail to import or compile.
 
 Repo references:
-- Patch guide: `notes/FA4/b300/fa4-patches.md`
+- Patch guide: [`fa4-patches.md`](../b300/fa4-patches.md)
 - Patch script: `scripts/patch_cutlass_sm103.sh`
 
 Rule of thumb: if `from flash_attn.cute.interface import _flash_attn_fwd` fails on B300, don’t debug kernels yet — debug the toolchain.
@@ -83,8 +83,8 @@ This repo has strong evidence that the “B300 is slow” story can be mostly ab
 If you’re optimizing kernels but running the wrong runtime stack, you can easily spend days chasing the wrong bottleneck.
 
 Ground truth references:
-- `notes/FA4/b300/session-state.md`
-- `notes/FA4/b300/investigation-runbook.md`
+- [`session-state.md`](../b300/session-state.md)
+- [`investigation-runbook.md`](../b300/investigation-runbook.md)
 
 ---
 
@@ -96,7 +96,7 @@ Ground truth references:
    - `python -c "from flash_attn.cute.interface import _flash_attn_fwd; print('FA4/CuTe ok')"` (only if you expect FA4)
 3. **Confirm which KV-bias backend is active**: `echo $SCOPE_KV_BIAS_BACKEND`
 4. **Confirm ptxas**: `echo $TRITON_PTXAS_PATH` (should point to a CUDA 12.9+ install on SM103)
-5. **Use canonical measurements**: `320x576`, stable settings; see `notes/FA4/b300/investigation-runbook.md`
+5. **Use canonical measurements**: `320x576`, stable settings; see [`investigation-runbook.md`](../b300/investigation-runbook.md)
 
 If any of those are “wrong”, fix them before micro-optimizing.
 
@@ -121,10 +121,10 @@ And record (at minimum):
 
 ## References
 
-- SM100 mental model: `notes/FA4/explainers/02-blackwell-path.md`
-- Segment combine + KV-bias backends: `notes/FA4/explainers/11-splitk-and-segment-combine.md`
-- B300 runbook: `notes/FA4/b300/investigation-runbook.md`
-- B300 session truth: `notes/FA4/b300/session-state.md`
-- B300 FA4 patching: `notes/FA4/b300/fa4-patches.md`
+- SM100 mental model: [`02-blackwell-path.md`](02-blackwell-path.md)
+- Segment combine + KV-bias backends: [`11-splitk-and-segment-combine.md`](11-splitk-and-segment-combine.md)
+- B300 runbook: [`investigation-runbook.md`](../b300/investigation-runbook.md)
+- B300 session truth: [`session-state.md`](../b300/session-state.md)
+- B300 FA4 patching: [`fa4-patches.md`](../b300/fa4-patches.md)
 - Runtime/backend code: `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
 - Non-bias attention backend selection: `src/scope/core/pipelines/wan2_1/modules/attention.py`

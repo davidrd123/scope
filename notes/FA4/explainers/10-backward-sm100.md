@@ -282,5 +282,5 @@ In other words: you don’t need backward to ship FPS improvements, but you *do*
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py` (preprocess/postprocess + `lse_log2` / `dPsum`)
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/softmax.py` (`apply_score_mod_inner`, `apply_score_mod_bwd_inner`)
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/mask.py` (`apply_mask_sm100_transposed`)
-- Explainer #8: `notes/FA4/explainers/08-masking-and-mask_mod.md`
-- Explainer #7: `notes/FA4/explainers/07-online-softmax.md`
+- Explainer #8: [`08-masking-and-mask_mod.md`](08-masking-and-mask_mod.md)
+- Explainer #7: [`07-online-softmax.md`](07-online-softmax.md)
