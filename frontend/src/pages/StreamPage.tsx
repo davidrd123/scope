@@ -1167,6 +1167,26 @@ export function StreamPage() {
     }
   };
 
+  // Autostart: if ?autostart=1 is in the URL, start streaming on mount
+  const autostartTriggeredRef = useRef(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shouldAutostart = params.get("autostart") === "1";
+
+    if (shouldAutostart && !autostartTriggeredRef.current && !isStreaming && !isConnecting) {
+      autostartTriggeredRef.current = true;
+      console.log("Autostart mode: initiating stream...");
+      // Small delay to ensure component is fully mounted
+      const timer = setTimeout(() => {
+        handleStartStream();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isStreaming, isConnecting]);
+
+  // Check if autostart mode is active (for UI indicator)
+  const isAutostartMode = new URLSearchParams(window.location.search).get("autostart") === "1";
+
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
@@ -1450,6 +1470,13 @@ export function StreamPage() {
 
       {/* Status Bar */}
       <StatusBar fps={webrtcStats.fps} bitrate={webrtcStats.bitrate} />
+
+      {/* Autostart mode indicator */}
+      {isAutostartMode && (
+        <div className="fixed bottom-12 left-4 px-2 py-1 bg-yellow-500/20 border border-yellow-500/50 rounded text-xs text-yellow-400">
+          Autostart Mode
+        </div>
+      )}
 
       {/* Download Dialog */}
       {pipelineNeedsModels && (
