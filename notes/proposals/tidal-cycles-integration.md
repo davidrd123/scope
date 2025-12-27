@@ -40,9 +40,13 @@ Scope realtime control is already chunk-boundary-driven and has a clear "reserve
   - `/api/v1/realtime/soft-cut` → forwards `{ "_rcp_soft_transition": { temp_bias, num_chunks } }` (+ optional prompt)
   - `/api/v1/realtime/world` → forwards `{ "_rcp_world_state": <WorldState> }`
   - `/api/v1/realtime/style` → forwards `{ "_rcp_set_style": <style_name> }`
-- **WebRTC data-channel** messages are translated by `apply_control_message` in `src/scope/server/webrtc.py`
+- `/api/v1/realtime/run`, `/api/v1/realtime/pause`, `/api/v1/realtime/step` (step uses a reserved key: `_rcp_step`)
+- **WebRTC data-channel** messages are translated by `apply_control_message` in `src/scope/server/webrtc.py` (examples: `snapshot_request` → `_rcp_snapshot_request`, `restore_snapshot` → `_rcp_restore_snapshot`, `step` → `_rcp_step`)
 - **Reserved keys are consumed inside `FrameProcessor`** and are **not forwarded** to the pipeline — this is the correct pattern for music integration
-- **Soft cut semantics are already defined**: `_rcp_soft_transition` temporarily overrides `kv_cache_attention_bias` for N chunks and restores
+- **Soft cut semantics are already defined**:
+  - `_rcp_soft_transition` temporarily overrides `kv_cache_attention_bias` for N chunks and then restores.
+  - Inputs are coerced/clamped (bias ∈ `[0.01, 1.0]`, chunks ∈ `[1, 10]`).
+  - An explicit `kv_cache_attention_bias` update arriving during an active soft transition cancels it (so we don’t restore over a user override).
 
 **Implication:** align audio events to the same chunk-boundary semantics and reuse the "reserved keys consumed in FrameProcessor" pattern.
 
@@ -194,6 +198,18 @@ Add Scope-side code so `/realtime/soft-cut` and `/realtime/hard-cut` also call a
 Simpler but: bypasses chunk-boundary ordering and can drift relative to actual generation boundaries.
 
 **Recommendation:** Option A for correct alignment; Option B okay for early experiments.
+
+### Event ordering (recommended)
+
+Keep ordering deterministic so “what you heard” matches “what you saw” when replaying logs:
+
+1. Apply **style** changes (palette)
+2. Apply **world state** changes (and any prompt compilation they trigger)
+3. Apply **prompt / transition** changes
+4. Apply **hard/soft cut** actions (punctuation)
+5. Emit **music intent** / **music action** events (derived from the post-update state)
+
+Practical rule: compute the intent vector from the *post-update* WorldState + style, then treat actions (`hush`, `solo`, etc.) as punctuation on top.
 
 ---
 
@@ -369,6 +385,19 @@ xfadeIn 4 $ d1 $ sound "new_pattern"
 └─────────────────────────────────────────────┘
 ```
 
+## MVP Acceptance Checks (Phases 0–2)
+
+Keep this deliberately small; success is “rehearsable” A/V control, not maximal automation.
+
+- **Phase 0 (offline scoring):** cue sheet playback steers a parametric Tidal patch repeatably (no networking, no live rewrites).
+- **Phase 1 (bridge + intent):**
+  - Sending `POST /intent` updates (`energy`, `tension`, etc.) audibly changes the patch within a short window (≲ 1–2 musical cycles).
+  - Bridge rejects unknown keys and clamps out-of-range values.
+  - Video-side emitter is non-blocking (no FPS drop; no stalls due to network IO).
+- **Phase 2 (arrangement actions):** hard cut → `hush` is reliable; focus changes are deterministic (solo/unsolo behavior is predictable).
+
+Explicitly out of scope for MVP: automated pattern rewrites, Link-based beat quantization, and “agents can freely eval Tidal code”.
+
 ## Integration with Video System
 
 ### Reserved Control Keys
@@ -461,10 +490,10 @@ Tidal supports Ableton Link for shared tempo/phase:
 | `src/scope/integrations/tidal/client.py` | HTTP client used by video box emitter |
 | `src/scope/integrations/tidal/emitter.py` | Background sender (queue + coalesce + retry policy) |
 | `src/scope/integrations/tidal/bridge.py` | FastAPI HTTP→OSC bridge (runs on music machine) |
-| `examples/tidal/parametric_patch.tidal` | Reference parametric patch |
-| `examples/tidal/akira_cues.json` | Example cue sheet aligned to prompts |
-| `tools/play_cue_sheet.py` | Offline cue playback (music machine) |
-| `tools/send_intent.py` | Manual intent override |
+| `notes/proposals/tidal-cycles-integration/examples/parametric_patch.tidal` | Reference parametric patch |
+| `notes/proposals/tidal-cycles-integration/examples/akira_cues.json` | Example cue sheet aligned to prompts |
+| `scripts/tidal_play_cue_sheet.py` | Offline cue playback (music machine) |
+| `scripts/tidal_send_intent.py` | Manual intent override (music machine) |
 
 ## Dependencies
 
