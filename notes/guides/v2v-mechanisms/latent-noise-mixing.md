@@ -61,6 +61,9 @@ That goes “less noisy → more noisy” across steps, which is the opposite of
 Rule of thumb for the `[1000, 750]` case:
 - If `noise_scale < 0.85`, the first step becomes `< 750` and the list becomes increasing.
 
+Generalizing for a 2-step list `[1000, second]`:
+- you typically want `int(1000 * noise_scale) - 100 >= second` (i.e. `noise_scale ≳ (second + 100) / 1000`, accounting for `int()` rounding).
+
 If you’re seeing V2V glitches, checking this is one of the fastest sanity tests.
 
 ---

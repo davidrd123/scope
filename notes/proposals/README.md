@@ -22,7 +22,8 @@
 | [realtime-voice-integration.md](realtime-voice-integration.md) | Draft | Not started | Med | M | Med/High | Pick Phase 1 path (browser STT vs Whisper) and define the control contract. |
 | [server-side-session-recorder.md](server-side-session-recorder.md) | Draft (doc lags) | Implemented (MVP) | High | S/M | Med | Expand recorded events (e.g., LoRA scales) + harden multi-session behavior. |
 | [session-recording-timeline-export.md](session-recording-timeline-export.md) | Implemented (MVP) | Implemented (MVP) | High | S | Low | Align timeline semantics with server recorder (cuts/transitions fidelity). |
-| [style-swap-mode.md](style-swap-mode.md) | Draft (reviewed) | Partial (core mode exists) | High | S | Med | Add `STYLE_DEFAULT` initial activation + tighten “style exists” validation. |
+| [style-swap-mode.md](style-swap-mode.md) | Draft (reviewed) | Partial (core mode exists) | High | S | Med | Add `STYLE_DEFAULT` initial activation + tighten "style exists" validation. |
+| [style-swap-inplace-merge.md](style-swap-inplace-merge.md) | Draft | Not started | Med | M | Med | Avoids ~50% FPS hit of `runtime_peft` via weight rebuild on style change. Depends on style-swap-mode. |
 | [tidal-cycles-integration.md](tidal-cycles-integration.md) | Draft | Not started | Med | M | Med/High | Define minimal intent schema + implement the bridge (OSC/MCP) for one happy path. |
 | [transition-prompts.md](transition-prompts.md) | Draft | Not started | High | S | Low | Implement `>` parsing + thread transition text into existing transition machinery. |
 | [vace-14b-integration.md](vace-14b-integration.md) | Ready to implement | Not started | Med | L | High | Add artifacts + schema + Krea mixin/block wiring; decide VRAM/quant + KV-recompute semantics. |
@@ -35,6 +36,8 @@
 - Server-side session recorder wiring: `src/scope/server/app.py`, `src/scope/server/frame_processor.py`, `src/scope/server/session_recorder.py`, `src/scope/cli/render_timeline.py`
 - Timeline export on record stop: `frontend/src/pages/StreamPage.tsx`, `frontend/src/hooks/useStreamRecorder.ts`
 - Style swap mode: `src/scope/server/pipeline_manager.py`, `src/scope/server/frame_processor.py`
+- Style swap in-place merge research: `notes/research/comfyui-wrapper-techniques.md`, `notes/guides/krea-architecture/perf-crossover.md`
+- LoRA strategies: `src/scope/core/pipelines/wan2_1/lora/strategies/peft_lora.py`
 - Prompt compilation (VLM): `src/scope/realtime/gemini_client.py`
 
 ## Cross-cutting blockers

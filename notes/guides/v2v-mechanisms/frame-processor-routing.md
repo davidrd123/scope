@@ -159,22 +159,18 @@ if video_input is not None:
 
 WebRTC frames arrive at variable rates (network jitter, camera timing). The pipeline needs exactly N frames per block.
 
-**Options:**
-1. **Block until N frames arrive** - adds latency
-2. **Drop/duplicate to hit N** - can stutter
-3. **Uniform sample across buffer** - FrameProcessor's approach
+FrameProcessor effectively does **both**:
+1. **Wait until at least N frames are available** (it sleeps/retries if the buffer is short)
+2. **If the buffer has > N frames**, uniformly sample N frames across the buffer and drop frames up to the last sampled index
 
-Uniform sampling ensures temporal coverage but introduces **variable stride**:
+Uniform sampling ensures temporal coverage but introduces **variable stride >= 1.0** (i.e., skipped frames) when the buffer grows:
 
 ```
 Scenario A: Buffer has 12 frames, need 12
-  stride = 1 → sample every frame
+  stride = 1.0 → sample every frame
 
 Scenario B: Buffer has 18 frames, need 12
-  stride = 1.5 → sample every 1.5 frames (some skipped)
-
-Scenario C: Buffer has 8 frames, need 12
-  stride = 0.67 → sample every 0.67 frames (some duplicated via rounding)
+  stride = 1.5 → sample ~every 1.5 frames (some skipped)
 ```
 
 ### The Jitter Consequence
@@ -184,8 +180,8 @@ If generation is slightly slower than capture:
 - Motion can look "jumpy" because frame spacing isn't constant
 
 If generation is slightly faster than capture:
-- Buffer shrinks → stride decreases → frames may repeat
-- Motion can look "stuttery"
+- FrameProcessor blocks waiting for frames (it does not sample with `stride < 1.0`)
+- Output can appear low-FPS / “frozen” simply because there are no new input frames to drive the next chunk
 
 ---
 
@@ -194,11 +190,11 @@ If generation is slightly faster than capture:
 The pipeline specifies how many frames it needs via `prepare()`:
 
 ```python
-# src/scope/core/pipelines/defaults.py:141
-# Video mode is inferred from kwargs: if "video" is present (even as a placeholder),
-# prepare() requests a fixed input_size of num_frame_per_block * vae_temporal_downsample_factor.
+# src/scope/core/pipelines/defaults.py
 if kwargs.get("video") is not None:
-    return Requirements(input_size=num_frame_per_block * vae_temporal_downsample_factor)
+    if video_input_size is None:
+        video_input_size = calculate_video_input_size(components_config)
+    return Requirements(input_size=video_input_size)
 ```
 
 **Why 12 frames?**

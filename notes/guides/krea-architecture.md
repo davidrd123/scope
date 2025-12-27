@@ -1,0 +1,1 @@
+/root/scope/src/scope/core/pipelines/krea_realtime_video/docs/architecture-guide.md

@@ -101,6 +101,9 @@ If your scheduler expects timesteps to move consistently from “more noise” t
 Rule of thumb for the `[1000, 750]` case:
 - keep `noise_scale >= 0.85` so the first step stays `>= 750`
 
+Generalizing for a 2-step list `[1000, second]`:
+- you typically want `int(1000 * noise_scale) - 100 >= second` (i.e. `noise_scale ≳ (second + 100) / 1000`, accounting for `int()` rounding).
+
 ---
 
 ## Scope vs ComfyUI
@@ -120,7 +123,16 @@ If you're coming from ComfyUI, the knobs feel different:
 
 ## Practical Tuning Guide
 
+### First: sanity-check your effective denoising schedule
+
+Because Scope mutates **only** `denoising_step_list[0]` (and leaves the rest unchanged), the “usable” range of `noise_scale` depends on your `denoising_step_list`.
+
+- With a common 2-step realtime list like `[1000, 750]`, `noise_scale=0.7` becomes `[600, 750]` (increasing), which is a common source of instability.
+- Either keep `noise_scale` high enough to avoid that (e.g. `>= 0.85` for `[1000, 750]`) **or** choose a step list whose later steps are `<=` the mutated first step.
+
 ### By Range
+
+These ranges assume your *effective* `denoising_step_list` stays in the intended direction (typically high → low) after the first-step mutation.
 
 | noise_scale | What You Get |
 |-------------|--------------|
@@ -131,8 +143,8 @@ If you're coming from ComfyUI, the knobs feel different:
 ### Common Scenarios
 
 **"I want more of the original video preserved"**
-- Lower `noise_scale` (try 0.2-0.3)
-- You'll get lighter denoising, more input structure kept
+- Lower `noise_scale`, but also confirm your *effective* `denoising_step_list` doesn’t “jump to more noise” on step 2.
+- If you’re on a short 2-step list (e.g. `[1000, 750]`), you’ll usually need to also lower the later timestep(s) (or use a 1-step schedule) to avoid the non-monotonic footgun.
 
 **"The output doesn't match my prompt"**
 - Raise `noise_scale` (try 0.6-0.8)
@@ -141,7 +153,8 @@ If you're coming from ComfyUI, the knobs feel different:
 **"Motion looks jittery or stuttery"**
 - This is usually **not** a noise_scale issue
 - Check frame sampling in [`frame-processor-routing.md`](frame-processor-routing.md)
-- Look at buffer stride - should be ~1.0
+- Look at buffer stride - it should be close to 1.0 (large values mean you’re skipping input frames)
+- If stride looks fine, also sanity-check that your mutated `denoising_step_list` stays in the intended order
 
 **"First frame looks different from the rest"**
 - VAE alignment issue on first block
