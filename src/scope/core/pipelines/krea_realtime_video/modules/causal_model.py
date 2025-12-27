@@ -1,11 +1,13 @@
 # Modified from https://github.com/krea-ai/realtime-video
 import atexit
 import functools
+import json
 import logging
 import math
 import os
 import subprocess
 from collections import defaultdict
+from pathlib import Path
 
 import torch
 import torch.nn as nn
@@ -20,6 +22,55 @@ from torch.nn.attention.flex_attention import (
 from scope.core.pipelines.wan2_1.modules.attention import attention
 
 logger = logging.getLogger(__name__)
+
+# Optional: dump one-shot layout/stride contracts for debugging kernel fusion work.
+# Enable via:
+#   - SCOPE_DEBUG_LAYOUT_CONTRACTS=1 (logs + optional file output), or
+#   - SCOPE_LAYOUT_CONTRACT_OUT=outputs/layout_contracts.json (write JSON).
+_LAYOUT_CONTRACT_OUT = os.getenv("SCOPE_LAYOUT_CONTRACT_OUT", "").strip()
+_LAYOUT_CONTRACT_ENABLED = os.getenv("SCOPE_DEBUG_LAYOUT_CONTRACTS", "0") == "1" or bool(
+    _LAYOUT_CONTRACT_OUT
+)
+_LAYOUT_CONTRACT_DUMPED = False
+
+
+def _layout_contract_should_dump() -> bool:
+    global _LAYOUT_CONTRACT_DUMPED
+    if not _LAYOUT_CONTRACT_ENABLED or _LAYOUT_CONTRACT_DUMPED:
+        return False
+    try:
+        if hasattr(torch, "compiler") and hasattr(torch.compiler, "is_compiling"):
+            if torch.compiler.is_compiling():
+                return False
+    except Exception:
+        pass
+    return True
+
+
+def _tensor_layout_info(t: torch.Tensor) -> dict:
+    return {
+        "dtype": str(t.dtype),
+        "device": str(t.device),
+        "shape": list(t.shape),
+        "stride": list(t.stride()),
+        "storage_offset": int(getattr(t, "storage_offset", lambda: 0)()),
+        "is_contiguous": bool(t.is_contiguous()),
+    }
+
+
+def _write_layout_contract(payload: dict) -> None:
+    global _LAYOUT_CONTRACT_DUMPED
+    _LAYOUT_CONTRACT_DUMPED = True
+    try:
+        if _LAYOUT_CONTRACT_OUT:
+            out_path = Path(_LAYOUT_CONTRACT_OUT)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(
+                json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            logger.info("Wrote layout contract JSON: %s", out_path)
+    except Exception as e:
+        logger.warning("Failed to write layout contract JSON (%s): %s", _LAYOUT_CONTRACT_OUT, e)
 
 def _is_sm103() -> bool:
     """Return True on B300 (SM103)."""
@@ -1234,6 +1285,59 @@ class CausalWanSelfAttention(nn.Module):
             kv_start_idx = max(0, local_end_index - self.max_attention_size)
             cached_k = kv_cache["k"][:, kv_start_idx:local_end_index]
             cached_v = kv_cache["v"][:, kv_start_idx:local_end_index]
+
+            if _layout_contract_should_dump():
+                payload = {
+                    "meta": {
+                        "torch_version": torch.__version__,
+                        "torch_cuda_version": torch.version.cuda,
+                        "device_name": torch.cuda.get_device_name(0)
+                        if torch.cuda.is_available()
+                        else None,
+                        "device_cc": list(torch.cuda.get_device_capability(0))
+                        if torch.cuda.is_available()
+                        else None,
+                        "SCOPE_KV_BIAS_BACKEND": os.getenv("SCOPE_KV_BIAS_BACKEND"),
+                        "SCOPE_DISABLE_FUSED_PROJECTIONS": os.getenv(
+                            "SCOPE_DISABLE_FUSED_PROJECTIONS"
+                        ),
+                        "WANVAE_STREAM_DECODE_MODE": os.getenv("WANVAE_STREAM_DECODE_MODE"),
+                    },
+                    "self_attn": {
+                        "fused_projections": bool(getattr(self, "fused_projections", False)),
+                        "kv_cache_attention_bias": float(kv_cache_attention_bias),
+                        "frame_seqlen": int(frame_seqlen),
+                        "current_start": int(current_start),
+                        "current_end": int(current_end),
+                        "kv_start_idx": int(kv_start_idx),
+                        "local_start_index": int(local_start_index),
+                        "local_end_index": int(local_end_index),
+                    },
+                    "qkv": {
+                        "q": _tensor_layout_info(q),
+                        "k": _tensor_layout_info(k),
+                        "v": _tensor_layout_info(v),
+                    },
+                    "rope": {
+                        "roped_query": _tensor_layout_info(roped_query),
+                        "roped_key": _tensor_layout_info(roped_key),
+                    },
+                    "kv_cache": {
+                        "k_full": _tensor_layout_info(kv_cache["k"]),
+                        "v_full": _tensor_layout_info(kv_cache["v"]),
+                    },
+                    "cached": {
+                        "k_slice": _tensor_layout_info(cached_k),
+                        "v_slice": _tensor_layout_info(cached_v),
+                    },
+                }
+                if cached_k.shape[0] == 1:
+                    payload["fa4_b1_normalized_views"] = {
+                        "q": _tensor_layout_info(roped_query[0].unsqueeze(0)),
+                        "k": _tensor_layout_info(cached_k[0].unsqueeze(0)),
+                        "v": _tensor_layout_info(cached_v[0].unsqueeze(0)),
+                    }
+                _write_layout_contract(payload)
 
             if kv_cache_attention_bias != KV_CACHE_ATTENTION_BIAS_DISABLED:
                 # Use flex_attention with bias to mitigate error accumulation in past frames
