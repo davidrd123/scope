@@ -73,20 +73,35 @@ This doc indexes the vendored CuTe/CUTLASS code in this repo and extracts action
 
 ### Pattern 1: Warp Specialization Layout
 
-From `flash_fwd_sm100.py` and `fmha.py`:
+Two concrete examples. **The exact warp IDs can differ between kernels**, so don’t assume the numbers; assume the pattern (dedicated producer/consumer roles).
+
+**FA4 attention (Tri Dao)**
+- `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py`
 
 ```python
-# 16 warps total, specialized roles:
-self.softmax0_warp_ids = (0, 1, 2, 3)      # Softmax stage 0
-self.softmax1_warp_ids = (4, 5, 6, 7)      # Softmax stage 1
-self.correction_warp_ids = (8, 9, 10, 11)  # Online correction
+self.softmax0_warp_ids = (0, 1, 2, 3)       # Softmax stage 0
+self.softmax1_warp_ids = (4, 5, 6, 7)       # Softmax stage 1
+self.correction_warp_ids = (8, 9, 10, 11)   # Online correction
 self.mma_warp_id = 12                       # MMA compute
-self.load_warp_id = 13                      # TMA loads
-self.epilogue_warp_id = 14                  # Store results
-self.empty_warp_id = 15                     # Padding/unused
+self.epilogue_warp_ids = (13,)              # Epilogue / store
+self.load_warp_ids = (14,)                  # TMA loads (can be (14, 15) in some modes)
+self.empty_warp_ids = (15,)                 # Padding/unused (may be repurposed)
 ```
 
-**Key insight**: Warps are statically assigned roles. Producer (load) and consumer (MMA) are on separate warps.
+**CUTLASS/CuTe DSL FMHA example**
+- `vendored/cutlass-cute/python/CuTeDSL/blackwell/fmha.py`
+
+```python
+self.softmax0_warp_ids = (0, 1, 2, 3)
+self.softmax1_warp_ids = (4, 5, 6, 7)
+self.correction_warp_ids = (8, 9, 10, 11)
+self.mma_warp_id = 12
+self.load_warp_id = 13
+self.epilogue_warp_id = 14
+self.empty_warp_id = 15
+```
+
+**Key insight**: Warps are statically assigned roles. Producer (load) and consumer (MMA) are separate, and these roles often drive the pipeline structure (mbarriers/TMA/TMEM).
 
 ### Pattern 2: Named Barrier Convention
 

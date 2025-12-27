@@ -16,6 +16,7 @@ This folder is the “working set” for the B300 (SM103) optimization thread: h
 | Document layout contracts (blocks Level 6) | `layout-contracts.md` |
 | Break down `other_in_self` with stacks | `other-in-self-breakdown.md` |
 | Quick reference for Blackwell primitives | `blackwell-primitives-cheatsheet.md` |
+| Map the vendored reference kernels (CuTe/CUTLASS/FA4) | `vendored-kernel-resources.md` |
 | VAE decode graph + cuDNN planning notes | `vae-decode-architecture.md` |
 | Kernel experiment gates (perf + quality) | `kernel-experiment-template.md` |
 
@@ -39,4 +40,5 @@ If you’re trying to answer “is this a us-bug or an upstream landmine?”, th
 
 If you want the “receipts” (issue IDs / exact spellings) in one place:
 - `notes/FA4/DeepResearch/2025-12-26/B300_optim_ladder/round02/claude_dr.md`
+- `notes/FA4/DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/README.md`
 - `notes/FA4/DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md`

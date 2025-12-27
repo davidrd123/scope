@@ -45,6 +45,7 @@ Production notes (make it shippable):
 
 | Resource | Location | Relevance |
 |----------|----------|-----------|
+| **Vendored kernel reading map** | `notes/FA4/b300/vendored-kernel-resources.md` | Level 5/6: curated pointers into the exact vendored kernels in this repo |
 | **ThunderKittens Blackwell blog** | `notes/research/2025-12-24/incoming/perf/blogs/thunderkittens-blackwell.md` | Level 6: TMA, CTA pairs, warp specialization in attention |
 | **Warp Specialization blog** | `notes/research/2025-12-24/incoming/perf/blogs/warp-specialization.md` | Level 6: Triton's built-in warp spec (`num_consumer_groups`) |
 | **tcgen05 for dummies** | `notes/research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md` | Level 6: Low-level Blackwell tensor core programming |
