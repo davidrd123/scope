@@ -1,8 +1,22 @@
 # Server-Side Session Recorder
 
-> Status: Draft (hardened per DeepResearch review)
-> Date: 2025-12-26
-> Review: `notes/research/2025-12-26/session_recorder/oai_5pro_01.md`
+> Status: Draft (revised per review01 findings)
+> Date: 2025-12-26, revised 2025-12-27
+> Review: `notes/proposals/server-side-session-recorder/review01.md`
+
+## Revision Summary (2025-12-27)
+
+Incorporated fixes from review01:
+
+| Risk | Issue | Fix |
+|------|-------|-----|
+| **A** | `_compiled_prompt` is `CompiledPrompt`, not string | Access `.positive` attribute |
+| **B** | Weight scale mixed (1.0 vs 100.0) | Standardized on 1.0 everywhere |
+| **C** | Non-ControlBus prompt changes missed | Added fallback edge detection |
+| **E** | Soft cut restore semantics lost | Added `restoreBias`/`restoreWasSet` fields |
+| **§3-5** | render_timeline.py support missing | Added schema + loop implementation |
+
+---
 
 ## Purpose
 
@@ -58,7 +72,7 @@ class ControlEvent:
 
     # Prompt (may be None for cut-only events)
     prompt: str | None = None
-    prompt_weight: float = 100.0
+    prompt_weight: float = 1.0  # FIXED: Use 1.0 consistently (matches pipeline warmup)
 
     # Transition
     transition_steps: int | None = None
@@ -68,6 +82,9 @@ class ControlEvent:
     hard_cut: bool = False
     soft_cut_bias: float | None = None
     soft_cut_chunks: int | None = None
+    # ADDED: Soft cut restore semantics (per review01 Risk E)
+    soft_cut_restore_bias: float | None = None  # Original bias to restore (None = was unset)
+    soft_cut_restore_was_set: bool = False  # True if bias was explicitly set before soft cut
 
 
 @dataclass
@@ -176,12 +193,14 @@ class SessionRecorder:
         chunk_index: int,
         wall_time: float,
         prompt: str | None = None,
-        prompt_weight: float = 100.0,
+        prompt_weight: float = 1.0,  # FIXED: Use 1.0 consistently (review01 Risk B)
         transition_steps: int | None = None,
         transition_method: str | None = None,
         hard_cut: bool = False,
         soft_cut_bias: float | None = None,
         soft_cut_chunks: int | None = None,
+        soft_cut_restore_bias: float | None = None,  # ADDED: review01 Risk E
+        soft_cut_restore_was_set: bool = False,  # ADDED: review01 Risk E
     ) -> None:
         """Record a control event. Called from process_chunk."""
         if not self.is_recording:
@@ -206,6 +225,8 @@ class SessionRecorder:
             hard_cut=hard_cut,
             soft_cut_bias=soft_cut_bias,
             soft_cut_chunks=soft_cut_chunks,
+            soft_cut_restore_bias=soft_cut_restore_bias,
+            soft_cut_restore_was_set=soft_cut_restore_was_set,
         ))
 
     def stop(self, chunk_index: int) -> SessionRecording | None:
@@ -279,12 +300,15 @@ class SessionRecorder:
             if event.hard_cut:
                 segment["initCache"] = True
 
-            # Soft cut
+            # Soft cut - EXTENDED per review01 Risk E for restore fidelity
             # NOTE: render_timeline.py does NOT yet support softCut
             if event.soft_cut_bias is not None:
                 segment["softCut"] = {
                     "bias": event.soft_cut_bias,
                     "chunks": event.soft_cut_chunks or 2,
+                    # ADDED: Restore semantics for faithful replay
+                    "restoreBias": event.soft_cut_restore_bias,  # None means "was unset"
+                    "restoreWasSet": event.soft_cut_restore_was_set,
                 }
 
             segments.append(segment)
@@ -359,6 +383,9 @@ class FrameProcessor:
 
         Returns:
             (prompt_text, weight) or (None, 1.0)
+
+        FIXED per review01 Risk A: _compiled_prompt is a CompiledPrompt object,
+        not a string. Must access .positive attribute.
         """
         # If transition is active, use target as the "current" prompt
         transition = self.parameters.get("transition")
@@ -373,8 +400,10 @@ class FrameProcessor:
             return prompts[0].get("text"), prompts[0].get("weight", 1.0)
 
         # Fallback: compiled prompt from style layer (if available)
+        # FIXED: _compiled_prompt is CompiledPrompt, not str - access .positive
         if hasattr(self, "_compiled_prompt") and self._compiled_prompt:
-            return self._compiled_prompt, 1.0
+            # CompiledPrompt has .positive, .negative, .lora_scales fields
+            return self._compiled_prompt.positive, 1.0
 
         return None, 1.0
 
@@ -435,6 +464,11 @@ class FrameProcessor:
         hard_cut_requested: bool,  # Edge flag from merged_updates
         soft_cut_bias: float | None = None,
         soft_cut_chunks: int | None = None,
+        soft_cut_restore_bias: float | None = None,  # ADDED: review01 Risk E
+        soft_cut_restore_was_set: bool = False,  # ADDED: review01 Risk E
+        # ADDED per review01 Risk C: fallback prompt from parameter edge detection
+        fallback_prompt: str | None = None,
+        fallback_prompt_weight: float = 1.0,
     ) -> None:
         """Record control events from ControlBus (not merged_updates).
 
@@ -442,11 +476,19 @@ class FrameProcessor:
         we'd check merged_updates, the 'prompts' and 'transition' keys have been
         popped during translation to events.
 
+        ADDED per review01 Risk C: Also accepts fallback_prompt for cases where
+        prompt changes happen via style/LoRA recompilation that don't produce
+        SET_PROMPT events.
+
         Args:
             applied_events: ControlBus events that were applied this chunk
             hard_cut_requested: True if "reset_cache" was in merged_updates (edge, not persistent)
             soft_cut_bias: Captured from _rcp_soft_transition before it was popped
             soft_cut_chunks: Captured from _rcp_soft_transition before it was popped
+            soft_cut_restore_bias: Original bias before soft cut (for restore)
+            soft_cut_restore_was_set: Whether bias was explicitly set before soft cut
+            fallback_prompt: Prompt from parameter edge detection (Risk C mitigation)
+            fallback_prompt_weight: Weight for fallback prompt
         """
         if not self.session_recorder.is_recording:
             return
@@ -490,12 +532,32 @@ class FrameProcessor:
                         hard_cut=hard_cut_requested,
                         soft_cut_bias=soft_cut_bias,
                         soft_cut_chunks=soft_cut_chunks,
+                        soft_cut_restore_bias=soft_cut_restore_bias,
+                        soft_cut_restore_was_set=soft_cut_restore_was_set,
                     )
                     recorded_prompt_event = True
                     # Clear edge flags after first use
                     hard_cut_requested = False
                     soft_cut_bias = None
                     soft_cut_chunks = None
+
+        # ADDED per review01 Risk C: Fallback for prompt changes that don't go through SET_PROMPT
+        # (e.g., style changes causing recompilation, LoRA edge triggers)
+        if not recorded_prompt_event and fallback_prompt is not None:
+            self.session_recorder.record_event(
+                chunk_index=self.chunk_index,
+                wall_time=wall_time,
+                prompt=fallback_prompt,
+                prompt_weight=fallback_prompt_weight,
+                hard_cut=hard_cut_requested,
+                soft_cut_bias=soft_cut_bias,
+                soft_cut_chunks=soft_cut_chunks,
+                soft_cut_restore_bias=soft_cut_restore_bias,
+                soft_cut_restore_was_set=soft_cut_restore_was_set,
+            )
+            recorded_prompt_event = True
+            hard_cut_requested = False
+            soft_cut_bias = None
 
         # If hard/soft cut occurred without a prompt change, record cut-only event
         if not recorded_prompt_event and (hard_cut_requested or soft_cut_bias is not None):
@@ -506,20 +568,47 @@ class FrameProcessor:
                 hard_cut=hard_cut_requested,
                 soft_cut_bias=soft_cut_bias,
                 soft_cut_chunks=soft_cut_chunks,
+                soft_cut_restore_bias=soft_cut_restore_bias,
+                soft_cut_restore_was_set=soft_cut_restore_was_set,
             )
 
-    def _handle_soft_transition(self, merged_updates: dict) -> tuple[float | None, int | None]:
-        """Handle soft transition reserved key. Returns (bias, chunks) for recording."""
+    def _handle_soft_transition(self, merged_updates: dict) -> tuple[float | None, int | None, float | None, bool]:
+        """Handle soft transition reserved key.
+
+        Returns (bias, chunks, restore_bias, restore_was_set) for recording.
+        UPDATED per review01 Risk E: capture restore state for faithful replay.
+        """
         soft_cut_bias = None
         soft_cut_chunks = None
+        restore_bias = None
+        restore_was_set = False
 
         if "_rcp_soft_transition" in merged_updates:
             soft = merged_updates.pop("_rcp_soft_transition")
             soft_cut_bias = soft.get("temp_bias")
             soft_cut_chunks = soft.get("num_chunks")
+
+            # ADDED: Capture restore state BEFORE applying soft transition
+            current_bias = self.parameters.get("kv_cache_attention_bias")
+            restore_was_set = current_bias is not None
+            restore_bias = current_bias  # None if was unset
+
             # ... apply soft transition logic ...
 
-        return soft_cut_bias, soft_cut_chunks
+        return soft_cut_bias, soft_cut_chunks, restore_bias, restore_was_set
+
+    def _detect_prompt_edge(self, prev_prompt: str | None) -> tuple[str | None, float]:
+        """Detect prompt changes from parameter edge (Risk C fallback).
+
+        Called to catch prompt changes that don't go through ControlBus,
+        such as style/LoRA triggered recompilation.
+
+        Returns (prompt, weight) if changed, (None, 1.0) otherwise.
+        """
+        current_prompt, weight = self._get_current_effective_prompt()
+        if current_prompt != prev_prompt and current_prompt is not None:
+            return current_prompt, weight
+        return None, 1.0
 
     def process_chunk(self, ...):
         # ... existing mailbox merge into merged_updates ...
@@ -529,7 +618,12 @@ class FrameProcessor:
 
         # 2. Capture edge flags BEFORE translation (they get popped)
         hard_cut_requested = "reset_cache" in merged_updates
-        soft_cut_bias, soft_cut_chunks = self._handle_soft_transition(merged_updates)
+        soft_cut_bias, soft_cut_chunks, restore_bias, restore_was_set = \
+            self._handle_soft_transition(merged_updates)
+
+        # ADDED per review01 Risk C: Snapshot prompt BEFORE processing
+        # to detect changes that don't go through ControlBus
+        prev_prompt = self.session_recorder._last_prompt if self.session_recorder.is_recording else None
 
         # 3. Translate to ControlBus events (pops prompts, transition, etc.)
         # ... existing translation logic ...
@@ -539,12 +633,21 @@ class FrameProcessor:
         for event in applied_events:
             # ... existing event application ...
 
-        # 5. Record events AFTER application (from ControlBus, not merged_updates)
+        # 5. ADDED per review01 Risk C: Detect prompt edge (fallback for non-ControlBus changes)
+        fallback_prompt, fallback_weight = None, 1.0
+        if self.session_recorder.is_recording:
+            fallback_prompt, fallback_weight = self._detect_prompt_edge(prev_prompt)
+
+        # 6. Record events AFTER application (from ControlBus + fallback)
         self._record_control_events_from_bus(
             applied_events,
             hard_cut_requested,
             soft_cut_bias,
             soft_cut_chunks,
+            soft_cut_restore_bias=restore_bias,
+            soft_cut_restore_was_set=restore_was_set,
+            fallback_prompt=fallback_prompt,
+            fallback_prompt_weight=fallback_weight,
         )
 
         # ... rest of process_chunk (pause check, pipeline call, etc.) ...
@@ -699,14 +802,14 @@ Compatible with `render_timeline.py` (with noted limitations):
       "endTime": 8.5,
       "startChunk": 0,
       "endChunk": 34,
-      "prompts": [{"text": "A serene forest at dawn", "weight": 100.0}]
+      "prompts": [{"text": "A serene forest at dawn", "weight": 1.0}]
     },
     {
       "startTime": 8.5,
       "endTime": 15.2,
       "startChunk": 34,
       "endChunk": 61,
-      "prompts": [{"text": "A busy city street", "weight": 100.0}],
+      "prompts": [{"text": "A busy city street", "weight": 1.0}],
       "transitionSteps": 4,
       "temporalInterpolationMethod": "slerp"
     },
@@ -715,8 +818,21 @@ Compatible with `render_timeline.py` (with noted limitations):
       "endTime": 22.0,
       "startChunk": 61,
       "endChunk": 88,
-      "prompts": [{"text": "A quiet bedroom", "weight": 100.0}],
+      "prompts": [{"text": "A quiet bedroom", "weight": 1.0}],
       "initCache": true
+    },
+    {
+      "startTime": 22.0,
+      "endTime": 30.0,
+      "startChunk": 88,
+      "endChunk": 120,
+      "prompts": [{"text": "A peaceful garden", "weight": 1.0}],
+      "softCut": {
+        "bias": 0.8,
+        "chunks": 3,
+        "restoreBias": 0.3,
+        "restoreWasSet": true
+      }
     }
   ]
 }
@@ -735,21 +851,128 @@ Compatible with `render_timeline.py` (with noted limitations):
 7. render-timeline session.timeline.json output.mp4 --preset quality
 ```
 
+## render_timeline.py Implementation (per review01 sections 3-5)
+
+The review identified concrete changes needed in `render_timeline.py` to support replay.
+
+### Schema Changes
+
+```python
+# In src/scope/cli/render_timeline.py
+
+class TimelineSoftCut(BaseModel):
+    """Soft cut parameters for temporary KV bias override."""
+    model_config = ConfigDict(extra="ignore")
+    bias: float
+    chunks: int = 2
+    # ADDED per review01 Risk E: Restore semantics
+    restoreBias: float | None = None  # None means "was unset"
+    restoreWasSet: bool = False
+
+
+class TimelineSegment(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    # ... existing fields ...
+    initCache: bool | None = None  # ADDED: Hard cut support
+    softCut: TimelineSoftCut | None = None  # ADDED: Soft cut support
+```
+
+### Hard Cut (initCache) Replay
+
+```python
+# In render loop - segment boundary handling
+
+# State for one-shot init_cache
+pending_init_cache = False
+
+# On segment change:
+if current_segment_id != last_segment_id:
+    # ... existing prompt/transition updates ...
+
+    # ADDED: Hard cut support
+    if active_segment.initCache:
+        pending_init_cache = True
+
+    last_segment_id = current_segment_id
+
+# Before pipeline call:
+if pending_init_cache:
+    parameters["init_cache"] = True
+
+output = pipeline(**parameters)
+
+# After pipeline call:
+if pending_init_cache:
+    parameters.pop("init_cache", None)
+    pending_init_cache = False
+```
+
+### Soft Cut (softCut) Replay
+
+```python
+# State machine for soft cuts (mirrors realtime FrameProcessor)
+soft_active: bool = False
+soft_chunks_remaining: int = 0
+soft_temp_bias: float | None = None
+soft_restore_bias: float | None = None
+soft_restore_was_set: bool = False
+
+# On segment change - start soft cut if specified:
+if active_segment.softCut:
+    sc = active_segment.softCut
+    # Clamp values (match realtime rules)
+    temp_bias = max(0.01, min(1.0, sc.bias))
+    chunks = max(1, min(10, sc.chunks))
+
+    # Capture restore target ONLY if not already in soft transition
+    # (re-trigger doesn't clobber original restore target)
+    if not soft_active:
+        soft_restore_bias = sc.restoreBias
+        soft_restore_was_set = sc.restoreWasSet
+
+    # Start/restart soft transition
+    soft_active = True
+    soft_chunks_remaining = chunks
+    soft_temp_bias = temp_bias
+    parameters["kv_cache_attention_bias"] = temp_bias
+
+# After each pipeline call - decrement and restore:
+if soft_active:
+    soft_chunks_remaining -= 1
+    if soft_chunks_remaining <= 0:
+        # Restore original bias
+        if soft_restore_was_set and soft_restore_bias is not None:
+            parameters["kv_cache_attention_bias"] = soft_restore_bias
+        else:
+            # Restore to "unset" - pop the key entirely
+            parameters.pop("kv_cache_attention_bias", None)
+        soft_active = False
+```
+
+### Dry-Run Output (Optional Enhancement)
+
+Include initCache/softCut in the plan output for debugging:
+
+```python
+# In dry-run mode, add to segment info:
+if segment.initCache:
+    plan_entry["initCache"] = True
+if segment.softCut:
+    plan_entry["softCut"] = {
+        "bias": segment.softCut.bias,
+        "chunks": segment.softCut.chunks,
+    }
+```
+
+---
+
 ## Limitations & Follow-ups
 
-### render_timeline.py Does NOT Yet Support:
+### Remaining Fidelity Gaps (post-review01)
 
-1. **`initCache` (hard cuts)** - Would need:
-   ```python
-   if segment.initCache:
-       parameters["init_cache"] = True
-       output = pipeline(**parameters)
-       parameters.pop("init_cache", None)
-   ```
+1. **Time-based vs chunk-based scheduling** — The renderer uses wall-time for segment selection, but soft cuts are chunk-based. For high-fidelity replay, add optional "chunk timebase mode" using `startChunk/endChunk`.
 
-2. **`softCut`** - Would need temporary `kv_cache_attention_bias` adjustment for N chunks
-
-These are separate milestones. Current implementation records the events, but faithful offline replay requires render_timeline.py enhancements.
+2. **`num_frame_per_block` assumption** — Dry-run assumes 3 frames per pipeline call. Should read from model config for accuracy.
 
 ### Chunk-based vs Wall-clock Timing
 
@@ -760,16 +983,18 @@ These are separate milestones. Current implementation records the events, but fa
 
 ## Known Limitations (MVP)
 
-Per hardening review, these are explicit scope boundaries:
+Updated per review01 - some issues now addressed:
 
-| Limitation | Notes |
-|------------|-------|
-| **Parameter changes beyond prompts/cuts** | Denoise steps, seeds, LoRA scale changes are NOT captured unless they result in SET_PROMPT events |
-| **Soft cut replay** | Recorded but not replayable until `render_timeline.py` supports it. Even then, needs restore-target nuance (`soft_cut_restore_bias`, `soft_cut_restore_was_set`) |
-| **Hard cut replay** | Recorded as `initCache`, ignored by renderer until implemented |
-| **Recording start mid-transition** | We record transition target prompt as baseline (no transition at t=0) - approximation |
-| **Multi-prompt blending** | Currently captures first prompt only |
-| **World state / style changes** | Only captured if they result in prompt recompilation (SET_PROMPT) |
+| Limitation | Status | Notes |
+|------------|--------|-------|
+| **Baseline prompt type mismatch** | ✅ FIXED | `_compiled_prompt.positive` instead of treating as string (Risk A) |
+| **Weight scale inconsistency** | ✅ FIXED | Standardized on 1.0 throughout (Risk B) |
+| **Non-ControlBus prompt changes** | ✅ FIXED | Added fallback edge detection (Risk C) |
+| **Soft cut restore semantics** | ✅ FIXED | Added `restoreBias`/`restoreWasSet` fields (Risk E) |
+| **Parameter changes beyond prompts/cuts** | ⚠️ MVP scope | Denoise steps, seeds, LoRA scale changes NOT captured unless via SET_PROMPT |
+| **Recording start mid-transition** | ⚠️ MVP scope | Records target prompt at t=0 (no transition metadata) - approximation |
+| **Multi-prompt blending** | ⚠️ MVP scope | Currently captures first prompt only |
+| **Pipeline reload mid-recording** | ⚠️ MVP scope | Recording continues with stale pipeline_id (Risk F) |
 
 ### Edge Cases to Handle
 
