@@ -87,6 +87,10 @@ class SessionRecorder:
         recording = self._recording
         return recording is not None and recording.is_active
 
+    @property
+    def last_prompt(self) -> str | None:
+        return self._last_prompt
+
     def start(
         self,
         *,
@@ -278,4 +282,3 @@ class SessionRecorder:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(timeline, indent=2))
         return path
-

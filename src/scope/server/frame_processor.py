@@ -6,6 +6,7 @@ import time
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,7 @@ except ImportError:  # pragma: no cover
 from scope.realtime.control_bus import ControlBus, EventType
 
 from .pipeline_manager import PipelineManager, PipelineNotAvailableException
+from .session_recorder import SessionRecorder
 
 logger = logging.getLogger(__name__)
 
@@ -183,6 +185,12 @@ class FrameProcessor:
         self._soft_transition_temp_bias: float | None = None
         self._soft_transition_original_bias: float | None = None
         self._soft_transition_original_bias_was_set: bool = False
+        # Soft transition recording latch: record softCut once at the next generated chunk.
+        self._soft_transition_record_pending: bool = False
+
+        # Session recorder (server-side timeline export)
+        self.session_recorder = SessionRecorder()
+        self._last_recording_path: Path | None = None
 
         # Snapshot store (server-side, in-memory)
         # Keys are snapshot_id, values are Snapshot objects with cloned tensors
@@ -209,6 +217,68 @@ class FrameProcessor:
         # Input mode is signaled by the frontend at stream start.
         # This determines whether we wait for video frames or generate immediately.
         self._video_mode = (initial_parameters or {}).get("input_mode") == "video"
+
+    def _get_current_effective_prompt(self) -> tuple[str | None, float]:
+        """Best-effort extraction of the current pipeline-facing prompt.
+
+        Precedence:
+        1) transition.target_prompts[0]
+        2) parameters["prompts"][0]
+        3) pipeline.state["prompts"][0] (fallback)
+        4) style layer compiled prompt (multiple shapes)
+        """
+        transition = self.parameters.get("transition")
+        if isinstance(transition, dict):
+            targets = transition.get("target_prompts")
+            if isinstance(targets, list) and targets:
+                first = targets[0]
+                if isinstance(first, dict):
+                    return first.get("text"), float(first.get("weight", 1.0))
+
+        prompts = self.parameters.get("prompts")
+        if isinstance(prompts, list) and prompts:
+            first = prompts[0]
+            if isinstance(first, dict):
+                return first.get("text"), float(first.get("weight", 1.0))
+            if hasattr(first, "text"):
+                return getattr(first, "text", None), float(getattr(first, "weight", 1.0))
+
+        pipeline = None
+        try:
+            pipeline = self.pipeline_manager.get_pipeline()
+        except Exception:
+            pipeline = None
+        if pipeline is not None and hasattr(pipeline, "state"):
+            state = getattr(pipeline, "state", None)
+            state_prompts = None
+            if hasattr(state, "get"):
+                state_prompts = state.get("prompts")
+            if isinstance(state_prompts, list) and state_prompts:
+                first = state_prompts[0]
+                if isinstance(first, dict):
+                    return first.get("text"), float(first.get("weight", 1.0))
+
+        compiled = getattr(self, "_compiled_prompt", None)
+        if compiled is not None:
+            cps = getattr(compiled, "prompts", None)
+            if isinstance(cps, list) and cps:
+                first = cps[0]
+                if hasattr(first, "text"):
+                    return getattr(first, "text", None), float(getattr(first, "weight", 1.0))
+                if isinstance(first, dict):
+                    return first.get("text"), float(first.get("weight", 1.0))
+
+            pos = getattr(compiled, "positive", None)
+            if isinstance(pos, list) and pos:
+                first = pos[0]
+                if isinstance(first, dict):
+                    return first.get("text"), float(first.get("weight", 1.0))
+
+            prompt_str = getattr(compiled, "prompt", None)
+            if isinstance(prompt_str, str) and prompt_str.strip():
+                return prompt_str, 1.0
+
+        return None, 1.0
 
     def start(self):
         if self.running:
@@ -868,6 +938,95 @@ class FrameProcessor:
                 step_count = max(1, step_val)
             self._pending_steps += step_count
 
+        # Session recording start/stop (consumed here; never forwarded to pipeline)
+        if "_rcp_session_recording_start" in merged_updates:
+            merged_updates.pop("_rcp_session_recording_start", None)
+            try:
+                status = (
+                    self.pipeline_manager.peek_status_info()
+                    if hasattr(self.pipeline_manager, "peek_status_info")
+                    else self.pipeline_manager.get_status_info()
+                )
+            except Exception as e:
+                logger.warning(
+                    "Session recording start: failed to read pipeline status: %s", e
+                )
+                status = {}
+
+            if status.get("status") != "loaded":
+                logger.warning(
+                    "Session recording start ignored: pipeline not loaded (status=%s)",
+                    status.get("status"),
+                )
+            else:
+                pipeline_id = status.get("pipeline_id")
+                if not pipeline_id:
+                    logger.warning(
+                        "Session recording start ignored: missing pipeline_id in status"
+                    )
+                else:
+                    lp = status.get("load_params") or {}
+                    runtime_params: dict[str, Any] = (
+                        dict(lp) if isinstance(lp, dict) else {"load_params": lp}
+                    )
+
+                    # Include key runtime params for timeline settings/replay
+                    if "kv_cache_attention_bias" in self.parameters:
+                        runtime_params["kv_cache_attention_bias"] = self.parameters.get(
+                            "kv_cache_attention_bias"
+                        )
+                    if "denoising_step_list" in self.parameters:
+                        runtime_params["denoising_step_list"] = self.parameters.get(
+                            "denoising_step_list"
+                        )
+                    if "seed" not in runtime_params:
+                        if "seed" in self.parameters:
+                            runtime_params["seed"] = self.parameters.get("seed")
+                        elif "base_seed" in self.parameters:
+                            runtime_params["seed"] = self.parameters.get("base_seed")
+
+                    baseline_prompt, baseline_weight = self._get_current_effective_prompt()
+                    try:
+                        self.session_recorder.start(
+                            chunk_index=self.chunk_index,
+                            pipeline_id=pipeline_id,
+                            load_params=runtime_params,
+                            baseline_prompt=baseline_prompt,
+                            baseline_weight=baseline_weight,
+                        )
+                        self._last_recording_path = None
+                        self._soft_transition_record_pending = bool(
+                            self._soft_transition_active
+                        )
+                        logger.info(
+                            "Session recording started at chunk=%d", self.chunk_index
+                        )
+                    except Exception as e:
+                        logger.error("Session recording start failed: %s", e)
+
+        if "_rcp_session_recording_stop" in merged_updates:
+            merged_updates.pop("_rcp_session_recording_stop", None)
+            try:
+                recording = self.session_recorder.stop(chunk_index=self.chunk_index)
+            except Exception as e:
+                logger.error("Session recording stop failed: %s", e)
+                recording = None
+
+            if recording is not None:
+                ts = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+                path = (
+                    Path.home()
+                    / ".daydream-scope"
+                    / "recordings"
+                    / f"session_{ts}.timeline.json"
+                )
+                try:
+                    saved = self.session_recorder.save(recording, path)
+                    self._last_recording_path = saved
+                    logger.info("Session recording saved: %s", saved)
+                except Exception as e:
+                    logger.error("Failed to save session recording timeline: %s", e)
+
         # Soft transition: temporarily lower KV cache bias for N chunks
         if "_rcp_soft_transition" in merged_updates:
             soft_data = merged_updates.pop("_rcp_soft_transition")
@@ -928,6 +1087,7 @@ class FrameProcessor:
 
                 # Apply temporary bias immediately
                 self.parameters["kv_cache_attention_bias"] = temp_bias
+                self._soft_transition_record_pending = True
                 logger.info(
                     f"Soft transition: bias -> {temp_bias} for {num_chunks} chunks "
                     f"(will restore to "
@@ -946,6 +1106,7 @@ class FrameProcessor:
             self._soft_transition_temp_bias = None
             self._soft_transition_original_bias = None
             self._soft_transition_original_bias_was_set = False
+            self._soft_transition_record_pending = False
 
         # Track if explicit prompts were set this chunk (for precedence)
         explicit_prompts_set = "prompts" in merged_updates
@@ -1095,6 +1256,7 @@ class FrameProcessor:
             is_paused=self.paused, chunk_index=self.chunk_index
         )
 
+        applied_prompt_payload: dict[str, Any] | None = None
         for event in events:
             if event.type == EventType.PAUSE:
                 self.paused = True
@@ -1113,6 +1275,7 @@ class FrameProcessor:
                     self.parameters["prompts"] = event.payload["prompts"]
                 if "transition" in event.payload:
                     self.parameters["transition"] = event.payload["transition"]
+                applied_prompt_payload = event.payload
             elif event.type == EventType.SET_LORA_SCALES:
                 self.parameters["lora_scales"] = event.payload["lora_scales"]
             elif event.type == EventType.SET_SEED:
@@ -1138,11 +1301,22 @@ class FrameProcessor:
             self.shutdown_event.wait(SLEEP_TIME)
             return
 
+        # Recorder prompt-edge detection: capture prompt changes applied while paused/video-waiting.
+        fallback_prompt: str | None = None
+        fallback_weight: float = 1.0
+        if self.session_recorder.is_recording:
+            prev_prompt = self.session_recorder.last_prompt
+            cur_prompt, cur_weight = self._get_current_effective_prompt()
+            if cur_prompt is not None and cur_prompt != prev_prompt:
+                fallback_prompt = cur_prompt
+                fallback_weight = float(cur_weight)
+
         # Get the current pipeline using sync wrapper
         pipeline = self.pipeline_manager.get_pipeline()
 
         # prepare() will handle any required preparation based on parameters internally
         reset_cache = self.parameters.pop("reset_cache", None)
+        hard_cut_executed = bool(reset_cache)
 
         # Pop lora_scales to prevent re-processing on every frame
         lora_scales = self.parameters.pop("lora_scales", None)
@@ -1288,6 +1462,110 @@ class FrameProcessor:
             else:
                 raise e
 
+        # SessionRecorder: record prompt/transition + hard/soft cuts for this chunk.
+        # Record only after a successful pipeline call so paused/video-wait churn doesn't
+        # create phantom segments.
+        if self.session_recorder.is_recording and chunk_error is None:
+            wall_time = time.monotonic()
+
+            # Soft cut metadata is recorded ONCE per trigger, at the first generated chunk.
+            soft_cut_bias = None
+            soft_cut_chunks = None
+            soft_restore_bias = None
+            soft_restore_was_set = False
+            if (
+                self._soft_transition_record_pending
+                and self._soft_transition_temp_bias is not None
+            ):
+                soft_cut_bias = float(self._soft_transition_temp_bias)
+                soft_cut_chunks = int(self._soft_transition_chunks_remaining)
+                soft_restore_was_set = bool(self._soft_transition_original_bias_was_set)
+                soft_restore_bias = (
+                    float(self._soft_transition_original_bias)
+                    if self._soft_transition_original_bias is not None
+                    and self._soft_transition_original_bias_was_set
+                    else None
+                )
+                self._soft_transition_record_pending = False
+
+            recorded_prompt_event = False
+            if applied_prompt_payload is not None:
+                prompt_text = None
+                prompt_weight = 1.0
+
+                tr = applied_prompt_payload.get("transition")
+                if isinstance(tr, dict):
+                    targets = tr.get("target_prompts")
+                    if isinstance(targets, list) and targets:
+                        first = targets[0]
+                        if isinstance(first, dict):
+                            prompt_text = first.get("text")
+                            prompt_weight = float(first.get("weight", 1.0))
+
+                if prompt_text is None:
+                    prompts = applied_prompt_payload.get("prompts")
+                    if isinstance(prompts, list) and prompts:
+                        first = prompts[0]
+                        if isinstance(first, dict):
+                            prompt_text = first.get("text")
+                            prompt_weight = float(first.get("weight", 1.0))
+
+                transition_steps = None
+                transition_method = None
+                if isinstance(tr, dict):
+                    transition_steps = tr.get("num_steps")
+                    transition_method = tr.get("temporal_interpolation_method")
+
+                if prompt_text is not None:
+                    self.session_recorder.record_event(
+                        chunk_index=self.chunk_index,
+                        wall_time=wall_time,
+                        prompt=prompt_text,
+                        prompt_weight=prompt_weight,
+                        transition_steps=transition_steps,
+                        transition_method=transition_method,
+                        hard_cut=hard_cut_executed,
+                        soft_cut_bias=soft_cut_bias,
+                        soft_cut_chunks=soft_cut_chunks,
+                        soft_cut_restore_bias=soft_restore_bias,
+                        soft_cut_restore_was_set=soft_restore_was_set,
+                    )
+                    recorded_prompt_event = True
+                    hard_cut_executed = False
+                    soft_cut_bias = None
+
+            # Fallback: prompt changed since last recorded chunk (e.g. edits while paused)
+            if not recorded_prompt_event and fallback_prompt is not None:
+                self.session_recorder.record_event(
+                    chunk_index=self.chunk_index,
+                    wall_time=wall_time,
+                    prompt=fallback_prompt,
+                    prompt_weight=fallback_weight,
+                    hard_cut=hard_cut_executed,
+                    soft_cut_bias=soft_cut_bias,
+                    soft_cut_chunks=soft_cut_chunks,
+                    soft_cut_restore_bias=soft_restore_bias,
+                    soft_cut_restore_was_set=soft_restore_was_set,
+                )
+                recorded_prompt_event = True
+                hard_cut_executed = False
+                soft_cut_bias = None
+
+            # Cut-only event (no prompt change): recorder carries forward last prompt
+            if (not recorded_prompt_event) and (
+                hard_cut_executed or soft_cut_bias is not None
+            ):
+                self.session_recorder.record_event(
+                    chunk_index=self.chunk_index,
+                    wall_time=wall_time,
+                    prompt=None,
+                    hard_cut=hard_cut_executed,
+                    soft_cut_bias=soft_cut_bias,
+                    soft_cut_chunks=soft_cut_chunks,
+                    soft_cut_restore_bias=soft_restore_bias,
+                    soft_cut_restore_was_set=soft_restore_was_set,
+                )
+
         self.is_prepared = True
 
         # Soft transition countdown and auto-restore at chunk boundary
@@ -1330,6 +1608,7 @@ class FrameProcessor:
                 self._soft_transition_temp_bias = None
                 self._soft_transition_original_bias = None
                 self._soft_transition_original_bias_was_set = False
+                self._soft_transition_record_pending = False
 
         self.chunk_index += 1
 

@@ -128,6 +128,33 @@ class PipelineManager:
                 "error": error_message,
             }
 
+    def peek_status_info(self) -> dict[str, Any]:
+        """Get detailed status information without mutating manager state.
+
+        Unlike get_status_info(), this does NOT clear errors or reset pipeline state.
+        Intended for recorder start gating and other non-destructive status reads.
+        """
+        with self._lock:
+            loaded_lora_adapters = None
+            if self._pipeline is not None and hasattr(
+                self._pipeline, "loaded_lora_adapters"
+            ):
+                loaded_lora_adapters = getattr(
+                    self._pipeline, "loaded_lora_adapters", None
+                )
+
+            load_params = self._load_params
+            if isinstance(load_params, dict):
+                load_params = load_params.copy()
+
+            return {
+                "status": self._status.value,
+                "pipeline_id": self._pipeline_id,
+                "load_params": load_params,
+                "loaded_lora_adapters": loaded_lora_adapters,
+                "error": self._error_message,
+            }
+
     async def get_pipeline_async(self):
         """Get the loaded pipeline instance (async wrapper)."""
         loop = asyncio.get_event_loop()

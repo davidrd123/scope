@@ -784,6 +784,22 @@ class RealtimeControlResponse(BaseModel):
     chunk_index: int | None = None
 
 
+class SessionRecordingControlResponse(BaseModel):
+    """Response for session recording control operations."""
+
+    status: str
+
+
+class SessionRecordingStatusResponse(BaseModel):
+    """Thread-safe snapshot of recording status + last saved timeline path."""
+
+    is_recording: bool
+    duration_seconds: float = 0.0
+    start_chunk: int | None = None
+    events_count: int = 0
+    last_timeline_path: str | None = None
+
+
 class PromptRequest(BaseModel):
     """Request to set prompt."""
 
@@ -1177,6 +1193,95 @@ async def get_latest_frame(
         raise
     except Exception as e:
         logger.error(f"Error getting latest frame: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.post(
+    "/api/v1/realtime/session-recording/start",
+    response_model=SessionRecordingControlResponse,
+)
+async def start_session_recording(
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Start server-side session recording (timeline export)."""
+    try:
+        session = get_active_session(webrtc_manager)
+        if not apply_control_message(session, {"_rcp_session_recording_start": True}):
+            raise HTTPException(503, "Failed to apply session recording start")
+        return SessionRecordingControlResponse(status="recording_start_requested")
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        logger.error(f"Error starting session recording: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.post(
+    "/api/v1/realtime/session-recording/stop",
+    response_model=SessionRecordingControlResponse,
+)
+async def stop_session_recording(
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Stop server-side session recording.
+
+    Non-blocking: the timeline save happens inside FrameProcessor.process_chunk().
+    Poll /status to observe last_timeline_path.
+    """
+    try:
+        session = get_active_session(webrtc_manager)
+        if not apply_control_message(session, {"_rcp_session_recording_stop": True}):
+            raise HTTPException(503, "Failed to apply session recording stop")
+        return SessionRecordingControlResponse(status="stop_requested")
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        logger.error(f"Error stopping session recording: {e}")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.get(
+    "/api/v1/realtime/session-recording/status",
+    response_model=SessionRecordingStatusResponse,
+)
+async def get_session_recording_status(
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Get session recording status (thread-safe snapshot)."""
+    try:
+        session = get_active_session(webrtc_manager)
+        vt = session.video_track
+        if vt is None:
+            raise HTTPException(400, "No video track")
+
+        vt.initialize_output_processing()
+        fp = vt.frame_processor
+        if fp is None:
+            raise HTTPException(400, "FrameProcessor not ready")
+
+        snapshot = (
+            fp.session_recorder.get_status_snapshot()
+            if hasattr(fp, "session_recorder")
+            else {"is_recording": False}
+        )
+
+        last_path = None
+        if getattr(fp, "_last_recording_path", None) is not None:
+            last_path = str(fp._last_recording_path)
+
+        return SessionRecordingStatusResponse(
+            is_recording=bool(snapshot.get("is_recording", False)),
+            duration_seconds=float(snapshot.get("duration_seconds", 0.0) or 0.0),
+            start_chunk=snapshot.get("start_chunk"),
+            events_count=int(snapshot.get("events_count", 0) or 0),
+            last_timeline_path=last_path,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting session recording status: {e}")
         raise HTTPException(500, str(e)) from e
 
 
