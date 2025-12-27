@@ -1,12 +1,25 @@
 # Server-Side Session Recorder
 
-> Status: Draft (revised per review01 findings)
+> Status: Draft (revised per review01 + review02 findings)
 > Date: 2025-12-26, revised 2025-12-27
-> Review: `notes/proposals/server-side-session-recorder/review01.md`
+> Reviews:
+> - `notes/proposals/server-side-session-recorder/review01.md`
+> - `notes/proposals/server-side-session-recorder/review02.md`
 
-## Revision Summary (2025-12-27)
+## Revision Summary
 
-Incorporated fixes from review01:
+### Rev 2 (2025-12-27) — review02 fixes
+
+| Issue | Fix |
+|-------|-----|
+| **A** | `event.event_type` → `event.type` (attribute name mismatch) |
+| **B** | Status comparison: `"loaded"` (lowercase .value), field `_error_message` not `_error` |
+| **C** | Baseline prompt: prefer `parameters["prompts"]`, `CompiledPrompt.positive` is `list[dict]` |
+| **D** | Note: render_timeline.py manual timelines still default to 100.0 (future cleanup) |
+| **Hook** | Use existing soft-cut internal state (`_soft_transition_original_bias`) directly |
+| **Hard cut** | Record when `init_cache=True` actually passed to pipeline, not just on arrival |
+
+### Rev 1 (2025-12-27) — review01 fixes
 
 | Risk | Issue | Fix |
 |------|-------|-----|
@@ -376,16 +389,13 @@ class FrameProcessor:
     def _get_current_effective_prompt(self) -> tuple[str | None, float]:
         """Get current effective prompt for baseline recording.
 
-        Priority:
+        Priority (FIXED review02-C):
         1. Transition target prompts (if transition active)
-        2. Current prompts
-        3. Compiled prompt from style layer
+        2. Current prompts from parameters (PREFERRED - this is what pipeline sees)
+        3. Compiled prompt from style layer (LAST RESORT - complex type)
 
         Returns:
             (prompt_text, weight) or (None, 1.0)
-
-        FIXED per review01 Risk A: _compiled_prompt is a CompiledPrompt object,
-        not a string. Must access .positive attribute.
         """
         # If transition is active, use target as the "current" prompt
         transition = self.parameters.get("transition")
@@ -394,16 +404,23 @@ class FrameProcessor:
             if targets:
                 return targets[0].get("text"), targets[0].get("weight", 1.0)
 
-        # Otherwise use current prompts
+        # PREFERRED: Use current prompts from parameters (what pipeline actually sees)
+        # FIXED review02-C: This is more reliable than compiler outputs
         prompts = self.parameters.get("prompts")
         if prompts:
             return prompts[0].get("text"), prompts[0].get("weight", 1.0)
 
-        # Fallback: compiled prompt from style layer (if available)
-        # FIXED: _compiled_prompt is CompiledPrompt, not str - access .positive
+        # LAST RESORT: compiled prompt from style layer
+        # FIXED review02-C: CompiledPrompt.positive is list[dict], not string!
+        # Must extract text from first item if present
         if hasattr(self, "_compiled_prompt") and self._compiled_prompt:
-            # CompiledPrompt has .positive, .negative, .lora_scales fields
-            return self._compiled_prompt.positive, 1.0
+            positive = getattr(self._compiled_prompt, "positive", None)
+            if positive and isinstance(positive, list) and len(positive) > 0:
+                first_item = positive[0]
+                if isinstance(first_item, dict):
+                    return first_item.get("text"), first_item.get("weight", 1.0)
+                # Some codepaths may have different shapes - log and skip
+                logger.debug(f"Unexpected CompiledPrompt.positive shape: {type(first_item)}")
 
         return None, 1.0
 
@@ -416,7 +433,8 @@ class FrameProcessor:
 
             # Use peek (non-mutating) or gate on LOADED to avoid clearing errors
             status = self._pipeline_manager.peek_status_info()
-            if status.get("status") != "LOADED":
+            # FIXED review02-B: compare to "loaded" (lowercase .value), not "LOADED"
+            if status.get("status") != "loaded":
                 logger.warning("Cannot start recording: pipeline not loaded")
                 return
 
@@ -461,7 +479,7 @@ class FrameProcessor:
     def _record_control_events_from_bus(
         self,
         applied_events: list,  # List of ControlBus events that were applied
-        hard_cut_requested: bool,  # Edge flag from merged_updates
+        hard_cut_executed: bool,  # RENAMED review02: True if init_cache was actually passed to pipeline
         soft_cut_bias: float | None = None,
         soft_cut_chunks: int | None = None,
         soft_cut_restore_bias: float | None = None,  # ADDED: review01 Risk E
@@ -482,7 +500,8 @@ class FrameProcessor:
 
         Args:
             applied_events: ControlBus events that were applied this chunk
-            hard_cut_requested: True if "reset_cache" was in merged_updates (edge, not persistent)
+            hard_cut_executed: True if init_cache was actually passed to pipeline
+                               (FIXED review02: record execution, not request)
             soft_cut_bias: Captured from _rcp_soft_transition before it was popped
             soft_cut_chunks: Captured from _rcp_soft_transition before it was popped
             soft_cut_restore_bias: Original bias before soft cut (for restore)
@@ -498,7 +517,8 @@ class FrameProcessor:
 
         # Record SET_PROMPT events from ControlBus
         for event in applied_events:
-            if event.event_type == EventType.SET_PROMPT:
+            # FIXED review02-A: attribute is .type, not .event_type
+            if event.type == EventType.SET_PROMPT:
                 payload = event.payload or {}
 
                 # Extract prompt (prefer explicit prompts, then transition target)
@@ -529,7 +549,7 @@ class FrameProcessor:
                         prompt_weight=prompt_weight,
                         transition_steps=transition_steps,
                         transition_method=transition_method,
-                        hard_cut=hard_cut_requested,
+                        hard_cut=hard_cut_executed,  # RENAMED review02
                         soft_cut_bias=soft_cut_bias,
                         soft_cut_chunks=soft_cut_chunks,
                         soft_cut_restore_bias=soft_cut_restore_bias,
@@ -537,7 +557,7 @@ class FrameProcessor:
                     )
                     recorded_prompt_event = True
                     # Clear edge flags after first use
-                    hard_cut_requested = False
+                    hard_cut_executed = False
                     soft_cut_bias = None
                     soft_cut_chunks = None
 
@@ -549,23 +569,23 @@ class FrameProcessor:
                 wall_time=wall_time,
                 prompt=fallback_prompt,
                 prompt_weight=fallback_prompt_weight,
-                hard_cut=hard_cut_requested,
+                hard_cut=hard_cut_executed,
                 soft_cut_bias=soft_cut_bias,
                 soft_cut_chunks=soft_cut_chunks,
                 soft_cut_restore_bias=soft_cut_restore_bias,
                 soft_cut_restore_was_set=soft_cut_restore_was_set,
             )
             recorded_prompt_event = True
-            hard_cut_requested = False
+            hard_cut_executed = False
             soft_cut_bias = None
 
         # If hard/soft cut occurred without a prompt change, record cut-only event
-        if not recorded_prompt_event and (hard_cut_requested or soft_cut_bias is not None):
+        if not recorded_prompt_event and (hard_cut_executed or soft_cut_bias is not None):
             self.session_recorder.record_event(
                 chunk_index=self.chunk_index,
                 wall_time=wall_time,
                 prompt=None,  # Will use _last_prompt in recorder
-                hard_cut=hard_cut_requested,
+                hard_cut=hard_cut_executed,
                 soft_cut_bias=soft_cut_bias,
                 soft_cut_chunks=soft_cut_chunks,
                 soft_cut_restore_bias=soft_cut_restore_bias,
@@ -576,7 +596,10 @@ class FrameProcessor:
         """Handle soft transition reserved key.
 
         Returns (bias, chunks, restore_bias, restore_was_set) for recording.
-        UPDATED per review01 Risk E: capture restore state for faithful replay.
+
+        UPDATED review02: Use existing internal state directly instead of approximating.
+        The FrameProcessor already tracks _soft_transition_original_bias and
+        _soft_transition_original_bias_was_set - use those for fidelity.
         """
         soft_cut_bias = None
         soft_cut_chunks = None
@@ -588,12 +611,20 @@ class FrameProcessor:
             soft_cut_bias = soft.get("temp_bias")
             soft_cut_chunks = soft.get("num_chunks")
 
-            # ADDED: Capture restore state BEFORE applying soft transition
-            current_bias = self.parameters.get("kv_cache_attention_bias")
-            restore_was_set = current_bias is not None
-            restore_bias = current_bias  # None if was unset
+            # FIXED review02: Use existing internal state directly for restore target
+            # (The actual soft-cut logic already tracks this - hook into it)
+            # NOTE: This assumes we're reading BEFORE the soft-cut is applied
+            # If reading AFTER, use _soft_transition_original_bias directly
+            if hasattr(self, "_soft_transition_original_bias"):
+                restore_bias = self._soft_transition_original_bias
+                restore_was_set = getattr(self, "_soft_transition_original_bias_was_set", False)
+            else:
+                # Fallback if internal state not yet initialized
+                current_bias = self.parameters.get("kv_cache_attention_bias")
+                restore_was_set = current_bias is not None
+                restore_bias = current_bias
 
-            # ... apply soft transition logic ...
+            # ... apply soft transition logic (existing code) ...
 
         return soft_cut_bias, soft_cut_chunks, restore_bias, restore_was_set
 
@@ -616,8 +647,8 @@ class FrameProcessor:
         # 1. Handle recording commands FIRST (before any keys are consumed)
         self._handle_session_recording_commands(merged_updates)
 
-        # 2. Capture edge flags BEFORE translation (they get popped)
-        hard_cut_requested = "reset_cache" in merged_updates
+        # 2. Capture soft cut params BEFORE translation (they get popped)
+        # NOTE: Hard cut is now recorded AFTER pipeline call (see below)
         soft_cut_bias, soft_cut_chunks, restore_bias, restore_was_set = \
             self._handle_soft_transition(merged_updates)
 
@@ -638,19 +669,28 @@ class FrameProcessor:
         if self.session_recorder.is_recording:
             fallback_prompt, fallback_weight = self._detect_prompt_edge(prev_prompt)
 
-        # 6. Record events AFTER application (from ControlBus + fallback)
+        # 6. Existing hard cut handling - note if we're about to pass init_cache
+        reset_cache = self.parameters.pop("reset_cache", None)
+        will_init_cache = reset_cache is not None
+
+        # 7. Pipeline call
+        # ... existing pipeline call with init_cache=will_init_cache if applicable ...
+
+        # 8. Record events AFTER pipeline call
+        # FIXED review02: Record hard cut when init_cache is actually passed to pipeline,
+        # not just when reset_cache arrives. This is the moment it truly takes effect.
         self._record_control_events_from_bus(
             applied_events,
-            hard_cut_requested,
-            soft_cut_bias,
-            soft_cut_chunks,
+            hard_cut_executed=will_init_cache,  # Renamed: actual execution, not request
+            soft_cut_bias=soft_cut_bias,
+            soft_cut_chunks=soft_cut_chunks,
             soft_cut_restore_bias=restore_bias,
             soft_cut_restore_was_set=restore_was_set,
             fallback_prompt=fallback_prompt,
             fallback_prompt_weight=fallback_weight,
         )
 
-        # ... rest of process_chunk (pause check, pipeline call, etc.) ...
+        # ... rest of process_chunk ...
 ```
 
 **Note:** Requires adding `PipelineManager.peek_status_info()`:
@@ -658,13 +698,17 @@ class FrameProcessor:
 # In src/scope/server/pipeline_manager.py
 
 def peek_status_info(self) -> dict:
-    """Non-mutating status read (does NOT clear errors)."""
-    return {
-        "status": self._status.name,
-        "pipeline_id": self._pipeline_id,
-        "load_params": self._load_params.copy() if self._load_params else {},
-        "error": self._error,  # Return but don't clear
-    }
+    """Non-mutating status read (does NOT clear errors).
+
+    FIXED review02-B: Use .value (lowercase) for status, and _error_message field.
+    """
+    with self._lock:
+        return {
+            "status": self._status.value,  # e.g. "loaded", "error" (lowercase)
+            "pipeline_id": self._pipeline_id,
+            "load_params": self._load_params.copy() if self._load_params else {},
+            "error": self._error_message,  # FIXED: field is _error_message, not _error
+        }
 ```
 
 ### 3. API Endpoints
@@ -983,18 +1027,22 @@ if segment.softCut:
 
 ## Known Limitations (MVP)
 
-Updated per review01 - some issues now addressed:
+Updated per review01 + review02:
 
 | Limitation | Status | Notes |
 |------------|--------|-------|
-| **Baseline prompt type mismatch** | ✅ FIXED | `_compiled_prompt.positive` instead of treating as string (Risk A) |
-| **Weight scale inconsistency** | ✅ FIXED | Standardized on 1.0 throughout (Risk B) |
-| **Non-ControlBus prompt changes** | ✅ FIXED | Added fallback edge detection (Risk C) |
-| **Soft cut restore semantics** | ✅ FIXED | Added `restoreBias`/`restoreWasSet` fields (Risk E) |
-| **Parameter changes beyond prompts/cuts** | ⚠️ MVP scope | Denoise steps, seeds, LoRA scale changes NOT captured unless via SET_PROMPT |
-| **Recording start mid-transition** | ⚠️ MVP scope | Records target prompt at t=0 (no transition metadata) - approximation |
+| **ControlBus event.type** | ✅ FIXED | Was `event.event_type`, now `event.type` (review02-A) |
+| **Status comparison** | ✅ FIXED | Use `"loaded"` lowercase, field `_error_message` (review02-B) |
+| **Baseline prompt type** | ✅ FIXED | Prefer `parameters["prompts"]`, handle `CompiledPrompt.positive` as `list[dict]` (review02-C) |
+| **Weight scale** | ✅ FIXED | Recorder uses 1.0; note render_timeline.py manual timelines still default 100.0 (review02-D) |
+| **Non-ControlBus prompt changes** | ✅ FIXED | Added fallback edge detection (review01-C) |
+| **Soft cut restore semantics** | ✅ FIXED | Use internal state `_soft_transition_original_bias` directly (review02) |
+| **Hard cut timing** | ✅ FIXED | Record when `init_cache` passed to pipeline, not on request arrival (review02) |
+| **LoRA/style changes** | ⚠️ NOT RECORDED | Style switches won't replay correctly without LoRA scale events (review02 gap) |
+| **V2V/VACE sessions** | ⚠️ NOT SUPPORTED | render_timeline.py rejects `inputMode != "text"` (review02 gap) |
+| **Recording start mid-transition** | ⚠️ MVP scope | Records target prompt at t=0 (no transition metadata) |
 | **Multi-prompt blending** | ⚠️ MVP scope | Currently captures first prompt only |
-| **Pipeline reload mid-recording** | ⚠️ MVP scope | Recording continues with stale pipeline_id (Risk F) |
+| **Pipeline reload mid-recording** | ⚠️ MVP scope | Recording continues with stale pipeline_id |
 
 ### Edge Cases to Handle
 
