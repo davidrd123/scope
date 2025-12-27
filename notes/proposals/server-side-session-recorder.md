@@ -6,8 +6,15 @@
 > - `notes/proposals/server-side-session-recorder/review01.md`
 > - `notes/proposals/server-side-session-recorder/review02.md`
 > - `notes/proposals/server-side-session-recorder/review03a.md`
+> - `notes/proposals/server-side-session-recorder/review03b.md`
 
 ## Revision Summary
+
+### Rev 4 (2025-12-27) — review03b integration
+
+- Clarified precedence rules: recorded file is authoritative; replay should not silently drop “weird combos”.
+- Made chunk timebase requirements more explicit (`startChunk`/`endChunk` on segments + renderer scheduling mode).
+- Added a recommended top-level timeline schema snippet (so JSON contract is unambiguous).
 
 ### Rev 3 (2025-12-27) — review03a integration
 
@@ -85,8 +92,8 @@ To expand from “timeline recorder” → “full session recorder”, the firs
 
 - **Version:** include `version` (string). Optionally add `primaryTimebase: "chunk"` for clarity; keep `startTime/endTime` as human-facing secondary timebase.
 - **Prompt weights:** replay uses recorded weights; if absent, default to `1.0` (match server/runtime conventions).
-- **Precedence:**
-  - `initCache=true` should be treated as a boundary cut; do not initiate a transition at that boundary.
+- **Precedence (replay):** the recorded file is authoritative.
+  - If a segment includes both `initCache` and transition metadata, replay both (do not silently “fix” it). It’s fine to log a warning, but not to change semantics.
   - `softCut` is orthogonal and may coexist with either cut or transition.
 
 ### Scheduling (offline replay)
@@ -96,6 +103,53 @@ For fidelity, canonical replay scheduling should be chunk-based (`startChunk/end
 ### Optional measurability hook (recommended)
 
 Add an opt-in debug mode where the recorder logs (or stores) the exact per-call pipeline kwargs around each recorded event boundary. This makes “record → replay” validation a simple diff of call sequences.
+
+### Recommended top-level timeline schema (MVP)
+
+This is a concrete “frozen contract” example; it’s intentionally close to what `src/scope/cli/render_timeline.py` expects today.
+
+```json
+{
+  "version": "1.1",
+  "exportedAt": "2025-12-27T00:00:00Z",
+  "recording": {
+    "durationSeconds": 12.34,
+    "durationChunks": 56,
+    "startChunk": 1234,
+    "endChunk": 1290
+  },
+  "settings": {
+    "pipelineId": "krea-realtime-video",
+    "inputMode": "text",
+    "resolution": { "height": 480, "width": 832 },
+    "seed": 42,
+    "denoisingSteps": [1000, 750, 500, 250],
+    "manageCache": true,
+    "kvCacheAttentionBias": 0.3,
+    "quantization": "none",
+    "loras": [],
+    "loraMergeStrategy": "permanent_merge"
+  },
+  "prompts": [
+    {
+      "startTime": 0.0,
+      "endTime": 1.23,
+      "startChunk": 0,
+      "endChunk": 5,
+      "prompts": [{ "text": "A serene forest at dawn", "weight": 1.0 }],
+      "transitionSteps": 4,
+      "temporalInterpolationMethod": "linear",
+      "initCache": true,
+      "softCut": {
+        "bias": 0.1,
+        "chunks": 2,
+        "restoreBias": 0.3,
+        "restoreWasSet": true
+      }
+    }
+  ]
+}
+```
 
 ## Architecture
 
@@ -371,12 +425,12 @@ class SessionRecorder:
                 segment["temporalInterpolationMethod"] = event.transition_method
 
             # Hard cut → initCache
-            # NOTE: render_timeline.py does NOT yet support initCache
+            # Requires render_timeline.py initCache support (see below)
             if event.hard_cut:
                 segment["initCache"] = True
 
             # Soft cut - EXTENDED per review01 Risk E for restore fidelity
-            # NOTE: render_timeline.py does NOT yet support softCut
+            # Requires render_timeline.py softCut support (see below)
             if event.soft_cut_bias is not None:
                 segment["softCut"] = {
                     "bias": event.soft_cut_bias,
@@ -392,7 +446,7 @@ class SessionRecorder:
         lp = recording.load_params
 
         return {
-            "version": "1.0",
+            "version": "1.1",
             "exportedAt": datetime.utcnow().isoformat() + "Z",
             "recording": {
                 "durationSeconds": recording.duration_seconds,
@@ -402,11 +456,13 @@ class SessionRecorder:
             },
             "settings": {
                 "pipelineId": recording.pipeline_id,
+                "inputMode": lp.get("input_mode") or lp.get("inputMode") or "text",
                 "resolution": {
                     "height": lp.get("height", 480),
                     "width": lp.get("width", 832),
                 },
                 "seed": lp.get("seed"),
+                "manageCache": lp.get("manage_cache", True),
                 "kvCacheAttentionBias": lp.get("kv_cache_attention_bias", 0.3),
                 "denoisingSteps": lp.get("denoising_step_list"),
                 "quantization": lp.get("quantization"),
@@ -430,8 +486,8 @@ class SessionRecorder:
 **Key design:**
 1. Route start/stop through reserved keys, handle in `process_chunk()` for thread-safety
 2. **Record from ControlBus events, not `merged_updates`** - keys get popped before we'd see them
-3. Detect hard cuts on **edge** (`"reset_cache" in merged_updates`), not persistent state
-4. Use `peek_status_info()` to avoid clearing error state, or gate on LOADED
+3. Detect hard cuts as a one-shot `reset_cache=True` edge (and record when executed; do not confuse with initial warmup `init_cache=True`)
+4. Use `peek_status_info()` to avoid clearing error state, or gate on `"loaded"`
 
 ```python
 # In src/scope/server/frame_processor.py
@@ -451,11 +507,11 @@ class FrameProcessor:
     def _get_current_effective_prompt(self) -> tuple[str | None, float]:
         """Get current effective prompt for baseline recording.
 
-	        Priority (FIXED review02-C):
-	        1. Transition target prompts (if transition active)
-	        2. Current prompts from parameters (PREFERRED - this is what pipeline sees)
-	        3. Prompts from `pipeline.state` (fallback when parameters omit prompts; e.g. warmup)
-	        4. Compiled prompt from style layer (LAST RESORT - complex type)
+        Priority (FIXED review02-C):
+        1. Transition target prompts (if transition active)
+        2. Current prompts from parameters (PREFERRED - this is what pipeline sees)
+        3. Prompts from `pipeline.state` (fallback when parameters omit prompts; e.g. warmup)
+        4. Compiled prompt from style layer (LAST RESORT - complex type)
 
         Returns:
             (prompt_text, weight) or (None, 1.0)
@@ -469,30 +525,30 @@ class FrameProcessor:
 
         # PREFERRED: Use current prompts from parameters (what pipeline actually sees)
         # FIXED review02-C: This is more reliable than compiler outputs
-	        prompts = self.parameters.get("prompts")
-	        if prompts:
-	            return prompts[0].get("text"), prompts[0].get("weight", 1.0)
+        prompts = self.parameters.get("prompts")
+        if prompts:
+            return prompts[0].get("text"), prompts[0].get("weight", 1.0)
 
-	        # Fallback: pipeline.state may still hold a prompt (e.g. warmup prompt) even if
-	        # frame_processor.parameters does not include "prompts" yet.
-	        try:
-	            pipeline = self.pipeline_manager.get_pipeline()
-	        except Exception:
-	            pipeline = None
-	        if pipeline is not None and hasattr(pipeline, "state"):
-	            state = getattr(pipeline, "state", None)
-	            state_prompts = None
-	            if state is not None and hasattr(state, "get"):
-	                state_prompts = state.get("prompts")
-	            elif state is not None:
-	                state_prompts = getattr(state, "values", {}).get("prompts")
-	            if state_prompts:
-	                return state_prompts[0].get("text"), state_prompts[0].get("weight", 1.0)
+        # Fallback: pipeline.state may still hold a prompt (e.g. warmup prompt) even if
+        # frame_processor.parameters does not include "prompts" yet.
+        try:
+            pipeline = self.pipeline_manager.get_pipeline()
+        except Exception:
+            pipeline = None
+        if pipeline is not None and hasattr(pipeline, "state"):
+            state = getattr(pipeline, "state", None)
+            state_prompts = None
+            if state is not None and hasattr(state, "get"):
+                state_prompts = state.get("prompts")
+            elif state is not None:
+                state_prompts = getattr(state, "values", {}).get("prompts")
+            if state_prompts:
+                return state_prompts[0].get("text"), state_prompts[0].get("weight", 1.0)
 
-	        # LAST RESORT: compiled prompt from style layer
-	        # NOTE: There are (at least) two "CompiledPrompt" shapes in this repo:
-	        # - prompt_compiler.CompiledPrompt: `.prompts` is list[PromptEntry] (has `.text`/`.weight`), plus `.prompt` convenience str
-	        # - control_state.CompiledPrompt: `.positive` is list[dict] with {"text","weight"}
+        # LAST RESORT: compiled prompt from style layer
+        # NOTE: There are (at least) two "CompiledPrompt" shapes in this repo:
+        # - prompt_compiler.CompiledPrompt: `.prompts` is list[PromptEntry] (has `.text`/`.weight`), plus `.prompt` convenience str
+        # - control_state.CompiledPrompt: `.positive` is list[dict] with {"text","weight"}
         if hasattr(self, "_compiled_prompt") and self._compiled_prompt:
             compiled = self._compiled_prompt
 
@@ -921,7 +977,7 @@ Compatible with `render_timeline.py` (with noted limitations):
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1",
   "exportedAt": "2025-12-26T14:30:52Z",
   "recording": {
     "durationSeconds": 45.2,
@@ -931,12 +987,14 @@ Compatible with `render_timeline.py` (with noted limitations):
   },
   "settings": {
     "pipelineId": "krea-realtime-video",
+    "inputMode": "text",
     "resolution": {"height": 480, "width": 832},
     "seed": 42,
+    "manageCache": true,
     "kvCacheAttentionBias": 0.3,
     "denoisingSteps": [1000, 750, 500, 250],
-    "quantization": "fp8",
-    "loras": [{"path": "/path/to/lora.safetensors", "scale": 1.0}],
+    "quantization": "none",
+    "loras": [],
     "loraMergeStrategy": "permanent_merge"
   },
   "prompts": [
@@ -1018,6 +1076,8 @@ class TimelineSegment(BaseModel):
     # ... existing fields ...
     initCache: bool | None = None  # ADDED: Hard cut support
     softCut: TimelineSoftCut | None = None  # ADDED: Soft cut support
+    startChunk: int | None = None  # ADDED: Chunk timebase
+    endChunk: int | None = None  # ADDED: Chunk timebase
 ```
 
 ### Hard Cut (initCache) Replay
