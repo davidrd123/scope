@@ -5,11 +5,21 @@
 > Date: 2025-12-26
 > Sources:
 > - External constraints: [`claude01.md`](../DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md)
+> - SM103 kernel primitives (TMA/mbarrier/tcgen05): [`claude03a.md`](../DeepResearch/2025-12-27/climbing_the_mountain/claude03a.md), [`claude04b.md`](../DeepResearch/2025-12-27/climbing_the_mountain/claude04b.md)
 > - Local code audit: `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`, `src/scope/core/pipelines/krea_realtime_video/modules/model.py`, `src/scope/core/pipelines/wan2_1/modules/attention.py`
 
 ## Purpose
 
 Document the concrete tensor shapes, dtypes, memory layouts, and alignment requirements at each boundary in the self-attention path. Without this, we can't design a "post-projection pack" kernel safely.
+
+## Kernel Primitives Constraints (for Level 6 work)
+
+If we build a fused kernel (e.g., post-QKV pack + RoPE + KV-write) using CuTe/CUTLASS TMA + mbarrier + tcgen05:
+
+- **Don’t conflate alignment requirements:**
+  - `mbarrier` is an **8-byte** object (`.b64`) in shared memory with **8-byte** alignment.
+  - `CUtensorMap` descriptors are **64-byte aligned** (driver API requirement).
+- **Target selection matters:** Some PTX “architecture-accelerated” features require `sm_90a`/`sm_100a`/`sm_103a` targets; `sm_103` alone may not expose the needed modifiers (e.g. `.cta_group` forms) in a forward-compatible way.
 
 ---
 

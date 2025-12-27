@@ -77,8 +77,10 @@ copy(tma_load, thr_copy_gmem, thr_copy_smem);
 | 1 | **16-byte alignment mandatory** | Both source and destination must be 16-byte aligned |
 | 2 | **Size must be multiple of 16** | The size operand for cp.async.bulk |
 | 3 | **16-byte stride alignment** | All strides except stride-1 dim must be multiples of 16 bytes |
-| 4 | **Descriptors host-created** | Use `cuTensorMapEncode` before kernel launch |
-| 5 | **Descriptor encodes everything** | Base ptr, dtype, dims, strides, SMEM box size, swizzle, OOB behavior |
+| 4 | **TensorMap is 64B-aligned** | `CUtensorMap` descriptor address must be 64-byte aligned |
+| 5 | **Descriptors host-created** | Use `cuTensorMapEncodeTiled` (driver API) / `cuTensorMapEncode` before kernel launch |
+| 6 | **Descriptor encodes everything** | Base ptr, dtype, dims, strides, SMEM box size, swizzle, OOB behavior |
+| 7 | **`*_a` targets unlock features** | Some PTX “architecture-accelerated” features require `sm_90a`/`sm_100a`/`sm_103a` targets (not just `sm_103`) |
 
 ---
 
@@ -143,6 +145,7 @@ pipeline.consumer_release(state);
 | 3 | **TMA producer_commit is NOOP** | TMA hardware auto-updates tx-count. Call for API consistency only |
 | 4 | **Pipeline init critical** | Must call `make_producer_start_state()` so first `producer_acquire()` succeeds |
 | 5 | **Phase bit semantics** | Even/odd phases; must match between arrive and wait |
+| 6 | **mbarrier is `.b64` (8B)** | PTX `mbarrier.*.b64` uses an 8-byte object in shared memory with 8-byte alignment (don’t confuse with 64-byte `CUtensorMap` alignment) |
 
 ---
 
