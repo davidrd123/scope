@@ -137,6 +137,9 @@ class KreaRealtimeVideoPipeline(Pipeline, LoRAEnabledPipeline):
 
         if compile:
             compile_mode = os.getenv("SCOPE_TORCH_COMPILE_MODE", "").strip()
+            compile_strategy = (
+                os.getenv("SCOPE_TORCH_COMPILE_STRATEGY", "blocks").strip().lower()
+            )
             if (
                 compile_mode == "reduce-overhead"
                 and is_sm103()
@@ -191,7 +194,18 @@ class KreaRealtimeVideoPipeline(Pipeline, LoRAEnabledPipeline):
             # blocks individually.
             if compile_mode == "reduce-overhead":
                 generator.model.compile(**compile_kwargs)
+            elif compile_strategy in {"model", "whole", "full"}:
+                logger.info(
+                    "torch.compile strategy: whole-model (SCOPE_TORCH_COMPILE_STRATEGY=%s)",
+                    compile_strategy,
+                )
+                generator.model.compile(**compile_kwargs)
             else:
+                if compile_strategy != "blocks":
+                    logger.warning(
+                        "Unknown SCOPE_TORCH_COMPILE_STRATEGY=%s; using per-block compilation.",
+                        compile_strategy,
+                    )
                 for block in generator.model.blocks:
                     # Disable fullgraph right now due to issues with RoPE
                     block.compile(**compile_kwargs)

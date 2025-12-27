@@ -87,6 +87,9 @@ export TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
 Optional (B300-specific) knobs:
 
 ```bash
+# Optional: whole-model compilation (usually neutral; can increase warmup).
+export SCOPE_TORCH_COMPILE_STRATEGY=model  # default: blocks
+
 # B300 hazard: fused to_qkv(...).chunk(...) can create strided Q/K views and
 # trigger extra copies in eager mode. For the compiled path we currently prefer
 # fused projections ON; use this knob for eager/debug.

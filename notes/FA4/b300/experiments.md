@@ -498,6 +498,75 @@ Artifacts:
 - `outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_fuseproj_on_fa4_varlen_perf.log`
 - `outputs/b300_cu130_triton351_compile_mode_maxautotune_nocg_fuseproj_on_fa4_varlen_blocks_profile.json`
 
+### 2025-12-27 — torch.compile strategy: whole model vs per-block (BF16; best config)
+
+**Question:**  
+Does compiling the entire generator model (instead of compiling each transformer block) improve steady-state throughput on B300?
+
+**Hypothesis:**  
+Maybe a small win from cross-block fusion, but likely higher warmup cost and more risk of graph breaks.
+
+**Change (one thing):**  
+Set `SCOPE_TORCH_COMPILE_STRATEGY=model` (default is `blocks`).
+
+**Benchmark config:**  
+- GPU: B300 (SM103)  
+- Env: cu130 decode env (`.venv-b300-cu130-decode`)  
+- torch / cuda: `2.9.0+cu130` / `13.0`  
+- Settings: `320x576`, steps=`4`, bias=`0.3`, quantization=`none`  
+- Notes: FA4 KV-bias + FA4 varlen, fused projections ON, `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1`
+
+**Command(s):**
+```bash
+# Baseline (default): compile blocks
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_ENABLE_FA4_VARLEN=1 \
+SCOPE_DISABLE_FUSED_PROJECTIONS=0 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
+PROFILE_PIPELINE_BLOCKS=1 PROFILE_PIPELINE_BLOCKS_JSON=outputs/b300_cu130_triton351_compile_blocks_best_blocks_profile.json \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 --iters 6 --skip 2 \
+  --compile --quantization none --kv-cache-attention-bias 0.3 --cudnn-benchmark \
+  |& tee outputs/b300_cu130_triton351_compile_blocks_best_perf.log
+
+# Change: compile whole model
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_ENABLE_FA4_VARLEN=1 \
+SCOPE_DISABLE_FUSED_PROJECTIONS=0 \
+SCOPE_TORCH_COMPILE_STRATEGY=model \
+WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
+PROFILE_PIPELINE_BLOCKS=1 PROFILE_PIPELINE_BLOCKS_JSON=outputs/b300_cu130_triton351_compile_model_best_blocks_profile.json \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 --iters 6 --skip 2 \
+  --compile --quantization none --kv-cache-attention-bias 0.3 --cudnn-benchmark \
+  |& tee outputs/b300_cu130_triton351_compile_model_best_perf.log
+```
+
+**Baseline:**  
+- Avg FPS (skip=2): `30.67` (`outputs/b300_cu130_triton351_compile_blocks_best_perf.log`)
+- Warmup: `~15.8s`
+
+**Result:**  
+- Avg FPS (skip=2): `30.74` (`outputs/b300_cu130_triton351_compile_model_best_perf.log`) (≈ noise / +0.2%)
+- Warmup: `~19.5s` (worse)
+
+**Decision:**  
+Prefer per-block compilation (`SCOPE_TORCH_COMPILE_STRATEGY=blocks`) as the default; whole-model is not worth the extra warmup unless future graphs enable meaningful fusion.
+
+**Artifacts:**  
+- `outputs/b300_cu130_triton351_compile_blocks_best_perf.log`  
+- `outputs/b300_cu130_triton351_compile_blocks_best_blocks_profile.json`  
+- `outputs/b300_cu130_triton351_compile_model_best_perf.log`  
+- `outputs/b300_cu130_triton351_compile_model_best_blocks_profile.json`  
+
 ### 2025-12-27 — VAE decode: channels-last 3D activations
 
 **Question:**  

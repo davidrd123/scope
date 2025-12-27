@@ -252,6 +252,10 @@ Server opt-in: set `SCOPE_COMPILE_KREA_PIPELINE=1` before launching. `scripts/ru
   - Guardrail: on SM103 we now ignore `SCOPE_TORCH_COMPILE_MODE=reduce-overhead` unless `SCOPE_ALLOW_REDUCE_OVERHEAD_SM103=1`.
 Recommendation: leave `SCOPE_TORCH_COMPILE_MODE` unset (default) unless you’re explicitly experimenting.
 
+**Compile strategy experiments:** by default we compile **each transformer block** (keeps graph breaks localized). You can force whole-model compilation with `SCOPE_TORCH_COMPILE_STRATEGY=model`, but in the best-known BF16 config it was effectively neutral and increased warmup:
+- Default (`blocks`): `~30.67 FPS`, warmup `~15.8s` (`outputs/b300_cu130_triton351_compile_blocks_best_perf.log`)
+- Whole model (`model`): `~30.74 FPS`, warmup `~19.5s` (`outputs/b300_cu130_triton351_compile_model_best_perf.log`)
+
 **FA4 varlen opt-in (non-bias attention):** when `SCOPE_KV_BIAS_BACKEND=fa4`, FA4/CuTe varlen attention remains disabled by default (stable FA2 for non-bias attention). You can opt in with `SCOPE_ENABLE_FA4_VARLEN=1`; on B300 compiled BF16 this was a ~2–3% win (≈`30.08 → 30.76` FPS) but increased warmup/JIT time (≈`12s → 19s`). `scripts/run_daydream_b300.sh` now defaults this to `1` (set `SCOPE_ENABLE_FA4_VARLEN=0` to disable).
 
 Update: FA4 score_mod KV-bias is now working on B300 and is faster than flash segment-combine at the canonical resolution. It required:
