@@ -1,6 +1,6 @@
 # AI Previz Machine
 
-> **tl;dr:** Switch the visual language of a scene with a keypress. Iterate while you think, not after. Running on Blackwell GPUs with 2.5x baseline performance.
+> **tl;dr:** Switch the visual language of a scene with a keypress. Iterate while you think, not after. Running on Blackwell GPUs with 3.3x baseline performance.
 
 ---
 
@@ -37,7 +37,7 @@ Script/Scene Direction
 | **Real-time style switching** | Press a key, the visual language changes — same scene, completely different feel |
 | **Soft cuts** | Smooth transitions between styles instead of jarring jumps (emerged from interactive use) |
 | **TUI director console** | Navigate playlists, step through scenes, switch styles — all keyboard-driven |
-| **Blackwell performance** | 2.5x speedup on B200/B300 — fast enough to iterate while you think |
+| **Blackwell performance** | 3.3x speedup on B200/B300 — fast enough to iterate while you think |
 
 The TUI lets you move through a scene from different stylistic perspectives in real-time. We started with one style, didn't like it, switched — and discovered that smooth transitions between styles (soft cuts) felt better than hard switches. That interaction pattern emerged from the speed.
 
@@ -57,14 +57,16 @@ Spot instances pushed us to B300 when B200 availability was tight. Blessing in d
 **What we did:**
 - Custom kernels for the attention pattern Scope uses (KV-cache bias)
 - Runtime stack tuned for Blackwell architecture
+- Fixed VAE decode falling back to slow Conv3d paths (3x decode speedup)
 - Removed slow paths in the video encode pipeline
 
 **Results:**
 
 | | Before | After |
 |--------|--------|-------|
-| Blackwell FPS | ~8.8 | ~22–23 |
+| Blackwell FPS | ~8.8 | ~29 |
 | Attention latency | ~0.9ms | ~0.4ms |
+| VAE decode | ~195ms | ~60ms |
 
 The work generalizes to B200/B300 — anywhere Blackwell runs. This is upstreamable to Scope: next-gen hardware support that benefits everyone.
 
