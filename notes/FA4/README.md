@@ -87,7 +87,7 @@ notes/FA4/
 ## Run Options (Quick Reference)
 
 For the full knobs map (env vars + what they control), see:
-- `notes/FA4/explainers/17-backend-selection-and-knobs.md`
+- [`17-backend-selection-and-knobs.md`](explainers/17-backend-selection-and-knobs.md)
 
 ### Benchmark / Profiling
 

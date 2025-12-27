@@ -4,8 +4,8 @@
 > Priority: **High** — can't optimize what we haven't measured
 > Date: 2025-12-26
 > Sources:
-> - External references + constraints: `notes/FA4/DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md`
-> - “Don’t guess, measure” decision rules: `notes/FA4/DeepResearch/2025-12-26/B300_step_back/round01/5pro_rp02.md`
+> - External references + constraints: [`claude01.md`](../DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md)
+> - “Don’t guess, measure” decision rules: [`5pro_rp02.md`](../DeepResearch/2025-12-26/B300_step_back/round01/5pro_rp02.md)
 
 ---
 

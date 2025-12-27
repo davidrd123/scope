@@ -129,21 +129,21 @@ Simple Triton kernel that rotates `x` using pre-materialized `cos/sin`:
 - Decision: keep default `BLOCK_M=8`, `BLOCK_H=2`.
 
 **Docs:**
-- `notes/FA4/phase3-triton-rope-step2.md` - Step 2 spec
-- `notes/FA4/DeepResearch/2025-12-22/Phase3_01.md` - GPT-5 Pro v1 draft
-- `notes/FA4/DeepResearch/2025-12-22/Phase3_02.md` - GPT-5 Pro v2 fix diagnosis
-- `notes/FA4/DeepResearch/2025-12-22/Phase3_03.md` - GPT-5 Pro v2 alternative impl
+- [`phase3-triton-rope-step2.md`](../phase3-triton-rope-step2.md) - Step 2 spec
+- [`Phase3_01.md`](../DeepResearch/2025-12-22/Phase3_01.md) - GPT-5 Pro v1 draft
+- [`Phase3_02.md`](../DeepResearch/2025-12-22/Phase3_02.md) - GPT-5 Pro v2 fix diagnosis
+- [`Phase3_03.md`](../DeepResearch/2025-12-22/Phase3_03.md) - GPT-5 Pro v2 alternative impl
 
 ### Step 3 (optimize access + launch) - PLANNED
 
-**Status:** Planning doc ready at `notes/FA4/phase3-triton-rope-step3.md`
+**Status:** Planning doc ready at [`phase3-triton-rope-step3.md`](../phase3-triton-rope-step3.md)
 
 **Goals:**
 1. Tune BLOCK_M/BLOCK_H for v2 kernel (sweep 8/16/32)
 2. Fuse Q+K RoPE in single kernel (halve launch overhead)
 3. Micro-optimizations (wrapper overhead, PTX-level)
 
-**Spec:** `notes/FA4/phase3-triton-rope-step3.md`
+**Spec:** [`phase3-triton-rope-step3.md`](../phase3-triton-rope-step3.md)
 
 ## Reference Artifacts (vendored)
 

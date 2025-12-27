@@ -3,8 +3,8 @@
 Goal: replace Krea Realtime’s FlexAttention-heavy self-attn paths (block-causal recompute + KV-cache bias) with a custom kernel/back-end that is closer to FA4-class performance.
 
 Sources
-- `notes/FA4/DeepResearch/MSU_chat.md` (kernel targets + suggested sequence)
-- `notes/FA4/DeepResearch/wafer.md` (profiling workflow/tooling note)
+- [`MSU_chat.md`](MSU_chat.md) (kernel targets + suggested sequence)
+- [`wafer.md`](wafer.md) (profiling workflow/tooling note)
 
 ## The relevant takeaways (actionable)
 
@@ -47,7 +47,7 @@ Microbench harness (matches “build a tiny harness first”)
   - `--no-pad-q-to-k` is important to avoid hiding true `Lq` scaling (padding can dominate runtime)
 
 Kernel prototyping (apprentice track)
-- `scripts/triton_sdpa.py` + `notes/FA4/kernel-dev-log.md`
+- `scripts/triton_sdpa.py` + [`kernel-dev-log.md`](../kernel-dev-log.md)
   - M1–M3 correctness is already logged as PASS.
   - M4 (beating flex_attention) is running into exactly the DeepResearch warning: **runtime masking** can lose vs FlexAttention’s **compile-time block sparsity**.
 
@@ -59,5 +59,5 @@ From a single real Krea Realtime run, capture for the top attention callsites:
 - For bias: exact cutoff definition (first frame excluded, current block excluded)
 
 Profiling tooling note
-- `notes/FA4/DeepResearch/wafer.md` is only about improving the Nsight Compute (`ncu`) loop; it doesn’t replace `nsys` / PyTorch profiler for end-to-end bottleneck attribution.
+- [`wafer.md`](wafer.md) is only about improving the Nsight Compute (`ncu`) loop; it doesn’t replace `nsys` / PyTorch profiler for end-to-end bottleneck attribution.
 

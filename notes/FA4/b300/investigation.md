@@ -119,7 +119,7 @@ AttributeError: module 'cutlass' has no attribute 'CACHE_FILE'
 ```
 
 ### Update (2025-12-26)
-This is no longer a hard blocker for the main pipeline: **FA4 KV-bias can coexist with regional `torch.compile`** on B300/cu130 by keeping CuTe calls opaque to Dynamo and disabling flex_attention compilation on SM103 (see `notes/FA4/b300/session-state.md` and `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`).
+This is no longer a hard blocker for the main pipeline: **FA4 KV-bias can coexist with regional `torch.compile`** on B300/cu130 by keeping CuTe calls opaque to Dynamo and disabling flex_attention compilation on SM103 (see [`session-state.md`](session-state.md) and `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`).
 
 ### Mitigations / Workarounds
 If you need to compile `flex_attention` (or hit Inductor compilation failures that trace to `torch._inductor.codegen.cuda.cutlass_utils`), uninstall FA4 deps:

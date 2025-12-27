@@ -4,11 +4,11 @@
 > **Updated:** 2025-12-26
 
 **Learning-first note:** This is intentionally a *learning ladder*, not just a perf plan. It’s totally fine to bounce between rungs as long as we keep writing down (1) what we tried, (2) what we measured, and (3) what we learned.
-Use `notes/FA4/b300/experiments.md` as the default place to capture those “one-change” experiment cards.
+Use [`experiments.md`](experiments.md) as the default place to capture those “one-change” experiment cards.
 
 **Ground truth sources (when numbers disagree):**
-- `notes/FA4/b300/session-state.md` (current reproducible best-known configs + caveats)
-- `notes/FA4/b300/investigation-runbook.md` (how we measure and decide)
+- [`session-state.md`](session-state.md) (current reproducible best-known configs + caveats)
+- [`investigation-runbook.md`](investigation-runbook.md) (how we measure and decide)
 - Recent drilldown artifacts under `outputs/` (e.g. `outputs/b300_*_drilldown_*.log/json`)
 
 ## Preflight: Which Attention Path Are You Optimizing?
@@ -21,7 +21,7 @@ There are *two* attention backends in the realtime pipeline; many “it got slow
 - **Bias enabled** (`kv_cache_attention_bias < 1.0`)  
   Uses the *KV-bias attention* implementation in `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`, selected by `SCOPE_KV_BIAS_BACKEND` (`fa4|flash|flex|triton`).
 
-Knobs map: `notes/FA4/explainers/17-backend-selection-and-knobs.md`.
+Knobs map: [`17-backend-selection-and-knobs.md`](../explainers/17-backend-selection-and-knobs.md).
 
 ---
 
@@ -91,7 +91,7 @@ Knobs map: `notes/FA4/explainers/17-backend-selection-and-knobs.md`.
 ## ✅ YOU ARE HERE: Between Level 4 and 5
 
 Current state:
-- B300 (cu130): **~19–20 FPS** baseline (BF16) and **~22–23 FPS** with `--compile` (BF16, config-dependent). FP8 can benchmark higher, but is currently **not a usable win** on B300 because FP8 output quality is broken (gray/noise) — see `notes/FA4/b300/session-state.md`.
+- B300 (cu130): **~19–20 FPS** baseline (BF16) and **~22–23 FPS** with `--compile` (BF16, config-dependent). FP8 can benchmark higher, but is currently **not a usable win** on B300 because FP8 output quality is broken (gray/noise) — see [`session-state.md`](session-state.md).
 - Solved the “white whale” mystery: the original ~8.8 FPS wasn’t an attention backend cap; it was dominated by runtime stack + decode/cuDNN behavior and SM103 backend pitfalls
 - Have documented, reproducible optimizations
 - Recent “big win” pattern: eliminating hidden slow paths (e.g. Conv3d patch-embed → per-frame Conv2d) can dwarf attention micro-tuning by removing `aten::copy_`/`aten::fill_` storms
@@ -101,7 +101,7 @@ What's missing for Level 5:
 - Warmup time is not consistently tracked (compile is a win, but cold-start matters)
 - We haven’t done a cross-resolution scaling “sanity card” yet (do bottlenecks shift at 480×864 / 640×1152?)
 - Not exploiting Blackwell-specific features (TMA, warp specialization)
-- torch.compile integration is partial (some modes abort on SM103; `--compile + fp8_e4m3fn` is blocked upstream by TorchAO `Float8Tensor` missing `aten.as_strided.default`, but is unblocked locally via a PerTensor-only monkeypatch applied by the realtime pipeline: `src/scope/core/compat/torchao_float8_as_strided.py` (disable with `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`); upstream issue text is paste-ready at `notes/issues/torchao-as-strided-dispatch.md`; some cudagraph-heavy modes can still hit “output overwritten”) — see `notes/FA4/b300/session-state.md`
+- torch.compile integration is partial (some modes abort on SM103; `--compile + fp8_e4m3fn` is blocked upstream by TorchAO `Float8Tensor` missing `aten.as_strided.default`, but is unblocked locally via a PerTensor-only monkeypatch applied by the realtime pipeline: `src/scope/core/compat/torchao_float8_as_strided.py` (disable with `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`); upstream issue text is paste-ready at [`torchao-as-strided-dispatch.md`](../../issues/torchao-as-strided-dispatch.md); some cudagraph-heavy modes can still hit “output overwritten”) — see [`session-state.md`](session-state.md)
 
 ---
 
@@ -159,7 +159,7 @@ All running simultaneously in a software pipeline
 **What it looks like in FA4 (real example in this repo):**
 
 FA4’s SM100 kernel has a more granular role split (softmax warps, correction warps, a single MMA-issuer warp, a load warp, etc.). See:
-- `notes/FA4/explainers/02-blackwell-path.md`
+- [`02-blackwell-path.md`](../explainers/02-blackwell-path.md)
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py` (e.g., `softmax0_warp_ids`, `correction_warp_ids`, `mma_warp_id`, `load_warp_ids`)
 
 **TMA (Tensor Memory Accelerator):**

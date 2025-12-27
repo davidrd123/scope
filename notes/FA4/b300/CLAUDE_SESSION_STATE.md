@@ -1,7 +1,7 @@
 # Claude Session State — B300 Investigation (2025-12-25, Session 2)
 
 > **Purpose:** Handoff document for context compaction. Resume from here.
-> **Status:** Historical snapshot from 2025-12-25. For the current “what to run today” state (updated numbers, BF16 baseline, compile status), see `notes/FA4/b300/session-state.md` and `notes/FA4/b300/optimization-vision.md`.
+> **Status:** Historical snapshot from 2025-12-25. For the current “what to run today” state (updated numbers, BF16 baseline, compile status), see [`session-state.md`](session-state.md) and [`optimization-vision.md`](optimization-vision.md).
 
 ---
 
@@ -36,7 +36,7 @@ Within self_attn (with FA4):
 
 ### 2. Created Optimization Vision Doc
 
-`notes/FA4/b300/optimization-vision.md` — Strategic roadmap with:
+[`optimization-vision.md`](optimization-vision.md) — Strategic roadmap with:
 - Progress log (8.8 → 13.5 → 15.0 FPS)
 - 6 strategic options (A-F)
 - Option A (FA4 score_mod) marked COMPLETE
@@ -46,7 +46,7 @@ Within self_attn (with FA4):
 
 Codex found `SCOPE_KV_CACHE_RECOMPUTE_EVERY=2` gives +12% FPS (15→16.8).
 
-**We rejected this** after reading KREA's blog (`notes/krea/blog-krea-realtime-14b.md`):
+**We rejected this** after reading KREA's blog ([`blog-krea-realtime-14b.md`](../../krea/blog-krea-realtime-14b.md)):
 - KV Cache Recomputation is CORE to their error accumulation solution
 - They explicitly tried cheaper alternatives and concluded recompute-every-frame is essential
 - Quote: "despite many attempts to devise cheaper solutions, we found these two techniques to be crucial for long, stable generations"
@@ -55,7 +55,7 @@ Codex found `SCOPE_KV_CACHE_RECOMPUTE_EVERY=2` gives +12% FPS (15→16.8).
 
 ### 4. Discovered User's Context Editing Vision
 
-`notes/research/2025-12-24/incoming/context_editing_and_console_spec.md`
+[`context_editing_and_console_spec.md`](../../research/2025-12-24/incoming/context_editing_and_console_spec.md)
 
 The OPPOSITE approach to Codex's proposal:
 - KREA re-encodes anchor frame from RGB during recompute
@@ -67,7 +67,7 @@ The OPPOSITE approach to Codex's proposal:
 
 ### 5. Found Orphaned VACE-14B Integration Docs
 
-`notes/vace-14b-integration/plan.md` — Ready to implement:
+[`plan.md`](../../vace-14b-integration/plan.md) — Ready to implement:
 - Add reference image conditioning to Krea 14B
 - Upstream weights verified (6.1 GB from Kijai)
 - 5 implementation steps documented
@@ -87,12 +87,12 @@ Codex identified two blockers:
 
 | Purpose | File |
 |---------|------|
-| Vision/roadmap | `notes/FA4/b300/optimization-vision.md` |
-| Session state | `notes/FA4/b300/session-state.md` |
-| Investigation runbook | `notes/FA4/b300/investigation-runbook.md` |
-| KREA blog (recompute rationale) | `notes/krea/blog-krea-realtime-14b.md` |
-| Context editing spec | `notes/research/2025-12-24/incoming/context_editing_and_console_spec.md` |
-| VACE-14B plan | `notes/vace-14b-integration/plan.md` |
+| Vision/roadmap | [`optimization-vision.md`](optimization-vision.md) |
+| Session state | [`session-state.md`](session-state.md) |
+| Investigation runbook | [`investigation-runbook.md`](investigation-runbook.md) |
+| KREA blog (recompute rationale) | [`blog-krea-realtime-14b.md`](../../krea/blog-krea-realtime-14b.md) |
+| Context editing spec | [`context_editing_and_console_spec.md`](../../research/2025-12-24/incoming/context_editing_and_console_spec.md) |
+| VACE-14B plan | [`plan.md`](../../vace-14b-integration/plan.md) |
 
 ---
 

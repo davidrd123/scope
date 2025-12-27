@@ -283,15 +283,15 @@ graph.build_plans(handle);
 
 ## Condensed output file suggestions
 
-### `notes/FA4/b300/layout-contracts.md`
+### [`layout-contracts.md`](../../../../b300/layout-contracts.md)
 
 Key content: Tensor shape tables (batch vs varlen), stride contiguity rules, head_dim alignment matrix by FA version, cu_seqlens format specification, LSE output shapes, FP8 K-major requirement.
 
-### `notes/FA4/b300/blackwell-primitives-cheatsheet.md`
+### [`blackwell-primitives-cheatsheet.md`](../../../../b300/blackwell-primitives-cheatsheet.md)
 
 Key content: tcgen05.mma syntax and constraints, TMEM address format (lane/column bits), TMA alignment rules (16-byte), mbarrier phase completion dual-condition, setmaxnreg ranges, SM100a compile flags.
 
-### `notes/FA4/b300/vae-decode-architecture.md` (cuDNN portions)
+### [`vae-decode-architecture.md`](../../../../b300/vae-decode-architecture.md) (cuDNN portions)
 
 Key content: Conv3d NCDHW→NDHWC transform rationale, channel alignment rules (8 for FP16, 16 for INT8), virtual tensor fusion pattern, graph capture engine filtering, frontend API boilerplate for 3D convolutions.
 

@@ -27,9 +27,9 @@ Two regimes exist:
 - **SM103-native stack (cu130):** ~`19–20 FPS` baseline (BF16) and ~`22–23 FPS` with `--compile` (BF16), at `320x576` with bias `0.3`.
 
 Truth sources:
-- `notes/FA4/b300/session-state.md`
-- `notes/FA4/b300/investigation-runbook.md`
-- `notes/FA4/b300/optimization-vision.md`
+- [`session-state.md`](session-state.md)
+- [`investigation-runbook.md`](investigation-runbook.md)
+- [`optimization-vision.md`](optimization-vision.md)
 
 ---
 
@@ -54,8 +54,8 @@ Truth sources:
 - A fresh worker can get to the “known good” baseline in one sitting with no guesswork.
 
 References:
-- `notes/FA4/b300/session-state.md`
-- `notes/FA4/b300/fa4-patches.md`
+- [`session-state.md`](session-state.md)
+- [`fa4-patches.md`](fa4-patches.md)
 - `scripts/patch_cutlass_sm103.sh`
 
 ---
@@ -93,8 +93,8 @@ Touchpoints:
 - We have one baseline config for future experiments (BF16), with repeatable numbers and a short “known good” command in `session-state.md`.
 
 References:
-- `notes/FA4/b300/optimization-vision.md`
-- `notes/FA4/b300/session-state.md`
+- [`optimization-vision.md`](optimization-vision.md)
+- [`session-state.md`](session-state.md)
 
 ---
 
@@ -132,7 +132,7 @@ Touchpoints:
 - At least one documented compile setting yields repeatable steady-state wins on B300 without instability.
 
 References:
-- `notes/FA4/b300/session-state.md`
+- [`session-state.md`](session-state.md)
 - `src/scope/core/pipelines/krea_realtime_video/pipeline.py`
 
 ---
@@ -163,9 +163,9 @@ Productionization guardrails for Level 6 work (start day 1):
 - Keep Nsight-friendly minimal repro scripts per kernel.
 
 References:
-- `notes/FA4/b300/level5-level6-resources.md`
-- `notes/FA4/explainers/13-optimization-bootstrapping.md`
-- `notes/FA4/explainers/14-blog-patterns-to-experiments.md`
+- [`level5-level6-resources.md`](level5-level6-resources.md)
+- [`13-optimization-bootstrapping.md`](../explainers/13-optimization-bootstrapping.md)
+- [`14-blog-patterns-to-experiments.md`](../explainers/14-blog-patterns-to-experiments.md)
 
 ---
 
@@ -173,7 +173,7 @@ References:
 
 1) **B300 Baseline Is Reproducible**
 - session-state has a single blessed cu130 command
-- baseline card exists in `notes/FA4/b300/experiments.md`
+- baseline card exists in [`experiments.md`](experiments.md)
 
 2) **Backend Failures Are Visible**
 - chosen KV-bias backend and fallbacks are logged
@@ -192,7 +192,7 @@ References:
 
 ## Where to Record Work
 
-- Experiments: `notes/FA4/b300/experiments.md`
-- “What to run today”: `notes/FA4/b300/session-state.md`
-- Measurement protocol: `notes/FA4/b300/investigation-runbook.md`
-- Strategy options: `notes/FA4/b300/optimization-vision.md`
+- Experiments: [`experiments.md`](experiments.md)
+- “What to run today”: [`session-state.md`](session-state.md)
+- Measurement protocol: [`investigation-runbook.md`](investigation-runbook.md)
+- Strategy options: [`optimization-vision.md`](optimization-vision.md)

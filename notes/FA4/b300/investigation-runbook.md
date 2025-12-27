@@ -4,7 +4,7 @@
 
 **Key insight:** On the repo-default (cu128) stack, B300 is decode/cuDNN-bound (~8.8 FPS). On an SM103-native (cu130) stack, decode improves dramatically and denoise/transformer becomes the bottleneck.
 
-**Log rule:** every time you run a test or try a tweak, capture it as a card in `notes/FA4/b300/experiments.md` (hypothesis → command → result → lesson). The runbook stays stable; the experiments log can be messy.
+**Log rule:** every time you run a test or try a tweak, capture it as a card in [`experiments.md`](experiments.md) (hypothesis → command → result → lesson). The runbook stays stable; the experiments log can be messy.
 
 ---
 
@@ -56,7 +56,7 @@ How to detect it quickly:
 - Run `scripts/profile_krea_pipeline_ops.py --with-stack --summary` and look at the top stack groups for `aten::copy_` / `aten::fill_`.
 - If the stacks point into patch embedding / Conv3d, you’re likely on the slow path (or on an older revision without the fastpath).
 
-Reference card: `notes/FA4/b300/experiments.md` (“Patch embedding: use Conv2d fastpath when `patch_size[0]==1`”).
+Reference card: [`experiments.md`](experiments.md) (“Patch embedding: use Conv2d fastpath when `patch_size[0]==1`”).
 
 ### SM103-Native Stack Hypothesis (New, High-Value)
 
@@ -261,7 +261,7 @@ Measured (B300 cu130, `320x576`, `kv_cache_attention_bias=0.3`, **quality-preser
 - `--quantization none`: `SCOPE_KV_BIAS_BACKEND=flash` ~`17.2 FPS` → `SCOPE_KV_BIAS_BACKEND=fa4` ~`19.7 FPS`
 - With `--compile`: `flash` ~`21.4 FPS`, `fa4` ~`22.8 FPS` (longer warmup)
 
-FP8 note: FP8 is currently **off-limits** for real runs on B300 because output quality is broken (gray/noise). Keep FP8 measurements only as perf-only breadcrumbs (see `notes/FA4/b300/session-state.md`).
+FP8 note: FP8 is currently **off-limits** for real runs on B300 because output quality is broken (gray/noise). Keep FP8 measurements only as perf-only breadcrumbs (see [`session-state.md`](session-state.md)).
 
 **Quality result (Daydream, B300):** `SCOPE_KV_CACHE_RECOMPUTE_EVERY=2` **visibly glitches**. Treat this knob as **debug-only**; do not ship it as a default optimization.
 
@@ -386,7 +386,7 @@ Result (B300, `320x576`, `--quantization none`, `kv_cache_attention_bias=0.3`, c
 - `flash`: ~`17.2 FPS` (stable fallback)
 - `triton`: ~`~1 FPS` (unusable; also had a very slow warmup)
 
-With `--compile`, both `fa4` and `flash` improve further (see `notes/FA4/b300/session-state.md`).
+With `--compile`, both `fa4` and `flash` improve further (see [`session-state.md`](session-state.md)).
 
 Cause: `src/scope/core/kernels/triton_attention.py` currently forces Kernel B into a **scalar** implementation on SM103 + triton `>=3.5` to avoid a tcgen05 LLVM hard-abort. That scalar variant is dramatically slower than FlashAttention on B300.
 
@@ -604,7 +604,7 @@ PYTHONPATH=src \
 
 Observed:
 - `scripts/profile_krea_pipeline_blocks.py`: **~19–20 FPS** at `320x576` with `SCOPE_KV_BIAS_BACKEND=fa4` (BF16, no compile)
-- With `--compile`: **~22–23 FPS** (BF16; longer warmup; see `notes/FA4/b300/session-state.md`)
+- With `--compile`: **~22–23 FPS** (BF16; longer warmup; see [`session-state.md`](session-state.md))
 - Daydream (end-to-end): **re-measure** whenever server/plumbing changes (historically ~14.8–15.0 FPS pre patch-embed; do not rely on that number now)
 
 Optional: capture per-block profile under cu130 (helps confirm decode is no longer dominant):

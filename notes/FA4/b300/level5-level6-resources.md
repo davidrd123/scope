@@ -4,8 +4,8 @@
 > **Updated:** 2025-12-25
 
 **What this is:** a curated reading list + pointers for “Level 5/6” exploration.  
-**What this is not:** the current performance truth (use `notes/FA4/b300/session-state.md`) or the measurement protocol (use `notes/FA4/b300/investigation-runbook.md`).  
-When you try something, capture it as a 1-card experiment in `notes/FA4/b300/experiments.md`.
+**What this is not:** the current performance truth (use [`session-state.md`](session-state.md)) or the measurement protocol (use [`investigation-runbook.md`](investigation-runbook.md)).  
+When you try something, capture it as a 1-card experiment in [`experiments.md`](experiments.md).
 
 **Portability note:** avoid hardcoding `.venv/...` paths. Prefer repo-local sources (e.g. `vendored/flash_attn_cute_score_mod/`) or locate installed packages via Python.
 
@@ -45,19 +45,19 @@ Production notes (make it shippable):
 
 | Resource | Location | Relevance |
 |----------|----------|-----------|
-| **Vendored kernel reading map** | `notes/FA4/b300/vendored-kernel-resources.md` | Level 5/6: curated pointers into the exact vendored kernels in this repo |
-| **ThunderKittens Blackwell blog** | `notes/research/2025-12-24/incoming/perf/blogs/thunderkittens-blackwell.md` | Level 6: TMA, CTA pairs, warp specialization in attention |
-| **Warp Specialization blog** | `notes/research/2025-12-24/incoming/perf/blogs/warp-specialization.md` | Level 6: Triton's built-in warp spec (`num_consumer_groups`) |
-| **tcgen05 for dummies** | `notes/research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md` | Level 6: Low-level Blackwell tensor core programming |
+| **Vendored kernel reading map** | [`vendored-kernel-resources.md`](vendored-kernel-resources.md) | Level 5/6: curated pointers into the exact vendored kernels in this repo |
+| **ThunderKittens Blackwell blog** | [`thunderkittens-blackwell.md`](../../research/2025-12-24/incoming/perf/blogs/thunderkittens-blackwell.md) | Level 6: TMA, CTA pairs, warp specialization in attention |
+| **Warp Specialization blog** | [`warp-specialization.md`](../../research/2025-12-24/incoming/perf/blogs/warp-specialization.md) | Level 6: Triton's built-in warp spec (`num_consumer_groups`) |
+| **tcgen05 for dummies** | [`gau-nerst-tcgen05.md`](../../research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md) | Level 6: Low-level Blackwell tensor core programming |
 | **FA4/CUTE source (vendored)** | `vendored/flash_attn_cute_score_mod/flash_attn/cute/` | Level 5/6: the FA4/CuTe code we’re actually editing/using for KV-bias |
 | **FlashAttention RoPE implementation (installed)** | Locate via: `python -c "import flash_attn.layers.rotary as r; print(r.__file__)"` | Level 5: reference for rotary interfaces / tables |
 
 ### Start Here (Code-Grounded Reading)
 
-- Blackwell/SM100 mental model: `notes/FA4/explainers/02-blackwell-path.md`
-- Tile scheduling + pipelines: `notes/FA4/explainers/06-tile-scheduling.md`
-- Online softmax (and where scale/bias interacts): `notes/FA4/explainers/07-online-softmax.md`
-- Paged KV + KV-loading backends: `notes/FA4/explainers/09-paged-kv.md`
+- Blackwell/SM100 mental model: [`02-blackwell-path.md`](../explainers/02-blackwell-path.md)
+- Tile scheduling + pipelines: [`06-tile-scheduling.md`](../explainers/06-tile-scheduling.md)
+- Online softmax (and where scale/bias interacts): [`07-online-softmax.md`](../explainers/07-online-softmax.md)
+- Paged KV + KV-loading backends: [`09-paged-kv.md`](../explainers/09-paged-kv.md)
 
 ### Key FA4/CUTE Files to Study
 
@@ -188,7 +188,7 @@ From tcgen05 blog:
 
 **Files to study:**
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/flash_fwd_sm100.py` - Study how the kernel uses Blackwell-ish mechanisms
-- `notes/research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md` - Tutorial on TMA setup
+- [`gau-nerst-tcgen05.md`](../../research/2025-12-24/incoming/perf/blogs/gau-nerst-tcgen05.md) - Tutorial on TMA setup
 
 #### 2. 5th Gen Tensor Cores (tcgen05)
 From tcgen05 blog:
@@ -218,7 +218,7 @@ From warp-specialization blog:
 **What to check:**
 - Does our Triton version support this?
 - Can we add it to our existing Triton kernels?
-- On SM103, some Triton/Inductor tcgen05 paths can hard-abort; treat warp-spec experiments as “learning first,” with an escape hatch back to stable configs (`notes/FA4/b300/session-state.md`).
+- On SM103, some Triton/Inductor tcgen05 paths can hard-abort; treat warp-spec experiments as “learning first,” with an escape hatch back to stable configs ([`session-state.md`](session-state.md)).
 
 #### 4. CTA Pairs
 From ThunderKittens blog:

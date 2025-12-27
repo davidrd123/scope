@@ -90,7 +90,7 @@ uv pip install -p .venv-b300-cu130-decode/bin/python --no-deps --no-build-isolat
 
 Reference benchmark result on B300 (`320x576`, BF16, bias=0.3, cu130 env):
 - `--quantization none`, `SCOPE_KV_BIAS_BACKEND=fa4`: **~19–20 FPS**
-- With `--compile`: **~22–23 FPS** (longer warmup; see `notes/FA4/b300/session-state.md`)
+- With `--compile`: **~22–23 FPS** (longer warmup; see [`session-state.md`](session-state.md))
 
 FP8 note: FP8 output quality is currently broken on B300 (gray/noise), so the canonical baseline is BF16 (`--quantization none`).
 
@@ -174,7 +174,7 @@ PYTHONPATH=src .venv-b300-cu130-decode/bin/python scripts/bench_wanvae_stream_de
 | flex_attention | ✅ | ✅ | 1.095 ms |
 | RoPE fused | ✅ | ✅ | 0.029 ms |
 | FA4/CUTE basic | ✅ | ✅ | **0.074 ms** (13x faster!) - needs patches |
-| FA4/CUTE score_mod | ✅ | ✅ | Works on the current B300 path; see `notes/FA4/b300/session-state.md` and `notes/FA4/b300/fa4-patches.md` |
+| FA4/CUTE score_mod | ✅ | ✅ | Works on the current B300 path; see [`session-state.md`](session-state.md) and [`fa4-patches.md`](fa4-patches.md) |
 | daydream-scope | ✅ ~20 FPS | ✅ ~8.8 FPS (repo-default) / ✅ ~19–23 FPS (cu130, BF16; benchmark harness) | End-to-end sensitive to runtime stack; Daydream numbers should be re-measured after major pipeline changes |
 
 ## FA4/CUTE on B300 (Optional)
@@ -190,9 +190,9 @@ FA4 basic attention works on B300 after patching `nvidia-cutlass-dsl`. It's **13
 >
 > Current B300 path uses FA4 score_mod alongside regional `torch.compile` by keeping CuTe
 > calls opaque to Dynamo and setting `DISABLE_FLEX_ATTENTION_COMPILE=1`; see
-> `notes/FA4/b300/session-state.md` for the known-good commands.
+> [`session-state.md`](session-state.md) for the known-good commands.
 >
-> Details: `notes/FA4/b300/investigation.md` (Issue 2).
+> Details: [`investigation.md`](investigation.md) (Issue 2).
 
 ```bash
 # 1. Install dependencies for flash_attn.cute (CuTe)
@@ -211,7 +211,7 @@ To uninstall the FA4 deps:
 uv pip uninstall nvidia-cutlass-dsl cuda-python cuda-bindings cuda-pathfinder
 ```
 
-**Note**: FA4 with `score_mod` (for Kernel B equivalent) doesn't work yet due to version mismatches. See `notes/FA4/b300/fa4-patches.md` for details.
+**Note**: FA4 with `score_mod` (for Kernel B equivalent) doesn't work yet due to version mismatches. See [`fa4-patches.md`](fa4-patches.md) for details.
 
 ## Troubleshooting
 
@@ -239,8 +239,8 @@ export TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
 1. `.venv/bin/activate` - Added `TRITON_PTXAS_PATH`
 2. `src/scope/core/compat/sm103.py` - SM103 compatibility utilities
 3. `src/scope/core/compat/__init__.py` - Compat module init
-4. `notes/FA4/b300/investigation.md` - Full investigation log
-5. `notes/FA4/b300/fa4-patches.md` - FA4/CUTE SM103 patch documentation
+4. [`investigation.md`](investigation.md) - Full investigation log
+5. [`fa4-patches.md`](fa4-patches.md) - FA4/CUTE SM103 patch documentation
 6. `scripts/patch_cutlass_sm103.sh` - Automated CUTLASS patching script
 
 ### Files Patched for FA4 (by patch script)

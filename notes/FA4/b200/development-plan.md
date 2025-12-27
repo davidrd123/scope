@@ -28,9 +28,9 @@
   - fused QKV projections (`fuse_projections()`)
 
 Truth sources:
-- `notes/FA4/b200/session-state.md`
-- `notes/FA4/docs/kernel-optimization-guide.md`
-- `notes/FA4/optimization-map.md`
+- [`session-state.md`](session-state.md)
+- [`kernel-optimization-guide.md`](../docs/kernel-optimization-guide.md)
+- [`optimization-map.md`](../optimization-map.md)
 
 ---
 
@@ -39,15 +39,15 @@ Truth sources:
 ### 1) Baseline + Regression Guardrails (1 day)
 
 **Deliverables**
-- A single “blessed” canonical benchmark command in `notes/FA4/b200/session-state.md`.
+- A single “blessed” canonical benchmark command in [`session-state.md`](session-state.md).
 - A fresh experiment card recording today’s baseline on B200.
 
 **Acceptance**
 - Anyone can run the command and get comparable numbers (same settings, same env vars).
 
 Where:
-- `notes/FA4/b200/session-state.md`
-- `notes/FA4/b200/experiments.md`
+- [`session-state.md`](session-state.md)
+- [`experiments.md`](experiments.md)
 
 ---
 
@@ -72,7 +72,7 @@ Where:
 Touchpoints:
 - `src/scope/core/pipelines/krea_realtime_video/pipeline.py` (`SCOPE_TORCH_COMPILE_MODE`)
 - `src/scope/server/pipeline_manager.py` (`SCOPE_COMPILE_KREA_PIPELINE*`)
-- `notes/FA4/b200/experiments.md`
+- [`experiments.md`](experiments.md)
 
 ---
 
@@ -125,16 +125,16 @@ Candidate tracks:
 - Evaluate ThunderKittens-style attention as a reference for “bubble-free” dataflow kernels.
 
 References:
-- `notes/FA4/b300/level5-level6-resources.md`
-- `notes/FA4/explainers/13-optimization-bootstrapping.md`
-- `notes/FA4/explainers/14-blog-patterns-to-experiments.md`
+- [`level5-level6-resources.md`](../b300/level5-level6-resources.md)
+- [`13-optimization-bootstrapping.md`](../explainers/13-optimization-bootstrapping.md)
+- [`14-blog-patterns-to-experiments.md`](../explainers/14-blog-patterns-to-experiments.md)
 
 ---
 
 ## Milestones (Concrete “Done” Checks)
 
 1) **B200 Baseline Locked**
-- baseline card exists in `notes/FA4/b200/experiments.md`
+- baseline card exists in [`experiments.md`](experiments.md)
 - session-state has the single blessed command
 
 2) **Compile Win (Operationalized)**
@@ -152,6 +152,6 @@ References:
 
 ## Where to Record Work
 
-- Experiments: `notes/FA4/b200/experiments.md`
-- “What to run today”: `notes/FA4/b200/session-state.md`
-- High-level map: `notes/FA4/optimization-map.md`
+- Experiments: [`experiments.md`](experiments.md)
+- “What to run today”: [`session-state.md`](session-state.md)
+- High-level map: [`optimization-map.md`](../optimization-map.md)

@@ -3,7 +3,7 @@
 > Status: Complete (integrated from doc_ref_guide)
 > Priority: Medium — quick reference for kernel writing
 > Date: 2025-12-26
-> Source: `notes/FA4/DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md`
+> Source: [`claude01.md`](../DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md)
 
 ## Purpose
 

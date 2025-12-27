@@ -3,7 +3,7 @@
 > Status: Partial (cuDNN constraints documented, code audit pending)
 > Priority: Medium — drives Conv3d→Conv2d hunt and cuDNN planning
 > Date: 2025-12-26
-> Source: `notes/FA4/DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md`
+> Source: [`claude01.md`](../DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md)
 
 ## Purpose
 

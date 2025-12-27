@@ -11,7 +11,7 @@ This doc is a plan + integration sketch so other models/people can critique it q
 ## Current repo status (2025-12-23)
 
 ### What’s working
-- **RoPE Phase 3 Step 2 (v2 fused)** is complete and the default; perf is back to ~20 FPS on B200. See `notes/FA4/phase3-triton-rope.md`.
+- **RoPE Phase 3 Step 2 (v2 fused)** is complete and the default; perf is back to ~20 FPS on B200. See [`phase3-triton-rope.md`](../phase3-triton-rope.md).
 - **Kernel B Triton** is integrated in `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` and beats flex_attention on the real shape.
 - **B1: FA4/CUTE score_mod KV-bias** is integrated (opt-in):
   - Backend selector: `SCOPE_KV_BIAS_BACKEND=fa4|triton|flex` (default `triton`)
@@ -58,7 +58,7 @@ So biased region is `kv_idx ∈ [frame_seqlen, Lk - block_size)`.
 
 ## Key insight from CuTe DSL score_mod guide
 
-From `notes/FA4/DeepResearch/2025-12-23/CuTeDSL_score_mod.md` + FA4 code:
+From [`CuTeDSL_score_mod.md`](../DeepResearch/2025-12-23/CuTeDSL_score_mod.md) + FA4 code:
 
 - `score_mod` is called with a `seqlen_info` object that exposes **runtime** `seqlen_k`.
 - Passing `aux_tensors` usually forces `vec_size=1` (less vectorization), so we want **zero aux tensors**.
@@ -179,7 +179,7 @@ Once FA4 score_mod runs:
 **Plumbing + deps:** medium to high complexity (days), because:
 - Our current installed FA4 API doesn’t expose score_mod.
 - CuTe DSL versions and signatures vary; we need robust guards.
-- `nvidia-cutlass-dsl` can conflict with `torch._inductor` (module shadowing); see `notes/FA4/b300/setup-guide.md` and `notes/FA4/b300/investigation.md` (Issue 2).
+- `nvidia-cutlass-dsl` can conflict with `torch._inductor` (module shadowing); see [`setup-guide.md`](../b300/setup-guide.md) and [`investigation.md`](../b300/investigation.md) (Issue 2).
 
 **Performance outcome uncertainty:** medium.
 - We might get a win if FA4’s SM100 kernel handles this shape better than our Triton implementation.
@@ -199,7 +199,7 @@ Once FA4 score_mod runs:
 - `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
 - `scripts/triton_sdpa.py`
 - `scripts/tune_kernel_b.py`
-- `notes/FA4/DeepResearch/2025-12-23/CuTeDSL_score_mod.md`
+- [`CuTeDSL_score_mod.md`](../DeepResearch/2025-12-23/CuTeDSL_score_mod.md)
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/interface.py`
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/softmax.py`
 - `vendored/flash_attn_cute_score_mod/flash_attn/cute/utils.py`

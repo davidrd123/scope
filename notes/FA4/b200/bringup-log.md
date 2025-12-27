@@ -1,9 +1,9 @@
 # B200 bringup log (FA4 + flex_attention)
 
 Navigation
-- Current “what to run today”: `notes/FA4/b200/session-state.md`
-- Log one-change trials: `notes/FA4/b200/experiments.md`
-- Overall map: `notes/FA4/optimization-map.md`
+- Current “what to run today”: [`session-state.md`](session-state.md)
+- Log one-change trials: [`experiments.md`](experiments.md)
+- Overall map: [`optimization-map.md`](../optimization-map.md)
 
 Context
 - Goal: get krea-realtime-video to run on Blackwell (B200) while validating FA4/CUTE attention path.

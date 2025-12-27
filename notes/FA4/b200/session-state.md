@@ -2,11 +2,11 @@
 
 ## Navigation
 
-- Map (timeline + “what goes where”): `notes/FA4/optimization-map.md`
-- Shareable perf story: `notes/FA4/docs/kernel-optimization-guide.md`
-- Development plan (what to build next): `notes/FA4/b200/development-plan.md`
-- Where to record one-change trials: `notes/FA4/b200/experiments.md`
-- Historical bring-up notes: `notes/FA4/b200/bringup-log.md`
+- Map (timeline + “what goes where”): [`optimization-map.md`](../optimization-map.md)
+- Shareable perf story: [`kernel-optimization-guide.md`](../docs/kernel-optimization-guide.md)
+- Development plan (what to build next): [`development-plan.md`](development-plan.md)
+- Where to record one-change trials: [`experiments.md`](experiments.md)
+- Historical bring-up notes: [`bringup-log.md`](bringup-log.md)
 
 ---
 
@@ -57,7 +57,7 @@ uv run python scripts/profile_krea_pipeline_blocks.py \
 
 ## What To Record (so we can compare later)
 
-When you try a change, capture it as a card in `notes/FA4/b200/experiments.md`:
+When you try a change, capture it as a card in [`experiments.md`](experiments.md):
 - GPU, env, torch/cuda version
 - key knobs (resolution/steps/bias, quantization, compile, backend env vars)
 - command(s), baseline, result, artifacts, lesson

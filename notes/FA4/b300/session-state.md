@@ -2,13 +2,13 @@
 
 ## Navigation
 
-- **How to reproduce / measure:** `notes/FA4/b300/investigation-runbook.md`
-- **Where to record “one-change” trials:** `notes/FA4/b300/experiments.md`
-- **Roadmap / next levers:** `notes/FA4/b300/optimization-vision.md`
-- **Development plan (what to build next):** `notes/FA4/b300/development-plan.md`
-- **Level 5/6 reading list:** `notes/FA4/b300/level5-level6-resources.md`
-- **Deep-research packets (2025-12-26):** `notes/FA4/DeepResearch/2025-12-26/B300_optim_ladder/round02/claude_dr.md` (source-backed links + spellings)
-- **Paste-ready upstream issue (TorchAO as_strided):** `notes/issues/torchao-as-strided-dispatch.md`
+- **How to reproduce / measure:** [`investigation-runbook.md`](investigation-runbook.md)
+- **Where to record “one-change” trials:** [`experiments.md`](experiments.md)
+- **Roadmap / next levers:** [`optimization-vision.md`](optimization-vision.md)
+- **Development plan (what to build next):** [`development-plan.md`](development-plan.md)
+- **Level 5/6 reading list:** [`level5-level6-resources.md`](level5-level6-resources.md)
+- **Deep-research packets (2025-12-26):** [`claude_dr.md`](../DeepResearch/2025-12-26/B300_optim_ladder/round02/claude_dr.md) (source-backed links + spellings)
+- **Paste-ready upstream issue (TorchAO as_strided):** [`torchao-as-strided-dispatch.md`](../../issues/torchao-as-strided-dispatch.md)
 
 ## Quality Gate (Read This First)
 
@@ -20,12 +20,12 @@ Use `--quantization none` (BF16) for the best-known quality. FP8 measurements ar
 These are the three “version/typo landmines” we keep tripping over; keep this section short and prefer upstream links.
 
 - **TorchAO FP8 + `torch.compile` + view-ish ops (`aten.as_strided`)**
-  - We hit: `NotImplementedError: Float8Tensor dispatch ... aten.as_strided.default ...` (see `notes/FA4/b300/experiments.md`).
+  - We hit: `NotImplementedError: Float8Tensor dispatch ... aten.as_strided.default ...` (see [`experiments.md`](experiments.md)).
   - Root cause (today): `torchao.quantization.Float8Tensor` (quantization workflow used by `quantize_`) does **not** implement `aten.as_strided.default` in torchao **v0.14.1** and **v0.15.0** (so Inductor lowering can trip it).
     - https://github.com/pytorch/ao/blob/v0.14.1/torchao/quantization/quantize_/workflows/float8/float8_tensor.py
     - https://github.com/pytorch/ao/blob/v0.15.0/torchao/quantization/quantize_/workflows/float8/float8_tensor.py
   - TorchAO ↔ torch compatibility table: https://github.com/pytorch/ao/issues/2919
-  - Local unblock for experiments (PerTensor-only): the realtime pipeline auto-applies a PerTensor-only monkeypatch when running `--compile + fp8` (disable with `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`). Patch code: `src/scope/core/compat/torchao_float8_as_strided.py`. Upstream issue text: `notes/issues/torchao-as-strided-dispatch.md`. (For ad-hoc experiments outside the pipeline: `scripts/patch_float8_as_strided.py`.)
+  - Local unblock for experiments (PerTensor-only): the realtime pipeline auto-applies a PerTensor-only monkeypatch when running `--compile + fp8` (disable with `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`). Patch code: `src/scope/core/compat/torchao_float8_as_strided.py`. Upstream issue text: [`torchao-as-strided-dispatch.md`](../../issues/torchao-as-strided-dispatch.md). (For ad-hoc experiments outside the pipeline: `scripts/patch_float8_as_strided.py`.)
 
 - **Conv3d BF16/FP16 regressions (PyTorch 2.9 era)**
   - PyTorch **v2.9.1** release notes recommend: install **`nvidia-cudnn-cu12>=9.15`** if impacted by BF16 Conv3d regressions: https://github.com/pytorch/pytorch/releases/tag/v2.9.1
@@ -34,17 +34,17 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
 - **`nvidia-cutlass-dsl` top-level `cutlass` + Inductor**
   - Can trigger `AttributeError: module 'cutlass' has no attribute 'CACHE_FILE'` from `torch._inductor.codegen.cuda.cutlass_utils` (often ignored at exit), and older stacks also saw compilation failures depending on codepaths.
   - Current B300/cu130 path runs FA4 score_mod alongside regional `torch.compile` by keeping CuTe calls opaque to Dynamo and disabling flex_attention compilation; see “torch.compile Status (B300)” below.
-  - Details: `notes/FA4/b300/investigation.md` (Issue 2) and `notes/FA4/b300/setup-guide.md`.
+  - Details: [`investigation.md`](investigation.md) (Issue 2) and [`setup-guide.md`](setup-guide.md).
 
 - **CUDAGraph “output overwritten” + correct step-marker / knob names**
   - Step marker API: `torch.compiler.cudagraph_mark_step_begin()` (docs): https://docs.pytorch.org/docs/stable/generated/torch.compiler.cudagraph_mark_step_begin.html
   - CUDAGraph Trees doc (error explanation + mitigation): https://docs.pytorch.org/docs/stable/torch.compiler_cudagraph_trees.html
-  - Upstream issue tracker: `pytorch/pytorch#158551` (see also `notes/issues/pytorch-cudagraph-output-overwritten.md`).
+  - Upstream issue tracker: `pytorch/pytorch#158551` (see also [`pytorch-cudagraph-output-overwritten.md`](../../issues/pytorch-cudagraph-output-overwritten.md)).
   - Inductor cudagraph master env var (v2.9.1): `TORCHINDUCTOR_CUDAGRAPHS=1` (see `torch/_inductor/config.py`): https://github.com/pytorch/pytorch/blob/v2.9.1/torch/_inductor/config.py
 
 - **Triton/Inductor SM103 tcgen05 LLVM abort (“tcgen05.wait.st”)**
   - This can hard-abort the process during compilation on B300/SM103 for some Triton/TensorCore codegen paths.
-  - Upstream: `triton-lang/triton#8473` / `triton-lang/triton#8481` (see `notes/issues/triton-sm103-tcgen05-llvm-abort.md`).
+  - Upstream: `triton-lang/triton#8473` / `triton-lang/triton#8481` (see [`triton-sm103-tcgen05-llvm-abort.md`](../../issues/triton-sm103-tcgen05-llvm-abort.md)).
   - **Version note:** our cu130 env currently has `triton==3.5.0`; Triton **v3.5.1** includes the SM103 fix (release notes: https://github.com/triton-lang/triton/releases/tag/v3.5.1). Treat “upgrade Triton” as a first-class experiment before spending more time on SM103 compile hazards.
 
 ## Current Status
@@ -71,7 +71,7 @@ Daydream end-to-end (cu130 env): **TBD re-measure** (historical note: pre patch-
 
 This is roughly a **2.6× throughput improvement** over the repo-default baseline (~8.8 → ~22.8 FPS in the benchmark harness).
 
-External doc brief (for RepoPrompt / web research): `notes/FA4/b300/blackwell-docs.md`
+External doc brief (for RepoPrompt / web research): [`blackwell-docs.md`](blackwell-docs.md)
 
 Repro (isolated env; does not touch shared `.venv`):
 
@@ -113,7 +113,7 @@ Artifacts:
 
 **Key update:** This no longer looks like an “invisible FPS cap” caused by WebRTC/codec pacing or CPU stalls. A block-level CUDA-event profile shows GPU time ≈ wall time, and the dominant blocks are `denoise` and `decode` (not the KV-bias attention microkernel).
 
-See also: `notes/FA4/b300/investigation-runbook.md` (“Ground Truth” section).
+See also: [`investigation-runbook.md`](investigation-runbook.md) (“Ground Truth” section).
 
 **Operational note (intermittent):** We have seen rare CUDA/NVML wedges on this host (`nvidia-smi` → “Failed to initialize NVML: Unknown Error”, PyTorch `cudaGetDeviceCount` → Error 304). When `nvidia-smi` is healthy (normal driver table), you’re fine; when it wedges, bench scripts can fail at import-time and you’ll likely need a host-level driver restart or reboot.
 
@@ -232,7 +232,7 @@ As of 2025-12-26:
 - **Quantization none:** `scripts/profile_krea_pipeline_blocks.py --compile` now works on B300 and improves throughput.
   - Example (B300, cu130 env, `320x576`, bias `0.3`, `SCOPE_KV_BIAS_BACKEND=fa4`): **~19.7 FPS → ~22.8 FPS**
   - Tradeoff: longer warmup due to compilation (expect ~10–30s depending on cache state).
-- **FP8 (torchao):** ⚠️ **BROKEN on B300** — produces garbage output (gray noise). The `as_strided` monkeypatch is applied but TorchAO cpp extensions are skipped due to torch 2.9+cu130 incompatibility, causing FP8 kernels to malfunction. Use `--quantization none` (BF16) instead. Patch code: `src/scope/core/compat/torchao_float8_as_strided.py` (upstream issue: `notes/issues/torchao-as-strided-dispatch.md`).
+- **FP8 (torchao):** ⚠️ **BROKEN on B300** — produces garbage output (gray noise). The `as_strided` monkeypatch is applied but TorchAO cpp extensions are skipped due to torch 2.9+cu130 incompatibility, causing FP8 kernels to malfunction. Use `--quantization none` (BF16) instead. Patch code: `src/scope/core/compat/torchao_float8_as_strided.py` (upstream issue: [`torchao-as-strided-dispatch.md`](../../issues/torchao-as-strided-dispatch.md)).
 
 Implementation note: we keep CuTe/FA4 calls **opaque** to Dynamo during compilation to avoid FakeTensor/DLPack failures; this enables compiling the surrounding transformer regions without trying to trace into CUTLASS DSL.
 

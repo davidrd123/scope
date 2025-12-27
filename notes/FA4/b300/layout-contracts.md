@@ -4,7 +4,7 @@
 > Priority: **High** — blocks all fusion/kernel work
 > Date: 2025-12-26
 > Sources:
-> - External constraints: `notes/FA4/DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md`
+> - External constraints: [`claude01.md`](../DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md)
 > - Local code audit: `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`, `src/scope/core/pipelines/krea_realtime_video/modules/model.py`, `src/scope/core/pipelines/wan2_1/modules/attention.py`
 
 ## Purpose

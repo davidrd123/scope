@@ -430,7 +430,7 @@ From `verda-b200-b300.md`:
 
 Both models have `head_dim=128`, which aligns perfectly with Blackwell tensor core requirements.
 
-**Source:** `notes/research/2025-12-24/wan2.1-14b-integration-observations.md`
+**Source:** [`wan2.1-14b-integration-observations.md`](../../research/2025-12-24/wan2.1-14b-integration-observations.md)
 
 ### 7.2 flex_attention Compilation (✓ ALIGNED)
 

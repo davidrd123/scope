@@ -42,7 +42,7 @@ Near-term strategy: validate the best config **end-to-end in Daydream**, then us
 
 ### Known-Good BF16 Configs (quality-preserving)
 
-Numbers below are from `scripts/profile_krea_pipeline_blocks.py` in the cu130 env; use `notes/FA4/b300/session-state.md` for the exact command.
+Numbers below are from `scripts/profile_krea_pipeline_blocks.py` in the cu130 env; use [`session-state.md`](session-state.md) for the exact command.
 
 | Config | FPS | Notes |
 |---|---:|---|
@@ -72,7 +72,7 @@ Work (doc + code hygiene):
 - Always log a **startup banner** of chosen backends (KV-bias + non-bias attention + fallbacks).
 - Keep the **cu130 env** and required knobs (`TRITON_PTXAS_PATH`, `DISABLE_FLEX_ATTENTION_COMPILE=1`) as the default path for B300.
 
-Status: ongoing hardening; see `notes/FA4/b300/development-plan.md`.
+Status: ongoing hardening; see [`development-plan.md`](development-plan.md).
 
 ### Option B: Repeat the Patch-Embed Playbook (Glue / Slow-Path Elimination)
 
@@ -153,11 +153,11 @@ Docs/ops improvements that prevent future churn:
 
 | Purpose | File |
 |---|---|
-| What to run today | `notes/FA4/b300/session-state.md` |
-| How to measure | `notes/FA4/b300/investigation-runbook.md` |
-| One-change experiment cards | `notes/FA4/b300/experiments.md` |
-| This strategy doc | `notes/FA4/b300/optimization-vision.md` |
-| Dev workstreams | `notes/FA4/b300/development-plan.md` |
+| What to run today | [`session-state.md`](session-state.md) |
+| How to measure | [`investigation-runbook.md`](investigation-runbook.md) |
+| One-change experiment cards | [`experiments.md`](experiments.md) |
+| This strategy doc | [`optimization-vision.md`](optimization-vision.md) |
+| Dev workstreams | [`development-plan.md`](development-plan.md) |
 | Op profiler | `scripts/profile_krea_pipeline_ops.py` |
 | Block profiler | `scripts/profile_krea_pipeline_blocks.py` |
-| External links / receipts | `notes/FA4/b300/blackwell-docs.md` |
+| External links / receipts | [`blackwell-docs.md`](blackwell-docs.md) |

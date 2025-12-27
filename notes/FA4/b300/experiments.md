@@ -8,9 +8,9 @@
 
 ## How this differs from the other docs
 
-- `notes/FA4/b300/session-state.md`: “what to run today” (known-good commands + caveats)
-- `notes/FA4/b300/investigation-runbook.md`: “how to measure” (protocol + profiler knobs)
-- `notes/FA4/b300/experiments.md` (this file): “what we changed + what happened” (one change per card)
+- [`session-state.md`](session-state.md): “what to run today” (known-good commands + caveats)
+- [`investigation-runbook.md`](investigation-runbook.md): “how to measure” (protocol + profiler knobs)
+- [`experiments.md`](experiments.md) (this file): “what we changed + what happened” (one change per card)
 
 ---
 
@@ -240,7 +240,7 @@ WANVAE_STREAM_DECODE_MODE=chunk \
 **Additional result (compile interaction):**
 - Without the PerTensor-only TorchAO workaround, `--compile` + `--quantization fp8_e4m3fn` fails with:
   - `NotImplementedError: Float8Tensor dispatch ... aten.as_strided ...` (torchao quantization Float8Tensor workflow)
-- With the PerTensor-only workaround (applied automatically by `KreaRealtimeVideoPipeline` unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`), `--compile + fp8_e4m3fn` runs and is **~25 FPS** on B300/cu130 with `SCOPE_KV_BIAS_BACKEND=fa4` (see `notes/FA4/b300/session-state.md` for the current command).
+- With the PerTensor-only workaround (applied automatically by `KreaRealtimeVideoPipeline` unless `SCOPE_TORCHAO_PATCH_FLOAT8_AS_STRIDED=0`), `--compile + fp8_e4m3fn` runs and is **~25 FPS** on B300/cu130 with `SCOPE_KV_BIAS_BACKEND=fa4` (see [`session-state.md`](session-state.md) for the current command).
 
 **Decision:**  
 - If not compiling: use `--quantization none` as the canonical B300/cu130 baseline for perf work (fp8 is slower on this stack unless compile is enabled).

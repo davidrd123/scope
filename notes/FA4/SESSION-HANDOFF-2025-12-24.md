@@ -7,15 +7,15 @@
 1. **Notes reorganization:**
    - `notes/FA4/` - organized by topic (b300/, rope/, fa4/, b200/)
    - `notes/research/` - organized by date (2025-12-23/)
-   - `notes/realtime_video_architecture.md` - elevated to root as primary doc
+   - [`realtime_video_architecture.md`](../realtime_video_architecture.md) - elevated to root as primary doc
 
-2. **B300 investigation runbook:** `notes/FA4/b300/investigation-runbook.md`
+2. **B300 investigation runbook:** [`investigation-runbook.md`](b300/investigation-runbook.md)
    - Systematic tests for H1-H5 hypotheses
    - Specific commands, output locations, decision tree
 
 3. **Architecture review:**
-   - `notes/realtime_video_architecture.md` (v1.1, 1800+ lines)
-   - `notes/research/2025-12-23/realtime-architecture-v1.1-review.md` (5Pro feedback)
+   - [`realtime_video_architecture.md`](../realtime_video_architecture.md) (v1.1, 1800+ lines)
+   - [`realtime-architecture-v1.1-review.md`](../research/2025-12-23/realtime-architecture-v1.1-review.md) (5Pro feedback)
 
 ## Current State
 
@@ -90,12 +90,12 @@ Expected: H100 should work at decent FPS with standard code paths.
 - **This file** (`SESSION-HANDOFF-2025-12-24.md`) - Current state and next steps
 
 ### 2. Understanding the Journey
-- `notes/FA4/kernel-dev-log.md` - Full optimization journey, B200 wins, B300 mystery
+- [`kernel-dev-log.md`](kernel-dev-log.md) - Full optimization journey, B200 wins, B300 mystery
   - Read "B300 (SM103) INVESTIGATION" section for the unsolved problem
   - Read "FINE-GRAINED PROFILING" for where time goes in the pipeline
 
 ### 3. B300-Specific (if revisiting)
-- `notes/FA4/b300/fa4-patches.md` - SM103 patches for nvidia-cutlass-dsl
+- [`fa4-patches.md`](b300/fa4-patches.md) - SM103 patches for nvidia-cutlass-dsl
 - Environment: `TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas`
 
 ### 4. Code
@@ -112,7 +112,7 @@ Expected: H100 should work at decent FPS with standard code paths.
 
 ### If someone wants to continue B300 investigation:
 
-**Primary resource:** `notes/FA4/b300/investigation-runbook.md` - systematic tests with specific commands.
+**Primary resource:** [`investigation-runbook.md`](b300/investigation-runbook.md) - systematic tests with specific commands.
 
 **The key insight:** Attention backend changes don't move FPS. The bottleneck is elsewhere.
 
@@ -162,4 +162,4 @@ uv run python scripts/profile_krea_pipeline_blocks.py \
 These are experimental Codex changes (LSE fallback) that didn't fix B300.
 
 ## Claude Code Version
-See `notes/NOTES-INDEX.md` (“Environment Note”) for the Claude Code version/pinning caveat.
+See [`NOTES-INDEX.md`](../NOTES-INDEX.md) (“Environment Note”) for the Claude Code version/pinning caveat.

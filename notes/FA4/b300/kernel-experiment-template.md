@@ -301,7 +301,7 @@ Compare kernel names and durations before/after fusion.
 
 ## References
 
-- Existing experiment cards: `notes/FA4/b300/experiments.md`
-- Investigation runbook: `notes/FA4/b300/investigation-runbook.md`
-- Layout contracts: `notes/FA4/b300/layout-contracts.md`
-- External research: `notes/FA4/DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/5pro01.md`
+- Existing experiment cards: [`experiments.md`](experiments.md)
+- Investigation runbook: [`investigation-runbook.md`](investigation-runbook.md)
+- Layout contracts: [`layout-contracts.md`](layout-contracts.md)
+- External research: [`5pro01.md`](../DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/5pro01.md)
