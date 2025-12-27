@@ -317,7 +317,7 @@ d1 $ sound "bd*4"
 ```python
 @app.post("/intent")
 async def update_intent(intent: MusicIntent):
-    for key, value in intent.dict().items():
+    for key, value in intent.model_dump().items():
         osc_client.send_message("/ctrl", [key, float(value)])
     return {"status": "ok"}
 ```
