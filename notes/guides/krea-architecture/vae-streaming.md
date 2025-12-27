@@ -1,8 +1,9 @@
 # VAE Streaming Decode
 
-> **Location:** `src/scope/core/pipelines/krea_realtime_video/modules/vae.py`
-> **Classes:** `WanVAE`, `CausalConv3d`, `Decoder3d`
-> **Note:** Conceptual explainer — for exact cache sizes/padding behavior, follow the linked implementation.
+> **Wrapper (what the pipeline calls):** `src/scope/core/pipelines/wan2_1/vae/wan.py` (`WanVAEWrapper.encode_to_latent`, `WanVAEWrapper.decode_to_pixel`, `clear_cache`)
+> **Streaming internals:** `src/scope/core/pipelines/wan2_1/vae/modules/vae.py` (`WanVAE_.stream_encode`, `WanVAE_.stream_decode`, `CausalConv3d`, `Decoder3d`)
+> **Decode block:** `src/scope/core/pipelines/wan2_1/blocks/decode.py` (`DecodeBlock`)
+> **Note:** Conceptual explainer — treat the linked implementations as the source of truth for cache layout and first-call behavior.
 
 ---
 
@@ -47,42 +48,25 @@ Causal 3D Conv:
               Only past and current!
 ```
 
-### Implementation
+### Implementation (Simplified)
 
 ```python
 class CausalConv3d(nn.Conv3d):
     """
     3D convolution with causal padding in time dimension.
     """
-    def __init__(self, in_channels, out_channels, kernel_size, ...):
-        super().__init__(in_channels, out_channels, kernel_size, ...)
+    def forward(self, x, cache_x=None):
+        # x: [B, C, T, H, W]
+        time_pad = self._causal_time_pad
+        if cache_x is not None and time_pad > 0:
+            x = torch.cat([cache_x.to(x.device), x], dim=2)
+            time_pad = max(time_pad - cache_x.shape[2], 0)
 
-        # Padding for (D, H, W)
-        # D (depth/time): pad only on the left (past)
-        # H, W: symmetric padding
-        self._padding = (
-            0, kernel_size[2] // 2,  # W: symmetric
-            0, kernel_size[1] // 2,  # H: symmetric
-            kernel_size[0] - 1, 0,   # D: left only (causal)
-        )
+        # Causal time padding: left-pad only (no future frames)
+        if time_pad > 0:
+            x = F.pad(x, (0, 0, 0, 0, time_pad, 0))
 
-    def forward(self, x, cache=None):
-        """
-        Args:
-            x: [B, C, T, H, W] - input tensor
-            cache: [B, C, T_cache, H, W] - cached frames from previous call
-
-        Returns:
-            output, new_cache
-        """
-        if cache is not None:
-            # Prepend cached frames
-            x = torch.cat([cache, x], dim=2)
-
-        # Apply causal padding
-        x = F.pad(x, self._padding)
-
-        # Standard conv (no padding in forward, we did it manually)
+        # Spatial padding is either implicit (cuDNN) or explicit, depending on config.
         return super().forward(x)
 ```
 
@@ -112,33 +96,16 @@ Causal padding:
 
 ---
 
-## Streaming State (Cache)
+## Streaming State (What Actually Persists)
 
-For streaming, we need to remember the last few frames across calls:
+The Krea pipeline keeps a single `components.vae` instance alive across calls. When `use_cache=True`, streaming state lives *inside* the VAE implementation:
 
-```python
-class StreamingVAEState:
-    """Cache for streaming decode."""
-    def __init__(self):
-        self.conv_caches = {}  # Per-layer conv caches
-        self.first_call = True
+- `WanVAE_.first_batch`: toggles special first-call behavior for `stream_encode`/`stream_decode`.
+- `WanVAE_._feat_map` / `WanVAE_._enc_feat_map`: per-`CausalConv3d` feature caches (lists).
+- `CACHE_T = 2`: how many timesteps to cache per causal conv (kernel size 3 ⇒ cache 2).
+- `_conv_idx` / `_enc_conv_idx`: an index that walks the cache list in lockstep with conv usage.
 
-    def get_cache(self, layer_name):
-        return self.conv_caches.get(layer_name)
-
-    def set_cache(self, layer_name, cache):
-        self.conv_caches[layer_name] = cache
-```
-
-### How Much to Cache?
-
-For a kernel with temporal size K, we need to cache K-1 frames:
-
-```
-Kernel size 3: cache 2 frames
-  Call 1: [pad, pad, F0, F1, F2] → process → cache [F1, F2]
-  Call 2: [F1, F2, F3, F4, F5]   → process → cache [F4, F5]
-```
+You generally **don’t pass an explicit cache object around**; you reset streaming state via `components.vae.clear_cache()` (e.g., on hard cuts / `init_cache=True`).
 
 ---
 
@@ -181,74 +148,40 @@ The total temporal upsampling is 4× (two 2× upsample layers).
 
 ---
 
-## Stream Decode Implementation
+## Wrapper API (What Pipeline Calls)
 
-```python
-class WanVAE:
-    def stream_decode(self, latents, state=None):
-        """
-        Decode latents to video frames, supporting streaming.
+The pipeline uses `WanVAEWrapper` methods:
 
-        Args:
-            latents: [B, C, T, H, W] - latent frames to decode
-            state: StreamingVAEState - cache from previous call
+- `decode_to_pixel(latent, use_cache=True) -> video`
+  - `latent`: `[B, T_latent, 16, H_lat, W_lat]`
+  - `video`: `[B, T_px, 3, H, W]` in `[-1, 1]`
+  - `use_cache=True` dispatches to `WanVAE_.stream_decode(...)` and preserves caches.
 
-        Returns:
-            frames: [B, 3, T*4, H*8, W*8] - decoded video
-            state: Updated streaming state
-        """
-        if state is None:
-            state = StreamingVAEState()
+- `encode_to_latent(pixel, use_cache=True) -> latent`
+  - `pixel`: `[B, 3, T_px, H, W]`
+  - `latent`: `[B, T_latent, 16, H_lat, W_lat]`
+  - `use_cache=True` uses `WanVAE_.stream_encode(...)`.
+  - `use_cache=False` uses a one-off explicit cache (important when re-encoding frames without disturbing streaming state).
 
-        x = latents
+---
 
-        # Initial conv
-        cache = state.get_cache("conv_in")
-        x = self.conv_in(x, cache=cache)
-        state.set_cache("conv_in", x[:, :, -2:])  # Cache last 2 frames
+## Useful Environment Variables
 
-        # Up blocks
-        for i, block in enumerate(self.up_blocks):
-            # ResBlock convs
-            cache = state.get_cache(f"block_{i}")
-            x = block.resblock(x, cache=cache)
-            state.set_cache(f"block_{i}", x[:, :, -2:])
-
-            # Upsample (spatial and/or temporal)
-            x = block.upsample(x)
-
-        # Final conv
-        cache = state.get_cache("conv_out")
-        x = self.conv_out(x, cache=cache)
-        state.set_cache("conv_out", x[:, :, -2:])
-
-        return x, state
-```
+- `WANVAE_STREAM_DECODE_MODE=chunk|loop` (default: `chunk`)
+- `WANVAE_DECODE_CHANNELS_LAST_3D=1` / `WANVAE_ENCODE_CHANNELS_LAST_3D=1` (optional layout tweaks)
+- `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1` (avoid resample slowpaths that create non-contiguous tensors)
+- `WANVAE_CONV3D_IMPLICIT_SPATIAL_PADDING=1` (default on): prefer implicit spatial padding in conv3d to reduce `F.pad` overhead
 
 ---
 
 ## First Call Special Case
 
-The first decode call needs special handling:
+`WanVAE_.stream_encode` and `WanVAE_.stream_decode` both have a special path on `first_batch=True`:
 
-```python
-def stream_decode(self, latents, state=None):
-    if state is None or state.first_call:
-        # First call: need extra input frame for proper alignment
-        # This is because the VAE expects (1 + 4k) frames on first encode
-        # and we need to match that structure on decode
+- They clear the relevant caches (`clear_cache_encode` / `clear_cache_decode`).
+- They run the first timestep separately (to seed causal conv caches) and then process the remaining timesteps.
 
-        # Pad with zeros or repeat first frame
-        if latents.shape[2] == num_latent_frames:
-            latents = torch.cat([
-                latents[:, :, :1],  # Repeat first frame
-                latents
-            ], dim=2)
-
-        state.first_call = False
-```
-
-This is why `PreprocessVideoBlock` adds an extra frame on the first call.
+On the *encode* side for V2V inputs, `PreprocessVideoBlock` also requests an extra frame for the first block (`target_num_frames += 1`) to match the VAE’s streaming temporal structure.
 
 ---
 
@@ -267,16 +200,14 @@ Total compression: 12 × 320 × 576 × 3 = 6.6M values → 3 × 40 × 72 × 16 =
 
 ## Memory Considerations
 
-Streaming decode is more memory-efficient than full decode:
+Streaming decode is more memory-stable than full decode:
 
 ```
 Full decode (all at once):
-  Peak memory = O(max(all_intermediate_activations))
-  For 81 frames: ~8GB activation memory
+  Peak memory grows with total T
 
 Streaming decode (3 latent frames at a time):
-  Peak memory = O(max(block_intermediate_activations))
-  For 3 latent frames: ~1GB activation memory
+  Peak memory is bounded by chunk T (+ fixed caches)
 ```
 
 The tradeoff: streaming has cache overhead and can't parallelize across the full sequence.
@@ -285,27 +216,14 @@ The tradeoff: streaming has cache overhead and can't parallelize across the full
 
 ## Integration with Pipeline
 
-In the Krea pipeline, streaming decode is used via `DecodeBlock`:
+In the Krea pipeline, decode uses `DecodeBlock` (Wan2.1 shared blocks):
 
 ```python
-class DecodeBlock:
-    def __call__(self, components, state):
-        latents = state.get("latents")
-        vae_state = state.get("vae_decode_state")
-
-        # Stream decode
-        frames, vae_state = components.vae.stream_decode(
-            latents,
-            state=vae_state
-        )
-
-        state.set("output_video", frames)
-        state.set("vae_decode_state", vae_state)
-
-        return components, state
+video = components.vae.decode_to_pixel(block_state.latents, use_cache=True)
+block_state.output_video = video
 ```
 
-The `vae_decode_state` persists across pipeline calls, maintaining temporal continuity.
+The streaming cache is internal to `components.vae`. `SetupCachesBlock` resets it on hard cuts (`init_cache=True`) via `components.vae.clear_cache()`.
 
 ---
 
@@ -317,42 +235,37 @@ Common issues and diagnostics:
 
 **Symptom:** Visible seam every 12 frames (3 latent frames × 4 upsample)
 
-**Cause:** Cache not being passed correctly
+**Common causes:**
+- A hard cut (`init_cache=True`) cleared the VAE cache between blocks.
+- Switching decode to `use_cache=False` (intentionally or accidentally) changes boundary behavior.
+- Shape changes (resolution / dtype / device) forced reinit in surrounding blocks.
 
 **Debug:**
 ```python
-# Log cache sizes
-for name, cache in state.conv_caches.items():
-    print(f"{name}: {cache.shape if cache is not None else 'None'}")
+# Check whether the VAE is treating this as a "first batch"
+print("vae.first_batch:", getattr(components.vae.model, "first_batch", None))
 ```
 
 ### 2. First Block Looks Different
 
 **Symptom:** First 12 frames have different quality/style
 
-**Cause:** First-call padding behavior
+**Cause:** `first_batch=True` first-call path (cache seeding) plus different upstream noise/control flow
 
 **Debug:**
 ```python
 # Compare first vs steady-state
-print(f"First call latents shape: {latents.shape}")
-print(f"First call output shape: {output.shape}")
+print(f"First call latents shape: {block_state.latents.shape}")
+print(f"First call output shape: {block_state.output_video.shape}")
 ```
 
 ### 3. Memory Growth Over Time
 
 **Symptom:** VRAM usage increases with each block
 
-**Cause:** Caches not being trimmed
+**Cause:** Usually not the VAE feature caches (they are fixed-size); more often upstream activations or accumulation outside the VAE.
 
-**Debug:**
-```python
-# Check cache sizes aren't growing
-initial_size = sum(c.numel() for c in state.conv_caches.values())
-# ... run several blocks ...
-final_size = sum(c.numel() for c in state.conv_caches.values())
-assert initial_size == final_size, "Cache is growing!"
-```
+**Debug tip:** for VAE-only sanity, set `WANVAE_STREAM_DECODE_MODE=loop` and confirm outputs match the default chunked path (they should be equivalent).
 
 ---
 
@@ -360,4 +273,5 @@ assert initial_size == final_size, "Cache is growing!"
 
 - **Encode path:** Similar structure but in reverse (causal conv caches for encode)
 - **V2V:** Uses `encode_to_latent` before decode
+- **KV cache recompute:** [`kv-cache-mechanics.md`](kv-cache-mechanics.md)
 - **Parent doc:** [`../krea-architecture.md`](../krea-architecture.md)

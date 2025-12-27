@@ -370,8 +370,8 @@ class CausalWanSelfAttention(nn.Module):
         self.num_heads = num_heads        # Number of attention heads
         self.head_dim = dim // num_heads  # Dimension per head
         self.local_attn_size = local_attn_size  # Local attention window
-        self.sink_size = sink_size        # Sink tokens (kept during eviction)
-        self.frame_seq_length = 1560      # Tokens per frame (default)
+        self.sink_size = sink_size        # Sink frames (kept during eviction)
+        self.frame_seq_length = 1560      # Default; overwritten by SetupCachesBlock based on resolution
 
         # Projections (can be fused)
         self.q = nn.Linear(dim, dim)
@@ -507,10 +507,10 @@ _KV_BIAS_BACKEND = (
 
 | Backend | Description | Best For |
 |---------|-------------|----------|
-| `fa4` | FA4/CUTE with score_mod | B200 (1.89x faster) |
-| `flash` | FlashAttention segment-combine | SM103/B300 |
-| `triton` | Triton Kernel B | Default fallback |
-| `flex` | torch.nn.attention.flex_attention | Ultimate fallback |
+| `fa4` | FA4/CuTe `score_mod` path | Fastest when available (requires CuTe + CUTLASS; can work on SM100/SM103 with the right stack) |
+| `flash` | FlashAttention segment-combine bias | Default on SM103 (B300) |
+| `triton` | Triton Kernel B | Default off-SM103; on SM103 it can be extremely slow unless explicitly forced |
+| `flex` | `torch.nn.attention.flex_attention` | Escape-hatch fallback (often slower) |
 
 ### 6.6 CausalWanAttentionBlock
 
@@ -682,6 +682,8 @@ from .model import (
 **Location**: `modules/vae.py` (779 lines)
 
 The VAE (Variational Autoencoder) compresses video to/from latent space.
+
+**Runtime note:** The pipeline instantiates `WanVAEWrapper` (`src/scope/core/pipelines/wan2_1/vae/wan.py`), which wraps the underlying VAE model (`src/scope/core/pipelines/wan2_1/vae/modules/vae.py`) and exposes streaming APIs (`encode_to_latent` / `decode_to_pixel`).
 
 ### 8.1 Architecture
 
@@ -961,14 +963,18 @@ Memory Evolution:
 
 ## 11. Performance Optimizations
 
+This section is a conceptual overview. For the current optimization ladder, measurement protocol, and receipts (especially B300/SM103), see:
+- `notes/guides/krea-architecture/perf-crossover.md`
+- `notes/FA4/b300/README.md`
+
 ### 11.1 Kernel Optimizations
 
-| Kernel | Purpose | Speedup |
+| Kernel / Technique | Purpose | Notes |
 |--------|---------|---------|
-| `triton_rope_fused_3way` | Fused RoPE for Q, K, V | ~30% |
-| `triton_kernel_b` | KV-cache attention bias | Baseline |
-| `FA4/CUTE score_mod` | KV-bias in FlashAttention | 1.89× |
-| Projection fusion | Combined Q, K, V linear | ~10% |
+| `triton_rope_fused_3way` | Reduce RoPE passes / memory traffic | Wins are shape- and stack-dependent; validate with local receipts. |
+| `triton_kernel_b` | KV-bias attention backend | On SM103 this can be catastrophically slow depending on Triton/toolchain; the default on B300 is `flash` segment-combine. |
+| FA4/CuTe `score_mod` | KV-bias with fused score modification | Typically the fastest when available (requires CuTe + CUTLASS). |
+| Projection fusion | Reduce separate Q/K/V projection overhead | Benefits depend on exact model implementation and shapes; treat as an engineering technique, not a fixed speedup. |
 
 ### 11.2 FP8 Quantization
 
@@ -982,8 +988,9 @@ if quantization == Quantization.FP8_E4M3FN:
 ```
 
 Benefits:
-- ~2× memory reduction
-- ~1.5× speedup on supported hardware
+- Can reduce memory footprint (and sometimes improve throughput) **when the stack is fully compatible**.
+- **Quality warning:** FP8 quantization has been observed to produce visibly wrong output on some B300 runs; BF16 (`quantization=none`) remains the canonical “real output” path in the optimization ladder.
+- **Stack warning:** TorchAO may skip C++ extensions if versions don’t match your torch build, which can change behavior/perf. See `notes/issues/torchao-as-strided-dispatch.md` for a related compile-blocker.
 
 ### 11.3 Caching
 
@@ -1104,11 +1111,13 @@ output = pipeline(prompts=prompts, init_cache=True)
 |----------|---------|-------------|
 | `SCOPE_KV_CACHE_ATTENTION_BIAS` | 0.3 | Past-frame attention weight |
 | `SCOPE_KV_BIAS_BACKEND` | auto | `fa4`, `flash`, `triton`, or `flex` |
+| `SCOPE_KV_CACHE_RECOMPUTE_EVERY` | 1 | Recompute KV cache every N blocks |
 | `PROFILE_ATTENTION` | 0 | Enable attention profiling |
 | `PROFILE_PIPELINE_BLOCKS` | 0 | Enable per-block pipeline profiling |
 | `PROFILE_PIPELINE_BLOCKS_JSON` | (empty) | Write pipeline block profile JSON |
 | `DISABLE_FLEX_ATTENTION_COMPILE` | 0 | Use eager flex_attention |
 | `TRITON_PTXAS_PATH` | auto | Path to ptxas for Triton |
+| `WANVAE_STREAM_DECODE_MODE` | chunk | `chunk` or `loop` streaming decode |
 
 ### Key Dimensions
 
@@ -1116,11 +1125,11 @@ output = pipeline(prompts=prompts, init_cache=True)
 |----------|-------|-------|
 | Video resolution | 320×576 (default) | Must be divisible by 16 |
 | Frames per block | 3 | `num_frame_per_block` |
-| Tokens per frame | 1560 | (H/16) × (W/16) = 40×39 ≈ 1560 |
-| Model dimension | 2048 | Hidden size |
-| Number of heads | 16 | Attention heads |
-| Number of layers | 32 | Transformer blocks |
-| FFN dimension | 8192 | 4× hidden size |
+| Tokens per frame | 720 | (H/16) × (W/16); at 320×576: 20×36 = 720 |
+| Model dimension | (checkpoint-specific) | Inspect the loaded model config/state for ground truth |
+| Number of heads | (checkpoint-specific) | Inspect the loaded model config/state for ground truth |
+| Number of layers | (checkpoint-specific) | Inspect the loaded model config/state for ground truth |
+| FFN dimension | (checkpoint-specific) | Inspect the loaded model config/state for ground truth |
 
 ### Pipeline State Keys
 

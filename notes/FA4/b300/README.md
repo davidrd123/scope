@@ -22,6 +22,7 @@ If you’re ever unsure what to read next, follow this loop:
 | Log a single change / result | `experiments.md` |
 | See the longer narrative / hypotheses | `investigation.md` |
 | Read the “what we learned” distillation | `lessons.md` |
+| Connect architecture ↔ perf (crossover index) | `notes/guides/krea-architecture/perf-crossover.md` |
 | See the roadmap / next levers | `optimization-vision.md` |
 | See the learning ladder framing | `optimization-ladder.md` |
 | Align on how we operate (learning-first) | `philosophy.md` |

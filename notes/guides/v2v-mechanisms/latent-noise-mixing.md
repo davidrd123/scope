@@ -45,11 +45,36 @@ denoising_step_list[0] = int(1000 * noise_scale) - 100
 This is a heuristic coupling between “how noisy are the latents” and “how far down the schedule we start”.
 Treat it as an implementation detail (it may evolve).
 
+#### Footguns to Watch For (Likely “Glitchy V2V” Contributors)
+
+1) **Negative timesteps are possible**
+- With `noise_scale < 0.1`, `int(1000 * noise_scale) - 100` becomes negative (e.g. `noise_scale=0.0 → -100`).
+- It’s unclear whether the model/scheduler semantics are well-defined for negative timesteps; avoid this regime unless you’ve validated it.
+
+2) **Short step lists can become non-monotonic**
+
+In video mode, the UI often uses a short list like `[1000, 750]` (for latency reasons). With the heuristic above:
+- `noise_scale=0.7` → `denoising_step_list[0]=600`, yielding `[600, 750]`
+
+That goes “less noisy → more noisy” across steps, which is the opposite of the usual diffusion sampling direction and can plausibly show up as flicker/jitter/instability.
+
+Rule of thumb for the `[1000, 750]` case:
+- If `noise_scale < 0.85`, the first step becomes `< 750` and the list becomes increasing.
+
+If you’re seeing V2V glitches, checking this is one of the fastest sanity tests.
+
 ---
 
 ## `noise_controller` (Motion-Aware Updates)
 
-When enabled, `NoiseScaleControllerBlock` can dynamically adjust `noise_scale` based on motion estimates of the input frames, and can trigger cache resets if the noise scale changes enough to invalidate cached assumptions. See `src/scope/core/pipelines/wan2_1/blocks/noise_scale_controller.py`.
+When enabled, `NoiseScaleControllerBlock` dynamically adjusts `noise_scale` based on motion estimates:
+
+- High motion → lower `noise_scale` (preserve input frames more)
+- Low motion → higher `noise_scale` (rely on generation more)
+
+**Cache reset nuance:** when `noise_controller=True`, the block updates `noise_scale` without forcing `init_cache=True` (so you don’t hard-cut just because motion changed). Cache resets from noise changes only happen when `noise_controller=False` and you manually change `noise_scale` while `manage_cache=True`.
+
+See `src/scope/core/pipelines/wan2_1/blocks/noise_scale_controller.py`.
 
 ---
 
@@ -65,3 +90,24 @@ Scope splits (and loosely re-couples) these ideas via:
 
 If you’re comparing results across systems, the mapping is not 1:1 — validate perceptually and (when possible) with a small offline oracle.
 
+### Concrete ComfyUI Contrast (What “Battle Tested” Usually Means)
+
+In ComfyUI-WanVideoWrapper, “video2video strength” is typically implemented as:
+
+1. Encode input video into init latents (`WanVideoEncode`)
+2. Choose a sampling start point from `denoise_strength`
+3. Add noise to init latents at the scheduler-aligned timestep (`add_noise_to_samples`)
+
+Pointers:
+- Init latents encoding: `/root/ComfyUI-WanVideoWrapper/nodes.py:2154`
+- V2V mixing in the sampler: `/root/ComfyUI-WanVideoWrapper/nodes_sampler.py:718` and `/root/ComfyUI-WanVideoWrapper/nodes_sampler.py:728`
+
+The practical difference is: **ComfyUI ties “how much noise” to “where in the schedule”**, while Scope currently does a simpler latent-space blend and a heuristic first-step tweak.
+
+---
+
+## Debug Checklist (Fast)
+
+1. Log the runtime `denoising_step_list` being sent (frontend → server).
+2. Log the *effective* first step after the `noise_scale` mutation in `DenoiseBlock`.
+3. Confirm the resulting list is in the intended direction (typically high → low).

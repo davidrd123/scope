@@ -265,7 +265,8 @@ print(f"Frame deltas: {deltas}")  # Should be ~constant
 ### Verify routing:
 ```python
 # Add before pipeline call:
-print(f"vace_enabled: {self.pipeline.vace_enabled}")
+vace_enabled = getattr(pipeline, "vace_enabled", False)
+print(f"vace_enabled: {vace_enabled}")
 print(f"call_params keys: {list(call_params.keys())}")
 # Should see either "video" or "vace_input_frames", not both
 ```
@@ -284,11 +285,11 @@ print(f"call_params keys: {list(call_params.keys())}")
 
 ### 2. "First block looks different"
 
-**Symptom:** Frames 0-11 have different quality/motion than 12+
+**Symptom:** First chunk looks different from steady-state output
 
 **Cause:** First-block +1 frame adjustment + fresh caches
 
-**Debug:** Compare `output.shape` between first and subsequent blocks
+**Debug:** Compare `output.shape` (and/or latent frame counts) between first and subsequent blocks
 
 ### 3. "Motion looks wrong speed"
 

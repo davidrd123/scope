@@ -1,7 +1,8 @@
 # KV Cache Mechanics
 
-> **Location:** `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py`
-> **Blocks:** `RecomputeKVCacheBlock`, `SetupCachesBlock`
+> **KV update/eviction:** `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` (`CausalWanSelfAttention.forward`)
+> **Cache setup:** `src/scope/core/pipelines/wan2_1/blocks/setup_caches.py` (`SetupCachesBlock`)
+> **Cache recompute:** `src/scope/core/pipelines/krea_realtime_video/blocks/recompute_kv_cache.py` (`RecomputeKVCacheBlock`)
 > **Note:** Conceptual explainer — exact tensor shapes/sizes depend on config (resolution, heads, cache window). Use the linked code as the source of truth.
 
 ---
@@ -47,15 +48,28 @@ kv_cache = {
 }
 
 # Full model has one cache per layer:
-kv_caches = [kv_cache for _ in range(num_layers)]  # 40 caches for 14B
+kv_caches = [kv_cache for _ in range(num_layers)]  # One cache per transformer block
 ```
+
+### Frame Sequence Length (`frame_seqlen`)
+
+Each **latent frame** is flattened into `frame_seqlen` tokens:
+
+```
+frame_seqlen = (H/scale) × (W/scale)
+scale = vae_spatial_downsample_factor × patch_embedding_spatial_downsample_factor  # default 16
+```
+
+Examples:
+- 320×576 → 20×36 = 720 tokens/frame
+- 480×832 → 30×52 = 1560 tokens/frame
 
 ### Why Two Indices?
 
 | Index | Meaning | Example |
 |-------|---------|---------|
-| `global_end_index` | Total tokens seen across all time | After 10 frames: 15,600 |
-| `local_end_index` | Current write position in cache | After eviction: 9,360 |
+| `global_end_index` | Total tokens seen across all time | After 10 frames: `10 × frame_seqlen` |
+| `local_end_index` | Current write position in cache buffer | Moves as we append/evict within the fixed cache window |
 
 The difference matters for:
 - **RoPE:** Uses `global_end_index` for position encoding (absolute position)
@@ -83,19 +97,19 @@ After eviction:
 
 ### Sink Tokens
 
-The first N tokens (typically first frame) are **never evicted**:
+If `sink_size > 0`, the first `sink_size` frames are **never evicted**. In code, this is expressed in **tokens**:
 
 ```python
-# In CausalWanSelfAttention:
-sink_size = frame_seq_length  # 1560 tokens = 1 frame
+# In CausalWanSelfAttention.forward:
+sink_tokens = sink_size * frame_seqlen  # sink_size is in frames
 
 # During eviction:
 num_evicted = num_new_tokens + local_end_index - cache_size
-num_to_roll = local_end_index - num_evicted - sink_size
+num_to_roll = local_end_index - num_evicted - sink_tokens
 
 # Shift non-sink tokens left:
-kv_cache["k"][:, sink_size:sink_size + num_to_roll] = \
-    kv_cache["k"][:, sink_size + num_evicted:local_end_index].clone()
+kv_cache["k"][:, sink_tokens:sink_tokens + num_to_roll] = \
+    kv_cache["k"][:, sink_tokens + num_evicted:local_end_index].clone()
 ```
 
 **Why keep the first frame?**
@@ -286,7 +300,7 @@ def create_kv_bias_score_mod(log_scale, frame_seqlen, current_block_start):
     return score_mod
 ```
 
-The `log_scale = log(kv_cache_attention_bias)` is added to attention scores, which is equivalent to multiplying attention weights by `kv_cache_attention_bias` after softmax (approximately, for large negative values).
+The `log_scale = log(kv_cache_attention_bias)` is added to attention scores, which is exactly equivalent to scaling `exp(score)` by `kv_cache_attention_bias` for those keys before softmax normalization.
 
 ---
 
@@ -297,7 +311,7 @@ Call 1 (frames 0-2):
 ┌──────────────────────────────────────────────────────────────┐
 │ [frame0][frame1][frame2][  empty  ][  empty  ][  empty  ]    │
 │    ↑                 ↑                                       │
-│  sink              local_end_index=4680                      │
+│  sink              local_end_index=3×frame_seqlen            │
 └──────────────────────────────────────────────────────────────┘
 
 Call 2 (frames 3-5), after recompute:
@@ -326,7 +340,8 @@ Call 5, after eviction:
 | `kv_cache_num_frames` | 3 | How many frames to include as context during recompute |
 | `local_attn_size` | 6 | Local attention window in frames (-1 = global) |
 | `kv_cache_attention_bias` | 0.3 | Down-weight factor for past frames (0-1) |
-| `sink_size` | 1 frame | Tokens to never evict |
+| `sink_size` | (model-dependent) | Frames to never evict (if >0, the earliest frames are “anchors”) |
+| `SCOPE_KV_CACHE_RECOMPUTE_EVERY` | 1 | Recompute KV cache every N blocks (higher can be faster but increases drift risk) |
 
 ### Tradeoffs
 
@@ -341,3 +356,4 @@ Call 5, after eviction:
 - **Parent doc:** [`../krea-architecture.md`](../krea-architecture.md)
 - **Attention backends:** [`attention-backends.md`](attention-backends.md)
 - **Causal masks:** [`causal-attention-masks.md`](causal-attention-masks.md)
+- **VAE streaming:** [`vae-streaming.md`](vae-streaming.md)

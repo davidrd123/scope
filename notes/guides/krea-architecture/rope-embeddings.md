@@ -1,7 +1,8 @@
 # Rotary Position Embeddings (RoPE) for Video
 
-> **Location:** `src/scope/core/pipelines/krea_realtime_video/modules/model.py`
-> **Functions:** `rope_apply`, `causal_rope_apply`, `triton_rope_fused_3way`
+> **Core RoPE:** `src/scope/core/pipelines/krea_realtime_video/modules/model.py` (`rope_apply`, `get_rope_cos_sin`)
+> **Causal/streaming RoPE:** `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` (`causal_rope_apply`)
+> **Triton fused kernel:** `src/scope/core/kernels/triton_rope_fused.py` (`rope_fused_3way`)
 > **Note:** Conceptual explainer — treat the referenced code + model config as the source of truth for exact dimension splits and frequency tables.
 
 ---
@@ -68,17 +69,28 @@ Each dimension pair rotates at a **different frequency**, encoding position at m
 
 Video has 3 position axes: (frame, height, width). The embedding dimensions are split:
 
-RoPE partitions the per-head embedding (`head_dim`) into three groups (T/H/W) and applies a separate rotary frequency table for each axis. The exact split is model-specific; consult `rope_apply`/`causal_rope_apply` for the concrete partition used by the current checkpoint/config.
+RoPE partitions the per-head embedding (`head_dim`) into three groups (T/H/W) and applies a separate rotary frequency table for each axis.
+
+In the current implementation, we split **complex RoPE dims** (where `c = head_dim // 2`) as:
+- time: `c - 2 * (c // 3)`
+- height: `c // 3`
+- width: `c // 3`
+
+The remainder goes to **time**, so T/H/W splits are “as equal as possible” but slightly time-heavy.
+
+Example (`head_dim=128`, so `c=64`):
+- time/height/width = 22 / 21 / 21 complex dims
+- which corresponds to 44 / 42 / 42 real dims
 
 ### Frequency Table
 
 ```python
-# Loaded from model config (see model.yaml / model.py):
-rope_theta = ...
-max_rope_freq_table_seq_len = ...
+# See `rope_params(max_seq_len, dim, theta=...)`:
+theta = 10000  # default in this repo's implementation
+max_rope_freq_table_seq_len = 1024
 
 # Frequencies for each dimension:
-freqs = 1.0 / (rope_theta ** (torch.arange(0, dim, 2) / dim))
+freqs = 1.0 / (theta ** (torch.arange(0, dim, 2) / dim))
 # = [1.0, 0.95, 0.90, 0.86, ..., 0.004]
 #   High freq (changes fast)      Low freq (changes slow)
 
@@ -254,23 +266,21 @@ The fusion eliminates redundant memory reads/writes between the 3 axes.
 
 ## Frequency Table Caching
 
-Computing cos/sin for every position is expensive. We precompute and cache:
+Building per-token cos/sin tables is expensive. The implementation caches expanded `(cos, sin)` tables keyed by grid + dtype/device (LRU bounded):
 
 ```python
-@lru_cache(maxsize=32)
-def get_rope_cos_sin(freqs, positions, dtype, device):
-    """
-    Cached computation of cos/sin tables.
+key = (device, dtype, f, h, w, start_frame, c)
+if key in _ROPE_CACHE:
+    return _ROPE_CACHE[key]
 
-    Cache key: (freqs_id, positions_tuple, dtype, device)
-    """
-    angles = positions.unsqueeze(-1) * freqs.unsqueeze(0)
-    cos = angles.cos()
-    sin = angles.sin()
-    return cos.to(dtype=dtype, device=device), sin.to(dtype=dtype, device=device)
+# Expand per-axis frequency tables over the (f, h, w) grid, then extract:
+freqs_i = concat(freqs_f, freqs_h, freqs_w).reshape(seq_len, 1, c)
+cos = freqs_i.real.to(device=device, dtype=dtype)
+sin = freqs_i.imag.to(device=device, dtype=dtype)
+_ROPE_CACHE[key] = (cos, sin)
 ```
 
-The cache is keyed by position tuple, so different sequence lengths reuse computation.
+This amortizes RoPE setup cost across repeated shapes during streaming.
 
 ---
 

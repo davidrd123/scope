@@ -7,6 +7,8 @@ This folder contains in-depth explanations of key mechanisms in the Krea Realtim
 > Note: These guides are intended as conceptual explainers. Exact shapes, constants, and fast-path conditions can vary by config and environment.
 > Treat the linked code as the source of truth.
 
+**Conventions:** Many quantities depend on resolution. In particular, `frame_seqlen = (H/16) × (W/16)` at default config (`8×` VAE spatial downsample × `2×` patch downsample); see [`kv-cache-mechanics.md`](kv-cache-mechanics.md) for details/examples.
+
 ## Deep Dives
 
 | File | Topic | One-liner |
@@ -17,3 +19,5 @@ This folder contains in-depth explanations of key mechanisms in the Krea Realtim
 | [`attention-backends.md`](attention-backends.md) | Attention Backends | FA4, Flash, Triton, Flex tradeoffs |
 | [`causal-attention-masks.md`](causal-attention-masks.md) | Block-wise Causal Masks | How streaming attention works |
 | [`vae-streaming.md`](vae-streaming.md) | VAE Streaming Decode | Causal 3D convolutions |
+| [`perf-crossover.md`](perf-crossover.md) | Perf Crossover Index | Map architecture concepts to B200/B300 perf levers |
+| [`perf-crossover.md`](perf-crossover.md) | Perf Crossover | Map architecture ↔ B200/B300 optimization learnings |
