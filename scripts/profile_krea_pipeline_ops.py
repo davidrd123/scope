@@ -116,6 +116,13 @@ def _parse_args() -> argparse.Namespace:
         help="Repeatable: drop stack groups whose frames include this substring.",
     )
     parser.add_argument(
+        "--stack-filter-top",
+        type=int,
+        default=0,
+        help="If >0 and --with-stack, print a per-op-key summary for events whose stack frames match "
+        "--stack-include/--stack-exclude filters (sorted by device time).",
+    )
+    parser.add_argument(
         "--summary",
         type=Path,
         default=None,
@@ -214,6 +221,10 @@ def _stack_group_matches(
         if any(pat in frame for pat in exclude for frame in stack_frames):
             return False
     return True
+
+
+def _evt_self_device_us(evt) -> float:
+    return float(getattr(evt, "self_device_time_total", 0.0) or 0.0)
 
 
 def main() -> int:
@@ -383,6 +394,66 @@ def main() -> int:
             summary_lines.append("\n## Stack filters\n")
             summary_lines.append(f"- stack_include: `{include_pats}`\n")
             summary_lines.append(f"- stack_exclude: `{exclude_pats}`\n")
+
+        if args.stack_filter_top > 0:
+            filtered_stack_avgs = [
+                evt
+                for evt in stack_avgs
+                if _stack_group_matches(_stack_strs(evt), include_pats, exclude_pats)
+            ]
+
+            agg: dict[str, dict[str, float]] = {}
+            for evt in filtered_stack_avgs:
+                device_us = _evt_device_us(evt)
+                if device_us <= 0:
+                    continue
+                key = str(evt.key)
+                item = agg.setdefault(
+                    key,
+                    {"device_us": 0.0, "self_device_us": 0.0, "calls": 0.0, "groups": 0.0},
+                )
+                item["device_us"] += device_us
+                item["self_device_us"] += _evt_self_device_us(evt)
+                item["calls"] += float(getattr(evt, "count", 0) or 0)
+                item["groups"] += 1.0
+
+            total_filtered_device_us = sum(v["device_us"] for v in agg.values()) or 0.0
+            top = sorted(agg.items(), key=lambda kv: kv[1]["device_us"], reverse=True)[
+                : int(args.stack_filter_top)
+            ]
+
+            print("")
+            print("Top op keys within stack filters:")
+            print("| device_ms | pct | calls | groups | key |")
+            print("|---:|---:|---:|---:|---|")
+            for key, v in top:
+                pct = (
+                    (100.0 * v["device_us"] / total_filtered_device_us)
+                    if total_filtered_device_us
+                    else 0.0
+                )
+                print(
+                    f"| {v['device_us']/1e3:,.3f} | {pct:,.2f}% | {int(v['calls']):,} | {int(v['groups']):,} | `{key}` |"
+                )
+
+            if args.summary is not None:
+                summary_lines.append("\n## Top ops (stack-filtered)\n")
+                if include_pats or exclude_pats:
+                    summary_lines.append(
+                        f"Filtered to stack frames matching include={include_pats} exclude={exclude_pats}.\n\n"
+                    )
+                summary_lines.append("| device_ms | pct | calls | groups | key |\n")
+                summary_lines.append("|---:|---:|---:|---:|---|\n")
+                for key, v in top:
+                    pct = (
+                        (100.0 * v["device_us"] / total_filtered_device_us)
+                        if total_filtered_device_us
+                        else 0.0
+                    )
+                    summary_lines.append(
+                        f"| {v['device_us']/1e3:,.3f} | {pct:,.2f}% | {int(v['calls']):,} | {int(v['groups']):,} | `{key}` |\n"
+                    )
+
         for key in stack_keys:
             rows = [evt for evt in stack_avgs if evt.key == key]
             if include_pats or exclude_pats:

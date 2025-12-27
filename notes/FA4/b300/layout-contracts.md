@@ -2,7 +2,7 @@
 
 > Status: Partial (FA constraints documented; local code audit for QKV/RoPE/cache done; fast-layout validation pending)
 > Priority: **High** — blocks all fusion/kernel work
-> Date: 2025-12-26
+> Date: 2025-12-27
 > Sources:
 > - External constraints: [`claude01.md`](../DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md)
 > - SM103 kernel primitives (TMA/mbarrier/tcgen05): [`claude03a.md`](../DeepResearch/2025-12-27/climbing_the_mountain/claude03a.md), [`claude04b.md`](../DeepResearch/2025-12-27/climbing_the_mountain/claude04b.md)
@@ -75,7 +75,7 @@ Observed (example sample):
 | Q shape | `[B, S, H, D]` | called as `rope_apply(q, grid_sizes, freqs)` |
 | K shape | `[B, S, H, D]` | called as `rope_apply(k, grid_sizes, freqs)` |
 | cos/sin shape | derived from `freqs` + `grid_sizes` | cached via `get_rope_cos_sin(...)` |
-| Dtype | BF16 | outputs are cast to `v.dtype` at call sites (`.type_as(v)`) |
+| Dtype | BF16 (expected) | In compiled self-attn stacks, the `.type_as(v)` at call sites shows up as `aten::copy_` (see `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.md`). This suggests RoPE outputs may not be in the final desired dtype/layout in all paths; verify and eliminate redundant casts. |
 
 ### Output
 
@@ -87,6 +87,7 @@ Observed (example sample):
 
 **Notes / gotchas (relevant to fusion):**
 - RoPE can currently allocate (clone) on the fallback paths; this can show up as `aten::copy_` stacks in profiles.
+- Even on the fused RoPE path, the call-site `.type_as(v)` can trigger a measurable `aten::copy_` in compiled self-attn (stack points at `src/scope/core/pipelines/krea_realtime_video/modules/causal_model.py` around the RoPE apply block). If RoPE already returns BF16, this should be a no-op — so treat it as a “trust but verify” item.
 - There are optional Triton fast paths (`triton_rope_fused_3way`, `triton_apply_rotary`) which change which kernels appear; treat them as separate “contracts” when measuring.
 
 ---
@@ -231,6 +232,7 @@ Based on profiling, these ops appear between the contracts above:
 | Op | Location | Why It Exists | Notes |
 |----|----------|---------------|------|
 | `rope_apply(...).clone()` | RoPE fallback | produces new rotated tensor | can be fusion target |
+| `rope_apply(...).type_as(v)` | self-attn RoPE call sites | normalize RoPE output dtype/layout | shows up as `aten::copy_` in compiled self-attn stacks; verify whether it’s redundant and remove if safe |
 | `.transpose(2, 1).contiguous()` | block-mask flex_attention / Triton Kernel B | expects `[B, H, S, D]` contiguous | real copies |
 | `torch.cat([...])` padding | block-mask / flex fallback | aligns to 128 / flex alignment | alloc + copy |
 | cache eviction `.clone()` | KV cache | shift/roll window when cache fills | can spike `copy_` |

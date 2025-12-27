@@ -1,6 +1,6 @@
 # "other_in_self" Breakdown: Stack-Attributed Analysis
 
-> Status: Partial (post-VAE-fix snapshot recorded; needs periodic refresh)
+> Status: Partial (coarse + stack snapshots recorded; needs periodic refresh)
 > Priority: **High** — can't optimize what we haven't measured
 > Date: 2025-12-27
 > Sources:
@@ -48,83 +48,74 @@ The profiler shows "other_in_self" as the majority of self_attn time after FA4 K
 
 Enable `PROFILE_ATTENTION=1` and record the report at exit. This tells you how much `self_attn` time is KV-bias vs everything else, and also records sub-blocks like `qkv_projection`, `rope_apply`, and `cache_update` when enabled.
 
-**Kickoff snapshot (B300 / cu130, BF16, bias=0.3, FA4, decode fixed):**
-
 > Note: `PROFILE_ATTENTION=1` is **not compatible with `--compile`** for the self-attn regions (the profiling blocks get pruned during tracing). Run without `--compile` to get the nested breakdown numbers.
 
-**Command:**
+**Recommended command (B300 baseline, BF16, bias=0.3, FA4; no compile):**
 ```bash
-OUT_PREFIX=outputs/b300_cu130_none_bias0.3_drilldown_post_vae_fix
-TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
-DISABLE_FLEX_ATTENTION_COMPILE=1 \
-SCOPE_KV_BIAS_BACKEND=fa4 \
-SCOPE_DISABLE_FUSED_PROJECTIONS=1 \
-WANVAE_STREAM_DECODE_MODE=chunk \
-WANVAE_DECODE_CHANNELS_LAST_3D=1 \
-WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
-PROFILE_PIPELINE_BLOCKS=1 PROFILE_PIPELINE_BLOCKS_JSON=${OUT_PREFIX}_blocks_profile.json \
-PROFILE_DENOISE_STEPS=1 PROFILE_DENOISE_STEPS_JSON=${OUT_PREFIX}_denoise_steps.json \
-PROFILE_GENERATOR_STEPS=1 PROFILE_GENERATOR_STEPS_JSON=${OUT_PREFIX}_generator_steps.json \
-PROFILE_WANVAE_DECODE=1 PROFILE_WANVAE_DECODE_JSON=${OUT_PREFIX}_vae_decode.json \
-PROFILE_WANVAE_DECODE_INNER=1 PROFILE_WANVAE_DECODE_INNER_JSON=${OUT_PREFIX}_vae_decode_inner.json \
-PROFILE_ATTENTION=1 \
-PYTHONPATH=src \
-.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
-  --height 320 --width 576 \
-  --iters 4 --skip 1 \
-  --quantization none \
-  --kv-cache-attention-bias 0.3 \
-  --cudnn-benchmark \
-  --json ${OUT_PREFIX}_perf.json \
-  |& tee ${OUT_PREFIX}_perf.log
+OUT_PREFIX=outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean \
+ITERS=4 SKIP=1 \
+scripts/profile_b300_denoise_drilldown.sh
 ```
 
-**Artifacts:**
-- `outputs/b300_cu130_none_bias0.3_drilldown_post_vae_fix_perf.log`
-- `outputs/b300_cu130_none_bias0.3_drilldown_post_vae_fix_blocks_profile.json`
-- `outputs/b300_cu130_none_bias0.3_drilldown_post_vae_fix_denoise_steps.json`
-- `outputs/b300_cu130_none_bias0.3_drilldown_post_vae_fix_generator_steps.json`
-- `outputs/b300_cu130_none_bias0.3_drilldown_post_vae_fix_vae_decode.json`
-- `outputs/b300_cu130_none_bias0.3_drilldown_post_vae_fix_vae_decode_inner.json`
+**Artifacts (latest):**
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_perf.log`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_perf.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_blocks_profile.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_denoise_steps.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_generator_steps.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_vae_decode.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_vae_decode_inner.json`
 
-**Observed `PROFILE_ATTENTION` report (from `*_perf.log`, profiled iterations only):**
+**Observed `PROFILE_ATTENTION` report (latest, from `*_clean_perf.log`, profiled iterations only):**
 
 | Component | Total (ms) | Calls | ms/call | Notes |
 |-----------|-----------:|------:|--------:|------|
-| `self_attn` | 747.8 | 600 | 1.25 | Includes KV-bias + all glue |
-| `self_attn_kv_bias_fa4` | 203.6 | 480 | 0.42 | KV-bias portion only |
-| `self_attn_block_mask` | 34.4 | 120 | 0.29 | Recompute / block-mask path |
-| `qkv_projection` | 162.6 | 600 | 0.27 | cuBLAS GEMM(s) + norms |
-| `rope_apply` | 56.8 | 480 | 0.12 | Triton fused RoPE enabled |
-| `cache_update` | 54.8 | 480 | 0.11 | KV-cache writes / indices |
-| `output_projection` | 67.0 | 600 | 0.11 | cuBLAS GEMM |
+| `self_attn` | 734.4 | 600 | 1.22 | Includes KV-bias + all glue |
+| `self_attn_kv_bias_fa4` | 199.7 | 480 | 0.42 | KV-bias portion only |
+| `self_attn_block_mask` | 34.1 | 120 | 0.28 | Recompute / block-mask path |
+| `qkv_projection` | 162.1 | 600 | 0.27 | cuBLAS GEMM(s) + norms |
+| `rope_apply` | 53.6 | 480 | 0.11 | Triton fused RoPE enabled |
+| `cache_update` | 54.1 | 480 | 0.11 | KV-cache writes / indices |
+| `output_projection` | 65.8 | 600 | 0.11 | cuBLAS GEMM |
 
-**Derived (nested) breakdown:**
-- `other_in_self` = **505.5ms** (**67.6%** of `self_attn`) in this run.
-- `kv_bias_total` = **206.2ms** (**27.6%** of `self_attn`).
-- `block_mask` = **35.9ms** (**4.8%** of `self_attn`).
+**Derived (nested) breakdown (latest):**
+- `other_in_self` = **500.6ms** (**68.2%** of `self_attn`)
+- `kv_bias_total` = **199.7ms** (**27.2%** of `self_attn`)
+- `block_mask` = **34.1ms** (**4.6%** of `self_attn`)
+
+**Remainder estimate (why Level 5 exists):**
+- `other_in_self` includes `qkv_projection` + `rope_apply` + `cache_update` + `output_projection`, **plus** additional overhead not explicitly labeled.
+- Remainder ≈ `500.6ms - (162.1 + 53.6 + 54.1 + 65.8)ms = 165.0ms` (≈**33%** of `other_in_self`) → this is the “what is it?” bucket we need stack attribution for.
 
 ### Step 1: Stack-attributed op profiling (to find the real copy sources)
 
 ```bash
 DISABLE_FLEX_ATTENTION_COMPILE=1 \
 WANVAE_STREAM_DECODE_MODE=chunk \
-TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
 SCOPE_KV_BIAS_BACKEND=fa4 \
-.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_ops.py \
+SCOPE_ENABLE_FA4_VARLEN=1 \
+PYTHONPATH=src \
+.venv-b300-cu130-triton351/bin/python scripts/profile_krea_pipeline_ops.py \
   --height 320 --width 576 \
   --iters 1 --pre-iters 1 \
   --kv-cache-attention-bias 0.3 \
   --kv-bias-backend fa4 \
   --quantization none \
   --cudnn-benchmark \
+  --compile \
   --with-stack --stack-n 12 \
-  --stack-key aten::contiguous \
-  --stack-key aten::transpose \
-  --stack-key aten::_to_copy \
   --stack-key aten::copy_ \
+  --stack-key aten::contiguous \
+  --stack-key aten::clone \
+  --stack-key aten::_to_copy \
   --stack-key aten::fill_ \
-  --summary outputs/b300_other_in_self_summary.md
+  --stack-include CausalWanSelfAttention \
+  --stack-filter-top 40 \
+  --summary outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.md \
+  --json outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.json \
+  |& tee outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.log
 ```
 
 Filter output for self-attn-related stacks (look for call stacks that include `CausalWanSelfAttention.forward`).
@@ -138,35 +129,39 @@ Quick read:
 - FA4 attention appears as `kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100...`.
 - `aten::copy_`/`aten::fill_` are present; the largest `aten::copy_` stack groups in this snapshot point at VAE Conv3d decode, while attention-related copies exist but are smaller and require stack filtering.
 
-**Self-attn–scoped stack filter (CausalWanSelfAttention only, 1 iteration):**
-- `outputs/b300_cu130_ops_profile_selfattn_stack.md`
-- `outputs/b300_cu130_ops_profile_selfattn_stack.json`
+**Self-attn–scoped stack filter (current best env, compile on; CausalWanSelfAttention-only):**
+- `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.md`
+- `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.json`
+- `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.log`
 
-Key findings (filtered totals, CausalWanSelfAttention only):
+Key findings (filtered to `CausalWanSelfAttention` stacks):
 
-| Op key | device_ms (total) | calls | Likely meaning |
-|--------|------------------:|------:|----------------|
-| `aten::copy_` | 17.113 | 960 | KV-cache writes (K+V) + small copies in the self-attn path |
-| `aten::contiguous` | 10.324 | 400 | Appears under `F.rms_norm(...)` stacks (input/layout normalization) |
-| `aten::clone` | 10.324 | 400 | Also appears under `F.rms_norm(...)` stacks (may be an internal copy) |
-| `aten::fill_` | 0.407 | 240 | `Tensor.fill_` under self-attn (likely scalar index tensors / counters) |
-| `aten::transpose` | 0.000 | 400 | Not a meaningful GPU contributor in this run |
+| Op key | device_ms (total) | calls | Notes |
+|--------|------------------:|------:|------|
+| `aten::copy_` | 5.606 | 480 | Stacks point at RoPE call sites in `causal_model.py:1190–1196` (`... .type_as(v)`) |
+| `aten::contiguous` | (no events) | 0 | Good: no obvious layout fixups attributed here in this config |
+| `aten::clone` | (no events) | 0 | |
+| `aten::_to_copy` | (no events) | 0 | |
+| `aten::fill_` | 0.291 | 160 | Small counters/indices |
 
-### New lead: fused projections are net-negative on B300
+Notable from the **stack-filtered top-op table** in the same artifact:
+- `aten::item` + `Memcpy DtoH`: **2.237ms**, **1280 calls** (device→host scalar reads inside self-attn stacks; likely worth eliminating/hoisting if they cause sync)
+- The bulk of time is still in GEMMs (`aten::addmm` / NVJET kernels) and the FA4/CuTe forward kernel.
 
-The model currently enables fused QKV projections by default (single `to_qkv(x).chunk(3, dim=-1)`), which creates strided Q/K views. On B300, this appears to trigger extra `contiguous`/`clone` work inside `F.rms_norm` and increases cache-write overhead.
+**Historical snapshot (pre-triton351 / different config):**
+- `outputs/b300_cu130_ops_profile_selfattn_stack.md` (shows `aten::contiguous` / `aten::clone` present under self-attn stacks)
 
-**Experiment (B300): disable fused projections**
-- Set: `SCOPE_DISABLE_FUSED_PROJECTIONS=1`
-- Coarse outcome (`PROFILE_ATTENTION`, 4 iters / skip 1):
-  - Avg FPS: **18.53** (vs **18.09** baseline)
-  - `self_attn`: **1.18 ms/call** (vs **1.25**)
-  - `other_in_self`: **67.4%** of self_attn (vs **68.2%**) and **477.5ms total** (vs **509.8ms**)
-  - `cache_update`: **0.09 ms/call** (vs **0.11**)
-- Op+stack outcome (CausalWanSelfAttention-only filter):
-  - `aten::contiguous`: **no events**
-  - `aten::clone`: **no events**
-  - `aten::copy_`: **3.164ms total** (vs **17.113ms**)
+### Hypothesis to validate (don’t assume): fused projections vs separate projections
+
+Fused projections can introduce strided Q/K/V views. In some configs this has correlated with additional copies/contiguity work, but this is **config-dependent** (compile mode, env, and attention backend).
+
+If you want to test this today, do an A/B in the same env with:
+- Baseline: fused projections ON (default)
+- Change: `SCOPE_DISABLE_FUSED_PROJECTIONS=1`
+
+Then compare:
+- `PROFILE_ATTENTION` (no compile): `other_in_self` remainder and `cache_update` time
+- Stack-filtered op profile (compile on): presence/absence of `contiguous`/`clone` and changes in `aten::copy_` stacks
 
 ---
 
@@ -239,38 +234,14 @@ Based on the breakdown above:
 
 ---
 
-## Comparison Points
+## Snapshot Log (Evidence)
 
-### Before Patch-Embed Fix
+Keep these around so future work can cite concrete artifacts instead of “vibes”:
 
-| Metric | Value |
-|--------|-------|
-| aten::copy_ calls | ~35,000 |
-
-### After VAE Decode Fix (Compile On)
-
-Stack-attributed snapshot (compile on; self-attn only):
-- `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_ensurecontig_stack.md`
-- `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_ensurecontig_stack.json`
-
-Key takeaways from that snapshot:
-- In self-attn stacks, `aten::contiguous` / `aten::clone` / `aten::_to_copy` are **already eliminated** (no events) when fused projections are disabled.
-- Remaining measurable Python-visible overhead inside self-attn is mostly:
-  - `aten::copy_` (cache writes / small copies): `device_ms=2.518, calls=480` (filtered to `CausalWanSelfAttention`)
-  - `aten::fill_` (small counters/indices): `device_ms=0.289, calls=160` (filtered)
-- Big remaining time in denoise is still dominated by GEMMs + fused graphs (see “Top ops” in the snapshot).
-| aten::fill_ calls | ~35,000 |
-| Total self_attn | ? ms |
-| other_in_self | ? ms |
-
-### After Patch-Embed Fix (Current)
-
-| Metric | Value |
-|--------|-------|
-| aten::copy_ calls | ~9,600 |
-| aten::fill_ calls | ~9,600 |
-| Total self_attn | ? ms |
-| other_in_self | ? ms |
+- Coarse (no compile) `PROFILE_ATTENTION` snapshot: `outputs/b300_cu130_none_bias0.3_drilldown_2025-12-27_clean_perf.log`
+- Stack-attributed self-attn (compile on; FA4 varlen; triton351 env): `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.md`
+- Older stack-attributed self-attn (compile on; ensure-contig run): `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_ensurecontig_stack.md`
+- Older self-attn stack filter (pre-triton351 / different config; shows contiguous/clone present): `outputs/b300_cu130_ops_profile_selfattn_stack.md`
 
 ---
 
