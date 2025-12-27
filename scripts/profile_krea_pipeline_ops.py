@@ -103,6 +103,19 @@ def _parse_args() -> argparse.Namespace:
         help="How many stack groups to print per --stack-key.",
     )
     parser.add_argument(
+        "--stack-include",
+        action="append",
+        default=None,
+        help="Repeatable: only keep stack groups whose frames include this substring. "
+        "Example: --stack-include CausalWanSelfAttention",
+    )
+    parser.add_argument(
+        "--stack-exclude",
+        action="append",
+        default=None,
+        help="Repeatable: drop stack groups whose frames include this substring.",
+    )
+    parser.add_argument(
         "--summary",
         type=Path,
         default=None,
@@ -181,6 +194,24 @@ def _write_text(path: Path, content: str) -> None:
 def _evt_device_us(evt) -> float:
     # On newer PyTorch versions this is `device_time_total`, not `cuda_time_total`.
     return float(getattr(evt, "device_time_total", 0.0) or 0.0)
+
+
+def _stack_strs(evt) -> list[str]:
+    return [str(frame) for frame in getattr(evt, "stack", [])]
+
+
+def _stack_group_matches(
+    stack_frames: list[str],
+    include: list[str] | None,
+    exclude: list[str] | None,
+) -> bool:
+    if include:
+        if not any(pat in frame for pat in include for frame in stack_frames):
+            return False
+    if exclude:
+        if any(pat in frame for pat in exclude for frame in stack_frames):
+            return False
+    return True
 
 
 def main() -> int:
@@ -337,8 +368,25 @@ def main() -> int:
         print("")
         print(f"Grouped-by-stack summary (group_by_stack_n={args.stack_n}):")
         stack_groups = {}
+        include_pats = args.stack_include or []
+        exclude_pats = args.stack_exclude or []
+        if include_pats:
+            print(f"- stack_include: {include_pats}")
+        if exclude_pats:
+            print(f"- stack_exclude: {exclude_pats}")
+
+        if args.summary is not None and (include_pats or exclude_pats):
+            summary_lines.append("\n## Stack filters\n")
+            summary_lines.append(f"- stack_include: `{include_pats}`\n")
+            summary_lines.append(f"- stack_exclude: `{exclude_pats}`\n")
         for key in stack_keys:
             rows = [evt for evt in stack_avgs if evt.key == key]
+            if include_pats or exclude_pats:
+                rows = [
+                    evt
+                    for evt in rows
+                    if _stack_group_matches(_stack_strs(evt), include_pats, exclude_pats)
+                ]
             if not rows:
                 print(f"- {key}: (no events)")
                 stack_groups[key] = []
@@ -354,6 +402,11 @@ def main() -> int:
             stack_groups[key] = []
             if args.summary is not None:
                 summary_lines.append(f"\n## Stack groups: `{key}`\n")
+                total_device_us = sum(_evt_device_us(evt) for evt in rows)
+                total_calls = sum(int(evt.count) for evt in rows)
+                summary_lines.append(
+                    f"\nFiltered totals: device_ms={total_device_us/1e3:.3f}, calls={total_calls}\n"
+                )
             for evt in rows[: args.stack_limit]:
                 device_us = _evt_device_us(evt)
                 self_device_us = float(getattr(evt, "self_device_time_total", 0.0) or 0.0)
@@ -364,7 +417,7 @@ def main() -> int:
                     f"self_device_ms={self_device_us/1e3:>8.3f} "
                     f"cpu_ms={cpu_us/1e3:>8.3f}"
                 )
-                frames = [str(frame) for frame in getattr(evt, "stack", [])]
+                frames = _stack_strs(evt)
                 for frame in frames[: int(args.stack_n)]:
                     print(f"    {frame}")
                 stack_groups[key].append(
@@ -421,6 +474,8 @@ def main() -> int:
                     "stack_n": args.stack_n if args.with_stack else None,
                     "stack_keys": args.stack_key if args.with_stack else None,
                     "stack_limit": args.stack_limit if args.with_stack else None,
+                    "stack_include": args.stack_include if args.with_stack else None,
+                    "stack_exclude": args.stack_exclude if args.with_stack else None,
                     "profiled_wall_time_s": dt,
                 },
                 "events": events,

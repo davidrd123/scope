@@ -1,0 +1,2070 @@
+# Krea pipeline op profile
+
+## Meta
+- torch: `2.9.0+cu130` (cuda `13.0`)
+- device: `NVIDIA B300 SXM6 AC` cc=(10, 3)
+- compile: `False`
+- kv_cache_attention_bias: `0.3`
+- SCOPE_KV_BIAS_BACKEND: `fa4`
+- profiled_wall_time_s: `5.386`
+
+## Top ops (self CUDA)
+| self_cuda_ms | pct | calls | key |
+|---:|---:|---:|---|
+| 151.994 | 26.77% | 1,230 | `aten::addmm` |
+| 45.735 | 8.06% | 600 | `nvjet_tst_256x128_64x5_2x2_2cta_h_bz_bias_TNT` |
+| 37.825 | 6.66% | 200 | `nvjet_tst_256x128_64x5_2x1_2cta_v_bz_bias_TNT` |
+| 34.195 | 6.02% | 200 | `nvjet_tst_256x160_64x5_2x1_2cta_v_bz_bias_TNT` |
+| 33.621 | 5.92% | 200 | `nvjet_tst_128x256_64x6_2x1_2cta_v_bz_bias_TNT` |
+| 33.412 | 5.89% | 160 | `kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor0000o11101213_tensor0000o11101213_tensor0000o10111213_tensor0000o11101213_None_None_None_Non_0` |
+| 22.958 | 4.04% | 240 | `flash_attn::_flash_attn_forward` |
+| 22.958 | 4.04% | 240 | `void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<128, 128, 64, 4, false, false, cutlass::bfloat16_t, Flash_kernel_traits<128, 128, 64, 4, cutlass::bfloat16_t> >, false, false, false, false, false, true, false, false>(flash::Flash_fwd_params)` |
+| 21.617 | 3.81% | 882 | `aten::mul` |
+| 21.563 | 3.80% | 807 | `void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int)#1})` |
+| 19.166 | 3.38% | 10,542 | `aten::copy_` |
+| 18.522 | 3.26% | 1,825 | `aten::add` |
+| 17.857 | 3.15% | 1,626 | `void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1})` |
+| 11.485 | 2.02% | 617 | `void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<c10::BFloat16> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<c10::BFloat16> const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<c10::BFloat16> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<c10::BFloat16> const&)::{lambda(int)#1})` |
+| 11.403 | 2.01% | 605 | `aten::native_layer_norm` |
+| 11.403 | 2.01% | 605 | `void at::native::(anonymous namespace)::vectorized_layer_norm_kernel<c10::BFloat16, float, false>(int, float, c10::BFloat16 const*, c10::BFloat16 const*, c10::BFloat16 const*, float*, float*, c10::BFloat16*)` |
+| 6.132 | 1.08% | 600 | `aten::_fused_rms_norm` |
+| 6.132 | 1.08% | 600 | `void at::native::(anonymous namespace)::vectorized_layer_norm_kernel<c10::BFloat16, float, true>(int, float, c10::BFloat16 const*, c10::BFloat16 const*, c10::BFloat16 const*, float*, float*, c10::BFloat16*)` |
+| 6.048 | 1.07% | 205 | `aten::gelu` |
+| 6.048 | 1.07% | 205 | `void at::native::vectorized_elementwise_kernel<4, at::native::GeluCUDAKernelImpl(at::TensorIteratorBase&, at::native::GeluType)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::GeluCUDAKernelImpl(at::TensorIteratorBase&, at::native::GeluType)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>)` |
+| 5.399 | 0.95% | 600 | `void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul>)` |
+| 5.028 | 0.89% | 400 | `rope_fused_3way_kernel_v2` |
+| 2.028 | 0.36% | 1,292 | `aten::_local_scalar_dense` |
+| 2.028 | 0.36% | 1,280 | `Memcpy DtoH (Device -> Pinned)` |
+| 1.497 | 0.26% | 816 | `aten::sub` |
+
+## Stack filters
+- stack_include: `['CausalWanSelfAttention']`
+- stack_exclude: `[]`
+
+## Stack groups: `aten::contiguous`
+
+Filtered totals: device_ms=10.324, calls=400
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.072
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_21`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_7`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_7`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.063
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_72`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_24`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_24`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.065
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_30`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_10`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_10`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.063
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_60`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_20`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_20`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.065
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_48`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_16`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_16`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.064
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_69`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_23`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_23`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.063
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_66`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_22`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_22`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.075
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_39`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_13`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_13`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.065
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_75`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_25`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_25`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.064
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_45`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_15`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_15`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.064
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_63`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_21`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_21`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.064
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_114`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_38`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_38`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.067
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_36`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_12`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_12`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.064
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_111`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_37`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_37`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.070
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_2`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_2`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.064
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_90`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_30`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_30`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.074
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_99`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_33`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_33`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.065
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_33`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_11`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_11`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.064
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_51`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_17`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_17`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.065
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_87`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_29`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_29`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.063
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_93`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_31`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_31`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.063
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_117`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_39`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_39`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.065
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_57`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_19`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_19`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.077
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_12`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_4`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_4`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.063
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_18`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+## Stack groups: `aten::transpose`
+
+Filtered totals: device_ms=0.000, calls=400
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.007
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_5`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_0`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_0`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.011
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_0`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_0`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.006
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_11`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_1`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_1`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.010
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_12`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_1`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_1`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.007
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_17`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_2`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_2`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.009
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_18`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_2`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_2`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.006
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_23`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_3`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_3`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.009
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_24`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_3`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_3`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.007
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_29`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_4`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_4`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.009
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_30`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_4`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_4`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.006
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_35`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_5`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_5`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.009
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_36`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_5`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_5`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.006
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_41`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.010
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_42`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.007
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_47`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_7`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_7`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.010
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_48`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_7`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_7`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.006
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_53`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_8`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_8`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.009
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_54`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_8`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_8`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.006
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_59`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_9`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_9`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.009
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_60`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_9`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_9`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.006
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_65`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_10`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_10`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.010
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_66`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_10`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_10`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.006
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_71`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_11`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_11`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.010
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_72`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_11`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_11`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+
+- count=5 device_ms=0.000 self_device_ms=0.000 cpu_ms=0.008
+  - `<built-in function linear>`
+  - `torch/nn/modules/linear.py(130): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: Linear_77`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_12`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_12`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+## Stack groups: `aten::copy_`
+
+Filtered totals: device_ms=17.113, calls=960
+
+- count=10 device_ms=0.164 self_device_ms=0.164 cpu_ms=0.075
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.164 self_device_ms=0.164 cpu_ms=0.074
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_12`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_12`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.073
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_22`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_22`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.075
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_9`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_9`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.075
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_5`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_5`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.077
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_20`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_20`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.073
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_13`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_13`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.087
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_0`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_0`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.073
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_32`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_32`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.076
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_21`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_21`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.075
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_16`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_16`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.075
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_24`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_24`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.083
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_28`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_28`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.074
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_18`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_18`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.075
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_38`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_38`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.097
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_35`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_35`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.084
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_14`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_14`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.074
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_26`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_26`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.073
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_25`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_25`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.073
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_17`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_17`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.082
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_7`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_7`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.072
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_33`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_33`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.082
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_3`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_3`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.074
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_31`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_31`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+- count=10 device_ms=0.163 self_device_ms=0.163 cpu_ms=0.089
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_36`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_36`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanDiffusionWrapper_0`
+
+## Stack groups: `aten::_to_copy`
+
+(no events)
+
+## Stack groups: `aten::fill_`
+
+Filtered totals: device_ms=0.407, calls=240
+
+- count=6 device_ms=0.011 self_device_ms=0.011 cpu_ms=0.059
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_27`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_27`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.011 self_device_ms=0.011 cpu_ms=0.046
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_29`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_29`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.011 self_device_ms=0.011 cpu_ms=0.044
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_19`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_19`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.011 self_device_ms=0.011 cpu_ms=0.050
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_21`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_21`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.011 self_device_ms=0.011 cpu_ms=0.047
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_32`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_32`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.011 self_device_ms=0.011 cpu_ms=0.050
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_0`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_0`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.011 self_device_ms=0.011 cpu_ms=0.046
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_3`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_3`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.011 self_device_ms=0.011 cpu_ms=0.047
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_30`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_30`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.011 self_device_ms=0.011 cpu_ms=0.058
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_37`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_37`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.011 self_device_ms=0.011 cpu_ms=0.045
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_5`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_5`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.011 self_device_ms=0.011 cpu_ms=0.045
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_8`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_8`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.011 self_device_ms=0.011 cpu_ms=0.046
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_2`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_2`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.011 self_device_ms=0.011 cpu_ms=0.045
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_38`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_38`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.010 self_device_ms=0.010 cpu_ms=0.055
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_13`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_13`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.010 self_device_ms=0.010 cpu_ms=0.046
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_26`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_26`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.010 self_device_ms=0.010 cpu_ms=0.047
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_14`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_14`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.010 self_device_ms=0.010 cpu_ms=0.046
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_18`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_18`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.010 self_device_ms=0.010 cpu_ms=0.047
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_11`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_11`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.010 self_device_ms=0.010 cpu_ms=0.045
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_39`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_39`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.010 self_device_ms=0.010 cpu_ms=0.048
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.010 self_device_ms=0.010 cpu_ms=0.047
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_16`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_16`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.010 self_device_ms=0.010 cpu_ms=0.046
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_10`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_10`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.010 self_device_ms=0.010 cpu_ms=0.045
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_28`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_28`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.010 self_device_ms=0.010 cpu_ms=0.046
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_33`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_33`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+- count=6 device_ms=0.010 self_device_ms=0.010 cpu_ms=0.046
+  - `<built-in method fill_ of Tensor object at 0x79f056f8e260>`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_4`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_4`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanModel_0`
+  - `scope/core/pipelines/wan2_1/components/generator.py(314): _call_model`
+  - `scope/core/pipelines/wan2_1/components/generator.py(332): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+
+## Stack groups: `aten::cat`
+
+(no events)
+
+## Stack groups: `aten::clone`
+
+Filtered totals: device_ms=10.324, calls=400
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.067
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_21`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_7`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_7`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.059
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_72`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_24`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_24`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.060
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_30`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_10`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_10`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.058
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_60`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_20`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_20`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.060
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_48`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_16`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_16`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.060
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_69`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_23`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_23`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.058
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_66`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_22`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_22`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.070
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_39`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_13`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_13`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.060
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_75`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_25`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_25`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.060
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_45`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_15`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_15`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.060
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_63`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_21`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_21`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.059
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_114`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_38`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_38`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.062
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_36`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_12`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_12`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.060
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_111`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_37`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_37`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.065
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_2`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_2`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.060
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_90`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_30`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_30`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.070
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_99`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_33`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_33`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.060
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_33`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_11`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_11`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.060
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_51`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_17`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_17`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.060
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_87`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_29`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_29`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.059
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_93`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_31`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_31`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.059
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_117`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_39`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_39`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.060
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_57`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_19`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_19`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.072
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_12`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_4`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_4`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`
+
+- count=5 device_ms=0.131 self_device_ms=0.000 cpu_ms=0.059
+  - `<built-in method rms_norm of type object at 0x79f40a3d6c40>`
+  - `torch/nn/functional.py(2906): rms_norm`
+  - `scope/core/pipelines/krea_realtime_video/modules/model.py(237): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: WanRMSNorm_18`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(913): qkv_fn`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(887): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanSelfAttention_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1534): forward`
+  - `torch/nn/modules/module.py(1779): _call_impl`
+  - `nn.Module: CausalWanAttentionBlock_6`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2090): _forward_inference`
+  - `scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2427): forward`

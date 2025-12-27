@@ -110,6 +110,20 @@ Quick read:
 - FA4 attention appears as `kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100...`.
 - `aten::copy_`/`aten::fill_` are present; the largest `aten::copy_` stack groups in this snapshot point at VAE Conv3d decode, while attention-related copies exist but are smaller and require stack filtering.
 
+**Self-attn–scoped stack filter (CausalWanSelfAttention only, 1 iteration):**
+- `outputs/b300_cu130_ops_profile_selfattn_stack.md`
+- `outputs/b300_cu130_ops_profile_selfattn_stack.json`
+
+Key findings (filtered totals, CausalWanSelfAttention only):
+
+| Op key | device_ms (total) | calls | Likely meaning |
+|--------|------------------:|------:|----------------|
+| `aten::copy_` | 17.113 | 960 | KV-cache writes (K+V) + small copies in the self-attn path |
+| `aten::contiguous` | 10.324 | 400 | Appears under `F.rms_norm(...)` stacks (input/layout normalization) |
+| `aten::clone` | 10.324 | 400 | Also appears under `F.rms_norm(...)` stacks (may be an internal copy) |
+| `aten::fill_` | 0.407 | 240 | `Tensor.fill_` under self-attn (likely scalar index tensors / counters) |
+| `aten::transpose` | 0.000 | 400 | Not a meaningful GPU contributor in this run |
+
 ---
 
 ## Breakdown Template
