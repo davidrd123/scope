@@ -155,7 +155,14 @@ Notable from the **stack-filtered top-op table** in the same artifact:
   - `Memcpy DtoD`: **0.884ms** total
 
 **Quick A/B (sanity check):** enabling the existing K-side fused path (`SCOPE_ROPE_K_TO_CACHE=1`) was a very small/noisy win in a short run
-(`iters=6,skip=2`: `~33.41 → ~33.55 FPS`), suggesting K-side cache-write fusion is **not** the dominant remaining overhead.
+(`iters=6,skip=2`: `~33.41 → ~33.55 FPS`).
+
+Op-profile evidence (compile+stack; filtered to `CausalWanSelfAttention` stacks):
+- Baseline: `aten::copy_` ≈ **5.30ms** (`outputs/b300_cu130_ops_profile_selfattn_compile_fa4_stack_2025-12-27_resume.md`)
+- With `SCOPE_ROPE_K_TO_CACHE=1`: `aten::copy_` ≈ **4.42ms** (`outputs/b300_cu130_ops_profile_selfattn_compile_fa4_ropeKcache_2025-12-27.md`)
+
+Interpretation: the K-side fused write removes *some* copy overhead, but end-to-end perf impact is modest (likely bandwidth-hidden / not on the
+critical path).
 
 **Previous snapshot (triton351 env):**
 - `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_fa4_varlen_stack_topops.md`
