@@ -1,14 +1,20 @@
 # Server-Side Session Recorder
 
-> Status: Draft (revised per review01 + review02 findings)
+> Status: Draft (revised per review01–review04 findings)
 > Date: 2025-12-26, revised 2025-12-27
 > Reviews:
 > - `notes/proposals/server-side-session-recorder/review01.md`
 > - `notes/proposals/server-side-session-recorder/review02.md`
 > - `notes/proposals/server-side-session-recorder/review03a.md`
 > - `notes/proposals/server-side-session-recorder/review03b.md`
+> - `notes/proposals/server-side-session-recorder/review04.md`
 
 ## Revision Summary
+
+### Rev 5 (2025-12-27) — review04 integration
+
+- Added a concrete, repo-ready wiring patch reference for the MVP end-to-end server integration (FrameProcessor + PipelineManager + FastAPI).
+- Captured additional edge-case semantics from the patch (soft-cut one-shot recording latch; paused prompt-edge recording) so the contract remains unambiguous.
 
 ### Rev 4 (2025-12-27) — review03b integration
 
@@ -104,6 +110,15 @@ For fidelity, canonical replay scheduling should be chunk-based (`startChunk/end
 
 Add an opt-in debug mode where the recorder logs (or stores) the exact per-call pipeline kwargs around each recorded event boundary. This makes “record → replay” validation a simple diff of call sequences.
 
+### Implementation Reference (review04)
+
+`notes/proposals/server-side-session-recorder/review04.md` contains a code-ready patch proposal for wiring this MVP end-to-end:
+- `src/scope/server/pipeline_manager.py`: `peek_status_info()` (non-mutating status read)
+- `src/scope/server/frame_processor.py`: integrate `SessionRecorder`, handle reserved keys, record prompt/transition + hard/soft cuts
+- `src/scope/server/app.py`: add `/api/v1/realtime/session-recording/{start,stop,status}`
+
+Use it as the canonical “how to wire” reference to avoid the proposal turning into a second copy of diffs.
+
 ### Recommended top-level timeline schema (MVP)
 
 This is a concrete “frozen contract” example; it’s intentionally close to what `src/scope/cli/render_timeline.py` expects today.
@@ -178,7 +193,7 @@ This is a concrete “frozen contract” example; it’s intentionally close to 
 | Transition start | `transition` in control message | target_prompts, num_steps, method |
 | Transition-only | `transition` without `prompts` | use target_prompts as new segment |
 | Hard cut | `reset_cache` in control message | flag (record when `reset_cache=True` is actually passed as `init_cache=True`) |
-| Soft cut | `_rcp_soft_transition` reserved key | temp_bias, num_chunks (may occur without prompt change) |
+| Soft cut | `_rcp_soft_transition` reserved key | temp_bias, num_chunks (record once per trigger, on the first generated chunk where it takes effect; may occur without prompt change) |
 
 ## Implementation
 
@@ -1173,16 +1188,14 @@ if segment.softCut:
 
 ### Remaining Fidelity Gaps (post-review01)
 
-1. **Time-based vs chunk-based scheduling** — The renderer uses wall-time for segment selection, but soft cuts are chunk-based. For high-fidelity replay, add optional "chunk timebase mode" using `startChunk/endChunk`.
-
-2. **`num_frame_per_block` assumption** — Dry-run assumes 3 frames per pipeline call. Should read from model config for accuracy.
+1. **`num_frame_per_block` assumption** — Dry-run assumes 3 frames per pipeline call. Should read from model config for accuracy.
 
 ### Chunk-based vs Wall-clock Timing
 
 - **Chunk-based** (`startChunk`/`endChunk`): Primary for offline render fidelity. Maps directly to pipeline iterations.
 - **Wall-clock** (`startTime`/`endTime`): Secondary, affected by GPU stalls/pauses. Useful for human-readable durations.
 
-`render_timeline.py` could use chunk indices for frame-accurate replay, or wall-clock for natural timing (with potential drift).
+`render_timeline.py` supports both via `--timebase {auto,chunk,time}`; use chunk-based replay for fidelity.
 
 ## Known Limitations (MVP)
 
@@ -1193,7 +1206,7 @@ Updated per review01 + review02:
 | **ControlBus event.type** | ✅ FIXED | Was `event.event_type`, now `event.type` (review02-A) |
 | **Status comparison** | ✅ FIXED | Use `"loaded"` lowercase, field `_error_message` (review02-B) |
 | **Baseline prompt type** | ✅ FIXED | Prefer `parameters["prompts"]`; compiler output is not a string (handle `.prompts`/`.prompt`/`.positive` shapes) (review02-C) |
-| **Weight scale** | ✅ FIXED | Recorder uses 1.0; note render_timeline.py manual timelines still default 100.0 (review02-D) |
+| **Weight scale** | ✅ FIXED | v1.1 timelines default to 1.0; legacy `text` fallback stays at 100.0 to preserve older examples (review02-D) |
 | **Non-ControlBus prompt changes** | ✅ FIXED | Added fallback edge detection (review01-C) |
 | **Soft cut restore semantics** | ✅ FIXED | Use internal state `_soft_transition_original_bias` directly (review02) |
 | **Hard cut timing** | ✅ FIXED | Record when `reset_cache=True` is actually passed as `init_cache=True`, not on request arrival (review02) |
@@ -1228,4 +1241,4 @@ Updated per review01 + review02:
 - `src/scope/server/frame_processor.py` - Main integration point
 - `src/scope/server/app.py` - API endpoints
 - `src/scope/cli/video_cli.py` - CLI key binding
-- `src/scope/cli/render_timeline.py` - Offline renderer (needs initCache/softCut support)
+- `src/scope/cli/render_timeline.py` - Offline renderer (v1.1 replay supports initCache/softCut and `--timebase`)
