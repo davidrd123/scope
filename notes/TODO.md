@@ -1,7 +1,54 @@
 # Pending Tasks
 
-> **Updated:** 2025-12-27 (Session B - Part 2)
+> **Updated:** 2025-12-27 (Session E)
 > **Purpose:** Cross-session task tracking
+
+---
+
+## Pending: Merge to Main + Upstream Sync
+
+### Merge feature/stream-recording → main
+
+**Status:** Ready, waiting for team coordination
+
+`feature/stream-recording` is **289 commits ahead** of main, with main having 0 unique commits (clean fast-forward possible).
+
+```bash
+# When ready:
+git checkout main && git merge feature/stream-recording --ff-only && git push origin main
+```
+
+**Why waiting:** Other team members are working on things. Coordinate before pushing.
+
+### Upstream Sync Strategy
+
+We're forked from an upstream repo. As we move fast, we need a strategy to incorporate upstream changes without losing our work.
+
+**Recommended approach:**
+1. **Track upstream as a remote:**
+   ```bash
+   git remote add upstream <upstream-repo-url>
+   git fetch upstream
+   ```
+
+2. **Periodic rebase or merge from upstream/main:**
+   ```bash
+   # Option A: Rebase (cleaner history, more conflict-prone)
+   git rebase upstream/main
+
+   # Option B: Merge (preserves history, easier conflicts)
+   git merge upstream/main
+   ```
+
+3. **Before big upstream syncs:**
+   - Make sure our main is up to date
+   - Create a sync branch: `git checkout -b sync/upstream-YYYY-MM-DD`
+   - Resolve conflicts there, test, then merge to main
+
+**Open questions:**
+- [ ] What's the upstream repo URL?
+- [ ] How often do we want to sync? (weekly? per-release?)
+- [ ] Who owns the sync process?
 
 ---
 
