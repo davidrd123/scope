@@ -1,7 +1,7 @@
 # Backend Selection & Tuning Knobs (What Controls What)
 
 > **Explainer #17** — A “knobs map” for this repo: which environment variables and runtime parameters control which attention backend, which caches reset, and which codepaths are risky on SM103.
-> **Updated:** 2025-12-26
+> **Updated:** 2025-12-27
 
 ---
 
@@ -27,6 +27,9 @@ If you only remember one rule: **always record which backend actually ran** (to 
 | `soft_cut` | `false` | Temporary bias override for `N` chunks | Implemented in `FrameProcessor` (worker-thread state machine) |
 | `soft_cut_bias` | (UI default) | Bias value used during soft cut | Lower = forget past faster |
 | `soft_cut_chunks` | (UI default) | Number of chunks to hold the soft bias before auto-restore | Avoids manual “undo” |
+| `transition` | `false` | Temporally interpolate embeddings to the next prompt | Uses a `transition` payload (`target_prompts`, `num_steps`, `temporal_interpolation_method`); ignored when `hard_cut=true` |
+| `transition_chunks` | (UI default) | Number of chunks to interpolate over | Passed as `transition.num_steps` |
+| `transition_method` | (UI default) | Interpolation method for transitions | `linear` (lerp) or `slerp` |
 
 ### Env var knobs (backend selection + toolchain)
 
@@ -45,7 +48,7 @@ If you only remember one rule: **always record which backend actually ran** (to 
 | `SCOPE_CUDAGRAPH_MARK_STEP_BEGIN` | `0|1` | `0` | Calls `torch.compiler.cudagraph_mark_step_begin()` before each generator model call | Helpful when experimenting with CUDA-graph compile modes; still not a guarantee on SM103 |
 | `TRITON_PTXAS_PATH` | path | unset | Points Triton/Inductor to a newer `ptxas` | **SM103:** often required for correct codegen/autotune |
 | `DISABLE_FLEX_ATTENTION_COMPILE` | `0|1` | unset | Prevents flex_attention compilation in known-bad modes | **SM103:** set to `1` to avoid tcgen05 LLVM aborts |
-| `WANVAE_STREAM_DECODE_MODE` | `chunk|full|...` | unset | VAE streaming decode mode | Mostly affects B300 decode throughput |
+| `WANVAE_STREAM_DECODE_MODE` | `chunk|loop` | `chunk` | VAE streaming decode mode | `chunk` is the fast single-call path; `loop` decodes frames one-by-one |
 
 ---
 

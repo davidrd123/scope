@@ -1,13 +1,14 @@
 # Debugging Cookbook: FA4 / KV-bias / SM103 “Why Is This Broken or Slow?”
 
 > **Explainer #18** — A symptom→cause→fix guide for the failure modes we actually hit while wiring FA4/KV-bias into this repo (especially on SM103).
-> **Updated:** 2025-12-26
+> **Updated:** 2025-12-27
 
 ---
 
 ## TL;DR
 
 - Most “mystery perf regressions” are **backend selection** or **toolchain gating**, not math.
+- **B300 quality gate:** FP8 output is currently garbage (gray/noise); use BF16 (`--quantization none`) when debugging correctness.
 - Before you debug kernels: confirm **stack**, **backend**, and **ptxas**.
 - Record failures like experiments: versions + env vars + one repro command.
 
@@ -97,6 +98,7 @@ What to check:
 What to do:
 
 - First try setting a newer `ptxas` via `TRITON_PTXAS_PATH`.
+- If you hit `tcgen05.wait.st` hard-aborts on SM103, upgrade Triton to **v3.5.1** (SM103 fix) and re-test; see [`triton-sm103-tcgen05-llvm-abort.md`](../../issues/triton-sm103-tcgen05-llvm-abort.md).
 - If the goal is “keep the system usable”, disable the problematic compile path and log it as a constraint.
 
 References:

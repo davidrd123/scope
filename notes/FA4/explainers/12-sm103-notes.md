@@ -2,7 +2,7 @@
 
 > **Explainer #12** — SM103 (B300) runs “Blackwell-ish” code, but the *practical blockers* are toolchain/runtime/backends, not the math.
 > This is a checklist-style bridge between the SM100 explainers and the B300 reality we’ve seen in this repo.
-> **Updated:** 2025-12-25
+> **Updated:** 2025-12-27
 
 ---
 
@@ -78,7 +78,10 @@ Notable SM103-specific guardrail:
 
 This repo has strong evidence that the “B300 is slow” story can be mostly about decode/cuDNN, not attention:
 - Default stack: ~8.8 FPS at `320x576`
-- cu130 stack: ~15 FPS at `320x576` (decode gets dramatically faster; transformer becomes dominant)
+- cu130 stack (BF16 / `--quantization none`): ~19–20 FPS at `320x576` (decode gets dramatically faster; denoise becomes dominant)
+- cu130 stack + `--compile` (BF16): ~22–23 FPS at `320x576` (steady-state win, higher warmup cost)
+
+**Quality note (B300):** FP8 quantization currently produces garbage output (gray/noise), so treat FP8 numbers as perf-only debugging breadcrumbs.
 
 If you’re optimizing kernels but running the wrong runtime stack, you can easily spend days chasing the wrong bottleneck.
 

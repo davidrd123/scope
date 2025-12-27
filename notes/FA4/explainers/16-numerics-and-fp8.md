@@ -7,6 +7,7 @@
 
 ## TL;DR
 
+- **B300 quality gate:** FP8 quantization currently produces garbage output (gray/noise) on B300/SM103. Use BF16 (`--quantization none`) for real runs and treat FP8 as perf-only debugging.
 - **KV-bias is applied as an additive log-bias to attention scores**: `log_bias = log(kv_cache_attention_bias)`. This is stable and composeable with LSE/softmax.
 - **FA4 does softmax in base-2 (`exp2`) for speed**, but the meaning is the same: additive bias in score space becomes a multiplicative factor in probability space.
 - **FP8 is not “free speed”**: if you see lots of dtype conversions (`to/copy_`) or `aten::_scaled_mm` overhead, FP8 can lose end-to-end even if matmuls are faster.
@@ -136,6 +137,10 @@ This config is “dynamic activation + FP8 weight”, which typically means:
 - extra scale tensors appear,
 - and conversions/casts may be inserted at boundaries.
 
+### B300 / SM103 status (quality gate)
+
+On B300, FP8 output is currently unusable (gray/noise). For the current truth and upstream pointers, see [`session-state.md`](../b300/session-state.md). Treat any FP8 runs as perf-only debugging until quality is verified.
+
 ### Why FP8 sometimes loses
 
 FP8 can underperform if:
@@ -144,7 +149,7 @@ FP8 can underperform if:
 - the workload is not actually matmul-bound (e.g. decode/conv dominates),
 - or compilation/autotuning changes the schedule and introduces overhead.
 
-This is why we treat FP8 as a **baseline choice** to measure, not as a default “optimization”.
+This is why we treat FP8 as a **perf-only experiment knob** unless output quality is validated.
 
 ---
 
