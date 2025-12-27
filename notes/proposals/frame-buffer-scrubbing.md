@@ -1,12 +1,22 @@
-# Frame Buffer & Timeline Scrubbing
+# Output Frame History & Timeline Scrubbing
 
 > Status: Draft
 > Date: 2025-12-26
-> Related: `notes/realtime_video_architecture.md` (FrameBus design), `notes/proposals/server-side-session-recorder.md`
+> Updated: 2025-12-27
+> Reviews:
+> - `notes/proposals/frame-buffer-scrubbing/review01.md`
+> Related:
+> - `notes/realtime_video_architecture.md` (FrameBus / ChunkStore)
+> - `notes/proposals/session-recording-timeline-export.md`
+> - `notes/proposals/server-side-session-recorder.md`
+
+## Summary
+
+Add a server-side, in-memory **output frame history** (ring buffer keyed by `chunk_index`) so the UI can scrub/replay recent generated output **without re-rendering**. This complements the session recorder (control events) by storing **pixels** for instant preview.
 
 ## Problem
 
-Currently, generated frames flow directly to WebRTC and are gone. There's no way to:
+Today, generated frames mostly flow through a **destructive** queue to WebRTC and are gone. There's no way to:
 - Scroll back through what was generated
 - Replay a segment without re-rendering
 - Visually preview a branch point before forking
@@ -16,411 +26,200 @@ The session recording proposals capture **control events** for offline re-render
 
 ## Solution
 
-A server-side frame buffer (ring buffer) that stores rendered frames, enabling:
+Add a per-session output frame history buffer (ring buffer) that stores rendered frames, enabling:
 - Instant scrubbing through generated history
 - Replay without GPU cost
 - Visual branch point selection
 - Timeline thumbnails / filmstrip UI
 
 ## Architecture
+### Naming (important)
+
+`FrameProcessor.frame_buffer` already exists and refers to the **input** video buffer (`VideoFrame` deque). This proposal adds a separate **output** retention layer for generated frames and intentionally avoids the name `frame_buffer` in code to prevent collisions.
+
+### Proposed frame flow (producer-side capture)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Frame Flow                                  │
-│                                                                  │
-│  Pipeline ──► FrameProcessor ──► FrameBuffer ──► WebRTC         │
-│                                       │                          │
-│                                       ├──► REST API (scrub)      │
-│                                       ├──► Thumbnails            │
-│                                       └──► Snapshot attachment   │
-└─────────────────────────────────────────────────────────────────┘
+Pipeline
+  └─► FrameProcessor.process_chunk()
+        ├─► output_queue (destructive) ──► WebRTC
+        └─► output_frame_history (ring buffer) ──► REST (scrub/thumbnails) + snapshot previews
 ```
 
-### FrameBuffer Class
+### Canonical frame format (MVP)
+
+Capture frames **after** `FrameProcessor` normalizes the pipeline output (this is the same format used by `/api/v1/realtime/frame/latest`):
+
+- dtype: `uint8`
+- range: `[0..255]`
+- shape: `(T, H, W, C)` where `T = output.shape[0]` (do not assume a fixed frames-per-chunk)
+- per-frame addressing: `(chunk_index, frame_index)` where `frame_index ∈ [0, T)`
+
+### Data model + buffer sketch
+
+Store output by **chunk** internally (FrameBus/ChunkStore style) and expose per-frame access via `(chunk_index, frame_index)`.
 
 ```python
-# src/scope/server/frame_buffer.py
+# src/scope/server/output_frame_history.py (sketch)
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from collections import deque
-from threading import RLock
+import threading
 import torch
-import numpy as np
-from PIL import Image
-import io
-import base64
+from typing import Any
 
-@dataclass
-class BufferedFrame:
-    """A single buffered frame with metadata."""
+
+@dataclass(frozen=True)
+class OutputChunk:
     chunk_index: int
-    frame_index: int  # Within chunk (0, 1, 2 for 3-frame chunks)
-    timestamp: float  # Wall-clock when generated
+    created_at: float
+    frames: torch.Tensor  # (T, H, W, C) uint8, CPU
 
-    # Frame data (one of these, based on storage mode)
-    tensor: torch.Tensor | None = None  # GPU tensor [C, H, W]
-    numpy: np.ndarray | None = None     # CPU numpy [H, W, C]
-    jpeg_bytes: bytes | None = None     # Compressed JPEG
+    # Minimal, pipeline-facing metadata for UI/debugging (optional)
+    prompts: list[dict] | None = None
+    compiled_prompt_text: str | None = None
+    base_seed: int | None = None
+    init_cache: bool | None = None  # True if init_cache was passed for this chunk
 
-    # Metadata
-    prompt: str | None = None
-    seed: int | None = None
-
-    def to_pil(self) -> Image.Image:
-        """Convert to PIL Image regardless of storage format."""
-        if self.tensor is not None:
-            # GPU tensor → PIL
-            arr = self.tensor.cpu().permute(1, 2, 0).numpy()
-            arr = (arr * 255).clip(0, 255).astype(np.uint8)
-            return Image.fromarray(arr)
-        elif self.numpy is not None:
-            return Image.fromarray(self.numpy)
-        elif self.jpeg_bytes is not None:
-            return Image.open(io.BytesIO(self.jpeg_bytes))
-        raise ValueError("No frame data available")
-
-    def to_base64_jpeg(self, quality: int = 85) -> str:
-        """Convert to base64 JPEG for API responses."""
-        if self.jpeg_bytes is not None:
-            return base64.b64encode(self.jpeg_bytes).decode()
-        pil = self.to_pil()
-        buf = io.BytesIO()
-        pil.save(buf, format="JPEG", quality=quality)
-        return base64.b64encode(buf.getvalue()).decode()
-
-    @property
-    def memory_bytes(self) -> int:
-        """Approximate memory usage."""
-        if self.tensor is not None:
-            return self.tensor.numel() * self.tensor.element_size()
-        elif self.numpy is not None:
-            return self.numpy.nbytes
-        elif self.jpeg_bytes is not None:
-            return len(self.jpeg_bytes)
-        return 0
+    # Optional pre-encoded thumbnail to avoid repeated encode-on-read
+    thumbnail_jpeg: bytes | None = None
 
 
-class FrameBuffer:
-    """Ring buffer for rendered frames with scrubbing support.
+class OutputFrameHistory:
+    def __init__(self, max_chunks: int = 240, max_memory_mb: int = 512):
+        self._chunks: deque[OutputChunk] = deque(maxlen=max_chunks)
+        self._by_chunk: dict[int, OutputChunk] = {}
+        self._lock = threading.Lock()
+        self._max_bytes = max_memory_mb * 1024 * 1024
+        self._bytes = 0
 
-    Thread-safety: All public methods are thread-safe via RLock.
-    Storage modes:
-    - "gpu": Keep tensors on GPU (fastest access, highest VRAM)
-    - "cpu": Move to CPU numpy (lower VRAM, still fast)
-    - "jpeg": Compress to JPEG (lowest memory, decode overhead)
-    """
-
-    def __init__(
-        self,
-        max_frames: int = 300,  # ~100 chunks at 3 frames/chunk = ~25 sec at 4 chunks/sec
-        max_memory_mb: int = 512,
-        storage_mode: str = "cpu",  # "gpu", "cpu", or "jpeg"
-        jpeg_quality: int = 90,
-    ):
-        self.max_frames = max_frames
-        self.max_memory_bytes = max_memory_mb * 1024 * 1024
-        self.storage_mode = storage_mode
-        self.jpeg_quality = jpeg_quality
-
-        self._buffer: deque[BufferedFrame] = deque(maxlen=max_frames)
-        self._lock = RLock()
-        self._chunk_index_map: dict[int, list[BufferedFrame]] = {}  # chunk_index → frames
-
-        # Stats
-        self._total_frames_added = 0
-        self._total_frames_evicted = 0
-
-    def add_frame(
-        self,
-        frame: torch.Tensor,  # [C, H, W] or [H, W, C]
-        chunk_index: int,
-        frame_index: int,
-        timestamp: float,
-        prompt: str | None = None,
-        seed: int | None = None,
-    ) -> None:
-        """Add a frame to the buffer."""
-        with self._lock:
-            # Convert based on storage mode
-            if self.storage_mode == "gpu":
-                stored = BufferedFrame(
-                    chunk_index=chunk_index,
-                    frame_index=frame_index,
-                    timestamp=timestamp,
-                    tensor=frame.clone(),
-                    prompt=prompt,
-                    seed=seed,
-                )
-            elif self.storage_mode == "cpu":
-                if frame.dim() == 3 and frame.shape[0] in (3, 4):
-                    arr = frame.cpu().permute(1, 2, 0).numpy()
-                else:
-                    arr = frame.cpu().numpy()
-                arr = (arr * 255).clip(0, 255).astype(np.uint8)
-                stored = BufferedFrame(
-                    chunk_index=chunk_index,
-                    frame_index=frame_index,
-                    timestamp=timestamp,
-                    numpy=arr,
-                    prompt=prompt,
-                    seed=seed,
-                )
-            else:  # jpeg
-                if frame.dim() == 3 and frame.shape[0] in (3, 4):
-                    arr = frame.cpu().permute(1, 2, 0).numpy()
-                else:
-                    arr = frame.cpu().numpy()
-                arr = (arr * 255).clip(0, 255).astype(np.uint8)
-                pil = Image.fromarray(arr)
-                buf = io.BytesIO()
-                pil.save(buf, format="JPEG", quality=self.jpeg_quality)
-                stored = BufferedFrame(
-                    chunk_index=chunk_index,
-                    frame_index=frame_index,
-                    timestamp=timestamp,
-                    jpeg_bytes=buf.getvalue(),
-                    prompt=prompt,
-                    seed=seed,
-                )
-
-            # Evict if needed (deque handles max_frames automatically)
-            if len(self._buffer) == self.max_frames:
-                evicted = self._buffer[0]
-                self._remove_from_index(evicted)
-                self._total_frames_evicted += 1
-
-            self._buffer.append(stored)
-            self._add_to_index(stored)
-            self._total_frames_added += 1
-
-            # Memory-based eviction
-            self._evict_if_over_memory()
-
-    def _add_to_index(self, frame: BufferedFrame) -> None:
-        """Add frame to chunk index."""
-        if frame.chunk_index not in self._chunk_index_map:
-            self._chunk_index_map[frame.chunk_index] = []
-        self._chunk_index_map[frame.chunk_index].append(frame)
-
-    def _remove_from_index(self, frame: BufferedFrame) -> None:
-        """Remove frame from chunk index."""
-        if frame.chunk_index in self._chunk_index_map:
-            frames = self._chunk_index_map[frame.chunk_index]
-            if frame in frames:
-                frames.remove(frame)
-            if not frames:
-                del self._chunk_index_map[frame.chunk_index]
-
-    def _evict_if_over_memory(self) -> None:
-        """Evict oldest frames if over memory limit."""
-        while self._current_memory_bytes > self.max_memory_bytes and self._buffer:
-            evicted = self._buffer.popleft()
-            self._remove_from_index(evicted)
-            self._total_frames_evicted += 1
-
-    @property
-    def _current_memory_bytes(self) -> int:
-        """Current memory usage."""
-        return sum(f.memory_bytes for f in self._buffer)
-
-    def get_frame(self, chunk_index: int, frame_index: int = 0) -> BufferedFrame | None:
-        """Get a specific frame by chunk and frame index."""
-        with self._lock:
-            frames = self._chunk_index_map.get(chunk_index, [])
-            for f in frames:
-                if f.frame_index == frame_index:
-                    return f
-            return None
-
-    def get_chunk(self, chunk_index: int) -> list[BufferedFrame]:
-        """Get all frames for a chunk."""
-        with self._lock:
-            return list(self._chunk_index_map.get(chunk_index, []))
-
-    def get_range(
-        self,
-        start_chunk: int,
-        end_chunk: int,
-        frame_index: int | None = None,
-    ) -> list[BufferedFrame]:
-        """Get frames in a chunk range (for scrubbing).
-
-        Args:
-            start_chunk: Start chunk index (inclusive)
-            end_chunk: End chunk index (inclusive)
-            frame_index: If set, only return this frame index per chunk
-        """
-        with self._lock:
-            result = []
-            for chunk_idx in range(start_chunk, end_chunk + 1):
-                frames = self._chunk_index_map.get(chunk_idx, [])
-                if frame_index is not None:
-                    frames = [f for f in frames if f.frame_index == frame_index]
-                result.extend(frames)
-            return sorted(result, key=lambda f: (f.chunk_index, f.frame_index))
-
-    def get_latest(self, n: int = 1) -> list[BufferedFrame]:
-        """Get the N most recent frames."""
-        with self._lock:
-            return list(self._buffer)[-n:]
-
-    def get_thumbnails(
-        self,
-        every_n_chunks: int = 10,
-        frame_index: int = 0,
-    ) -> list[BufferedFrame]:
-        """Get thumbnail frames for filmstrip display."""
-        with self._lock:
-            chunks = sorted(self._chunk_index_map.keys())
-            sampled = chunks[::every_n_chunks]
-            result = []
-            for chunk_idx in sampled:
-                frames = self._chunk_index_map.get(chunk_idx, [])
-                for f in frames:
-                    if f.frame_index == frame_index:
-                        result.append(f)
-                        break
-            return result
-
-    @property
-    def chunk_range(self) -> tuple[int, int] | None:
-        """Get (oldest_chunk, newest_chunk) or None if empty."""
-        with self._lock:
-            if not self._chunk_index_map:
-                return None
-            chunks = self._chunk_index_map.keys()
-            return (min(chunks), max(chunks))
-
-    @property
-    def frame_count(self) -> int:
-        """Number of frames in buffer."""
-        with self._lock:
-            return len(self._buffer)
-
-    def clear(self) -> None:
-        """Clear all frames."""
-        with self._lock:
-            self._buffer.clear()
-            self._chunk_index_map.clear()
-
-    def get_stats(self) -> dict:
-        """Get buffer statistics."""
-        with self._lock:
-            return {
-                "frame_count": len(self._buffer),
-                "chunk_range": self.chunk_range,
-                "memory_mb": self._current_memory_bytes / (1024 * 1024),
-                "max_memory_mb": self.max_memory_bytes / (1024 * 1024),
-                "storage_mode": self.storage_mode,
-                "total_added": self._total_frames_added,
-                "total_evicted": self._total_frames_evicted,
-            }
+    # Important: avoid holding _lock during heavy JPEG encode/decode work.
+    def add_chunk(self, chunk: OutputChunk) -> None: ...
+    def get_chunk(self, chunk_index: int) -> OutputChunk | None: ...
+    def get_frame(self, chunk_index: int, frame_index: int) -> torch.Tensor | None: ...
+    def get_range(self, start_chunk: int, end_chunk: int) -> list[OutputChunk]: ...
+    def get_thumbnails(self, every_n_chunks: int = 10) -> list[dict[str, Any]]: ...
+    def get_stats(self) -> dict[str, Any]: ...
+    def clear(self) -> None: ...
 ```
+
+### Lifecycle + indexing
+
+- `chunk_index` in `OutputChunk` refers to the chunk index used for that pipeline call (capture `self.chunk_index` **before** incrementing).
+- Clear `output_frame_history` on session stop and on snapshot restore (MVP) to avoid ambiguous/duplicate `chunk_index` keys.
+- `init_cache` (captured from `call_params["init_cache"]`) can be surfaced in UI as a “hard cut / reset continuity” marker.
 
 ## API Endpoints
 
 ```python
-# In src/scope/server/app.py
+# In src/scope/server/app.py (sketch)
+#
+# Follow the existing `/api/v1/realtime/frame/latest` pattern:
+# - `session = get_active_session(webrtc_manager)`
+# - `vt.initialize_output_processing()`
+# - `fp = vt.frame_processor`
+#
+# Avoid `base64-in-JSON` for full-resolution scrubbing ranges (payload bloat).
+# Use JSON for metadata + binary endpoints for images.
+# (Encoding helpers are illustrative; MVP can start with PNG only to match `/frame/latest`.)
+#
+# Multi-session: `get_active_session()` currently raises if multiple sessions are connected.
+# Either keep that constraint for scrubbing endpoints, or add an explicit `session_id` query param.
 
-@app.get("/api/v1/realtime/frames/range")
-async def get_frame_range(
+
+@app.get("/api/v1/realtime/frames/stats")
+async def get_output_frame_history_stats(
+    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
+):
+    """Get output frame history statistics."""
+    session = get_active_session(webrtc_manager)
+    vt = session.video_track
+    vt.initialize_output_processing()
+    fp = vt.frame_processor
+    history = fp.output_frame_history
+    return history.get_stats()
+
+
+@app.get("/api/v1/realtime/frames/metadata")
+async def get_output_frame_metadata(
     start_chunk: int,
     end_chunk: int,
-    frame_index: int = 0,
-    format: str = "jpeg",  # "jpeg" or "metadata"
+    max_chunks: int = 200,
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
-    """Get frames in a chunk range for scrubbing.
+    """Get chunk metadata for a scrub range (no pixels).
 
-    Returns list of frames with base64 JPEG data or metadata only.
+    Server clamps `max_chunks` to prevent pathological requests.
     """
     session = get_active_session(webrtc_manager)
-    buffer = session.video_track.frame_processor.frame_buffer
+    vt = session.video_track
+    vt.initialize_output_processing()
+    fp = vt.frame_processor
+    history = fp.output_frame_history
 
-    frames = buffer.get_range(start_chunk, end_chunk, frame_index)
-
-    if format == "metadata":
-        return {
-            "frames": [
-                {
-                    "chunk_index": f.chunk_index,
-                    "frame_index": f.frame_index,
-                    "timestamp": f.timestamp,
-                    "prompt": f.prompt,
-                }
-                for f in frames
-            ]
-        }
-    else:
-        return {
-            "frames": [
-                {
-                    "chunk_index": f.chunk_index,
-                    "frame_index": f.frame_index,
-                    "timestamp": f.timestamp,
-                    "data": f.to_base64_jpeg(),
-                }
-                for f in frames
-            ]
-        }
-
-
-@app.get("/api/v1/realtime/frames/thumbnails")
-async def get_thumbnails(
-    every_n_chunks: int = 10,
-    max_count: int = 30,
-    webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
-):
-    """Get thumbnail filmstrip for timeline UI."""
-    session = get_active_session(webrtc_manager)
-    buffer = session.video_track.frame_processor.frame_buffer
-
-    thumbnails = buffer.get_thumbnails(every_n_chunks=every_n_chunks)[:max_count]
-
+    chunks = history.get_range(start_chunk, end_chunk)[:max_chunks]
     return {
-        "thumbnails": [
+        "chunks": [
             {
-                "chunk_index": f.chunk_index,
-                "timestamp": f.timestamp,
-                "data": f.to_base64_jpeg(quality=60),  # Lower quality for thumbnails
+                "chunk_index": c.chunk_index,
+                "created_at": c.created_at,
+                "num_frames": int(c.frames.shape[0]),
+                "prompts": c.prompts,
+                "base_seed": c.base_seed,
+                "init_cache": c.init_cache,
             }
-            for f in thumbnails
+            for c in chunks
         ],
-        "chunk_range": buffer.chunk_range,
+        "chunk_range": history.get_stats().get("chunk_range"),
     }
 
 
 @app.get("/api/v1/realtime/frames/{chunk_index}")
-async def get_frame_at_chunk(
+async def get_output_frame_image(
     chunk_index: int,
     frame_index: int = 0,
+    format: str = "png",  # "png" | "jpeg"
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
-    """Get a specific frame by chunk index."""
+    """Get a specific generated frame as image bytes."""
     session = get_active_session(webrtc_manager)
-    buffer = session.video_track.frame_processor.frame_buffer
+    vt = session.video_track
+    vt.initialize_output_processing()
+    fp = vt.frame_processor
+    history = fp.output_frame_history
 
-    frame = buffer.get_frame(chunk_index, frame_index)
+    frame = history.get_frame(chunk_index, frame_index)
     if frame is None:
         raise HTTPException(404, f"Frame not found: chunk={chunk_index}, frame={frame_index}")
 
-    return {
-        "chunk_index": frame.chunk_index,
-        "frame_index": frame.frame_index,
-        "timestamp": frame.timestamp,
-        "prompt": frame.prompt,
-        "data": frame.to_base64_jpeg(),
-    }
+    # Encode without touching output_queue (non-destructive), similar to `/frame/latest`.
+    if format == "png":
+        frame_chw = frame.permute(2, 0, 1).contiguous()
+        png_bytes = encode_png(frame_chw).numpy().tobytes()
+        return Response(content=png_bytes, media_type="image/png")
+    else:
+        jpeg_bytes = encode_jpeg(frame.permute(2, 0, 1).contiguous(), quality=85).numpy().tobytes()
+        return Response(content=jpeg_bytes, media_type="image/jpeg")
 
 
-@app.get("/api/v1/realtime/frames/stats")
-async def get_frame_buffer_stats(
+@app.get("/api/v1/realtime/frames/thumbnails")
+async def get_output_frame_thumbnails(
+    every_n_chunks: int = 10,
+    max_count: int = 50,
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
 ):
-    """Get frame buffer statistics."""
+    """Get a small filmstrip for timeline UI (OK to use base64 here).
+
+    Must clamp `max_count`. Payload is intended for thumbnails only.
+    """
     session = get_active_session(webrtc_manager)
-    buffer = session.video_track.frame_processor.frame_buffer
-    return buffer.get_stats()
+    vt = session.video_track
+    vt.initialize_output_processing()
+    fp = vt.frame_processor
+    history = fp.output_frame_history
+
+    thumbs = history.get_thumbnails(every_n_chunks=every_n_chunks)[:max_count]
+    return {"thumbnails": thumbs, "chunk_range": history.get_stats().get("chunk_range")}
 ```
 
 ## Integration with FrameProcessor
@@ -428,69 +227,82 @@ async def get_frame_buffer_stats(
 ```python
 # In src/scope/server/frame_processor.py
 
-from .frame_buffer import FrameBuffer
+from .output_frame_history import OutputFrameHistory, OutputChunk
 
 class FrameProcessor:
     def __init__(self, ...):
         # ... existing init
 
-        # Frame buffer for scrubbing
-        self.frame_buffer = FrameBuffer(
-            max_frames=int(os.environ.get("FRAME_BUFFER_MAX_FRAMES", 300)),
-            max_memory_mb=int(os.environ.get("FRAME_BUFFER_MAX_MB", 512)),
-            storage_mode=os.environ.get("FRAME_BUFFER_MODE", "cpu"),
+        # Output frame history for scrubbing (do not confuse with `self.frame_buffer` input deque)
+        self.output_frame_history = OutputFrameHistory(
+            max_chunks=int(os.environ.get("OUTPUT_FRAME_HISTORY_MAX_CHUNKS", 240)),
+            max_memory_mb=int(os.environ.get("OUTPUT_FRAME_HISTORY_MAX_MB", 512)),
         )
 
     def process_chunk(self, ...):
         # ... existing chunk processing
 
-        # After frames are generated, add to buffer
-        if output_frames is not None:
-            current_prompt = self._get_current_effective_prompt()[0]
-            for i, frame in enumerate(output_frames):
-                self.frame_buffer.add_frame(
-                    frame=frame,
-                    chunk_index=self.chunk_index,
-                    frame_index=i,
-                    timestamp=time.time(),
-                    prompt=current_prompt,
-                    seed=self.parameters.get("seed"),
-                )
+        # Capture the chunk index BEFORE incrementing (chunk_index is rewound on snapshot restore).
+        chunk_index = self.chunk_index
+
+        # Capture point (MVP): after FrameProcessor normalizes pipeline output to CPU uint8.
+        # output: (T, H, W, C) uint8 on CPU, where T = output.shape[0] (do not assume 3).
+        if output is not None:
+            chunk = OutputChunk(
+                chunk_index=chunk_index,
+                created_at=time.time(),
+                frames=output,  # (T, H, W, C) uint8, CPU
+                prompts=self.parameters.get("prompts"),
+                compiled_prompt_text=(self._compiled_prompt.prompt if self._compiled_prompt else None),
+                base_seed=self.parameters.get("base_seed"),
+                init_cache=call_params.get("init_cache"),
+            )
+            self.output_frame_history.add_chunk(chunk)
 
         # ... rest of processing (WebRTC send, etc.)
 ```
 
 ## Integration with Snapshots
 
-Attach frame data to snapshots for visual branch point selection:
+Snapshots are the natural UI surface for “branch point selection”. For a good UX, snapshot responses should include a small preview image (so the user can see what they’re forking from).
 
 ```python
-# In snapshot creation
+# In src/scope/server/frame_processor.py (sketch)
+#
+# Note: snapshot responses are sent over the WebRTC data channel as JSON
+# (`snapshot_response_callback`), so any image bytes must be base64 encoded.
 
-def create_snapshot(self, ...) -> Snapshot:
-    # ... existing snapshot logic
+def _create_snapshot(self) -> Snapshot:
+    snapshot = ...  # existing snapshot logic
 
-    # Attach recent frames for preview
-    recent_frames = self.frame_buffer.get_latest(n=3)
-    snapshot.preview_frames = [f.to_base64_jpeg(quality=70) for f in recent_frames]
+    # Option A (MVP): derive a small thumbnail from the latest output frame.
+    # frame: (H, W, C) uint8 on CPU (already stored for `/frame/latest`).
+    frame = self.get_latest_frame()
+    snapshot.preview_jpeg_base64 = encode_thumbnail_base64(frame)
 
     return snapshot
+
+
+def _restore_snapshot(self, snapshot_id: str) -> bool:
+    ok = ...  # existing restore logic
+    if ok:
+        # MVP semantics: snapshot restore rewinds `chunk_index`, so clear output history to avoid
+        # duplicate / ambiguous `chunk_index` keys. (Future: branching timelines.)
+        self.output_frame_history.clear()
+    return ok
 ```
 
 ## CLI Commands
 
 ```bash
-# Get buffer stats
+# Existing (today): latest frame only
+video-cli frame --out ./latest.png
+
+# Proposed (new): add a `frames` group aligned with REST endpoints
 video-cli frames stats
-
-# Export frames as images
-video-cli frames export --start 100 --end 200 --out ./frames/
-
-# Get frame at specific chunk
-video-cli frames get 150 --out frame_150.png
-
-# Export filmstrip
-video-cli frames filmstrip --every 10 --out filmstrip.png
+video-cli frames get 150 --frame-index 0 --format png --out ./frame_150.png
+video-cli frames export --start-chunk 100 --end-chunk 200 --out-dir ./frames/
+video-cli frames filmstrip --every-n-chunks 10 --max-count 50 --out ./filmstrip.png
 ```
 
 ## Configuration
@@ -499,74 +311,75 @@ Environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FRAME_BUFFER_MAX_FRAMES` | 300 | Maximum frames to keep |
-| `FRAME_BUFFER_MAX_MB` | 512 | Memory limit in MB |
-| `FRAME_BUFFER_MODE` | "cpu" | Storage mode: "gpu", "cpu", "jpeg" |
-| `FRAME_BUFFER_JPEG_QUALITY` | 90 | JPEG quality for compressed mode |
+| `OUTPUT_FRAME_HISTORY_MAX_CHUNKS` | 240 | Maximum chunks to keep (upper bound; memory limit may evict sooner) |
+| `OUTPUT_FRAME_HISTORY_MAX_MB` | 512 | Memory limit in MB (raw frames + optional thumbnails) |
+| `OUTPUT_FRAME_HISTORY_STORE_THUMBNAILS` | 1 | If set, store a small per-chunk JPEG thumbnail at write-time |
+| `OUTPUT_FRAME_HISTORY_THUMBNAIL_QUALITY` | 60 | JPEG quality for stored thumbnails |
 
 ## Memory Considerations
 
-At 480x832 resolution:
-- Raw tensor (fp32): ~4.8 MB/frame
-- CPU numpy (uint8): ~1.2 MB/frame
-- JPEG (quality 90): ~50-100 KB/frame
+MVP stores CPU `uint8` RGB frames. Memory scales with:
 
-| Mode | 300 frames | 1000 frames |
-|------|-----------|-------------|
-| GPU (fp32) | 1.4 GB VRAM | 4.8 GB VRAM |
-| CPU (uint8) | 360 MB RAM | 1.2 GB RAM |
-| JPEG (q90) | 15-30 MB RAM | 50-100 MB RAM |
+`bytes_per_frame ≈ H * W * 3`
 
-**Recommendation:** Default to "cpu" mode. Use "jpeg" for long sessions or limited RAM.
+At `480x832`: `~1.2 MB/frame` (raw).
+
+If your pipeline outputs `T` frames per chunk, then:
+- bytes per chunk ≈ `T * bytes_per_frame`
+- bytes retained ≈ `num_chunks_retained * T * bytes_per_frame` (before accounting for eviction)
+
+**Recommendation (MVP):** store raw `uint8` frames + optional small JPEG thumbnails, and rely on `OUTPUT_FRAME_HISTORY_MAX_MB` for predictable bounds.
 
 ## Use Cases
 
 ### 1. Scrubbing Timeline
 
 ```javascript
-// Frontend: fetch frames for visible timeline range
-const frames = await fetch(
-  `/api/v1/realtime/frames/range?start_chunk=${visibleStart}&end_chunk=${visibleEnd}`
+// Fetch metadata for the visible timeline window (no pixels).
+const { chunks } = await fetch(
+  `/api/v1/realtime/frames/metadata?start_chunk=${visibleStart}&end_chunk=${visibleEnd}`
 ).then(r => r.json());
 
-// Display in timeline
-frames.forEach(f => {
-  timeline.addFrame(f.chunk_index, `data:image/jpeg;base64,${f.data}`);
-});
+// When the playhead moves, fetch just the needed frame as image bytes.
+async function showFrame(chunkIndex, frameIndex = 0) {
+  const r = await fetch(
+    `/api/v1/realtime/frames/${chunkIndex}?frame_index=${frameIndex}&format=jpeg`
+  );
+  const url = URL.createObjectURL(await r.blob());
+  previewImg.src = url;
+}
 ```
 
 ### 2. Branch Point Preview
 
 ```javascript
-// Before forking, show user what they're branching from
-const frame = await fetch(`/api/v1/realtime/frames/${snapshotChunk}`).then(r => r.json());
-branchPreview.src = `data:image/jpeg;base64,${frame.data}`;
+// Option A: include a thumbnail in the snapshot response (data channel JSON)
+branchPreview.src = `data:image/jpeg;base64,${snapshot.preview_jpeg_base64}`;
+
+// Option B: fetch from output frame history by chunk index
+await showFrame(snapshot.chunk_index, 0);
 ```
 
 ### 3. Instant Replay
 
 ```javascript
-// Replay last N chunks without re-rendering
-const frames = await fetch(
-  `/api/v1/realtime/frames/range?start_chunk=${replayStart}&end_chunk=${replayEnd}`
+// Replay a range by fetching frames on demand.
+// Note: for efficiency, we may add a range streaming/zip export endpoint later.
+const { chunks } = await fetch(
+  `/api/v1/realtime/frames/metadata?start_chunk=${replayStart}&end_chunk=${replayEnd}`
 ).then(r => r.json());
 
-let i = 0;
-const playback = setInterval(() => {
-  if (i >= frames.length) {
-    clearInterval(playback);
-    return;
-  }
-  canvas.drawImage(frames[i].data);
-  i++;
-}, 1000 / 16);  // 16 FPS playback
+for (const c of chunks) {
+  await showFrame(c.chunk_index, 0);
+  await new Promise(r => setTimeout(r, 1000 / 16));
+}
 ```
 
 ### 4. Filmstrip Thumbnails
 
 ```javascript
 // Load filmstrip for timeline overview
-const thumbnails = await fetch(
+const { thumbnails } = await fetch(
   `/api/v1/realtime/frames/thumbnails?every_n_chunks=20&max_count=50`
 ).then(r => r.json());
 
@@ -575,42 +388,39 @@ filmstrip.render(thumbnails);
 
 ## Relationship to Other Proposals
 
-| Proposal | What it stores | Use case |
-|----------|---------------|----------|
-| `session-recording-timeline-export.md` | Control events | Offline re-render at any quality |
-| `server-side-session-recorder.md` | Control events | Same, server-side |
-| **This proposal** | Actual frames | Instant scrub/replay/branch preview |
+| Doc | What it stores | Use case |
+|-----|---------------|----------|
+| `notes/realtime_video_architecture.md` | FrameBus / ChunkStore concept | Canonical abstraction this proposal should align with |
+| `notes/proposals/session-recording-timeline-export.md` | Control events | Offline replay/re-render at any quality |
+| `notes/proposals/server-side-session-recorder.md` | Control events | Offline replay/re-render at any quality |
+| **This proposal** | Output pixels (recent, in-memory) | Instant scrub/replay/branch preview |
 
 These are complementary:
-- Control event recording → faithful re-render at higher quality
-- Frame buffer → instant visual feedback, no GPU cost
+- Control event recording → durable “what we asked for” (replayable)
+- Output frame history → fast “what we saw” (scrubbable), no GPU cost
 
 ## Implementation Order
 
-1. **Core FrameBuffer class** - ring buffer, storage modes, eviction
-2. **FrameProcessor integration** - add frames after generation
-3. **Basic REST endpoints** - `/frames/range`, `/frames/{chunk}`
-4. **Stats endpoint** - buffer monitoring
-5. **Thumbnail endpoint** - filmstrip support
-6. **CLI commands** - export, stats
-7. **Snapshot integration** - attach preview frames
-8. **Frontend timeline** - visual scrubbing UI
+1. **OutputFrameHistory core** - chunk-keyed ring buffer + memory clamp
+2. **FrameProcessor capture** - add chunks after CPU `uint8` conversion
+3. **REST endpoints** - stats, metadata range, per-frame bytes, thumbnails
+4. **Snapshot preview + restore semantics** - thumbnail in response + clear-on-restore (MVP)
+5. **CLI additions** - `video-cli frames ...`
+6. **Frontend timeline** - filmstrip + scrub playback
 
 ## Open Questions
 
-1. **GPU vs CPU default?** CPU is safer (no VRAM pressure), but GPU is faster for frequent access.
-
-2. **Frame index granularity?** Store all 3 frames per chunk, or just keyframe (frame 0)?
-
-3. **Eviction policy?** Currently FIFO. Could do LRU or priority-based (keep branch points longer).
-
-4. **WebSocket streaming?** For live filmstrip updates, could push new thumbnails via WebSocket instead of polling.
-
-5. **Disk spill?** For very long sessions, could spill oldest frames to disk instead of evicting.
+1. **Snapshot restore semantics:** clear history (MVP) vs truncate vs branching timelines?
+2. **Thumbnail strategy:** encode at write-time (store bytes) vs encode on read? Downscale method + lock scope.
+3. **Range retrieval:** per-frame fetch (simple) vs batch/stream endpoints for efficient replay/export?
+4. **Eviction policy:** FIFO vs prioritize snapshot chunks / hard cuts?
+5. **Multi-session:** keep `get_active_session()` constraints vs add `session_id` query param?
 
 ## Related Files
 
 - `src/scope/server/frame_processor.py` - Main integration point
 - `src/scope/server/app.py` - REST endpoints
-- `notes/realtime_video_architecture.md` - Original FrameBus design
+- `src/scope/server/tracks.py` - `initialize_output_processing()` pattern
+- `src/scope/cli/video_cli.py` - CLI integration points
+- `notes/realtime_video_architecture.md` - FrameBus / ChunkStore design
 - `notes/proposals/server-side-session-recorder.md` - Control event recording

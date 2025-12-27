@@ -54,7 +54,7 @@ These are the three “version/typo landmines” we keep tripping over; keep thi
 ### Production-viable (quality-preserving; BF16 / `--quantization none`)
 
 Benchmark harness (`scripts/profile_krea_pipeline_blocks.py`, cu130 env, bias=0.3):
-- **Best-known (today):** `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile` + `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1`: **~29.36 FPS** (`outputs/b300_cu130_triton351_compile_default_blocks_perf_ensurecontig.log`)
+- **Best-known (today):** `SCOPE_KV_BIAS_BACKEND=fa4` + `--compile` + `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1` + fused projections ON: **~30.08 FPS** (`outputs/b300_cu130_triton351_compile_fuseproj_on_perf.log`)
 - Same settings but without the VAE resample contiguity fix (`WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=0`): **~21.45 FPS** (`outputs/b300_cu130_triton351_compile_default_blocks_perf.log`)
 - Historical (needs re-measure post VAE fix): `SCOPE_KV_BIAS_BACKEND=fa4`: **~19.7 FPS**
 
@@ -363,9 +363,12 @@ If the env ever gets clobbered back to cu128 (e.g. by `uv sync`), restore it wit
 
 3) **Disable fused QKV projections (B300 hazard)**
 
-On B300/SM103, fused projections (`to_qkv(...).chunk(3, dim=-1)`) can create strided Q/K views and trigger extra materialization work downstream.
+On B300/SM103, fused projections (`to_qkv(...).chunk(3, dim=-1)`) can create strided Q/K views and trigger extra materialization work downstream **in eager mode**.
 
-- Set `SCOPE_DISABLE_FUSED_PROJECTIONS=1` (default in `scripts/run_daydream_b300.sh`)
+In the **compiled** path, we currently see a small win from enabling fused projections.
+
+- Eager/debug: set `SCOPE_DISABLE_FUSED_PROJECTIONS=1`
+- Compiled path: set `SCOPE_DISABLE_FUSED_PROJECTIONS=0` (default in `scripts/run_daydream_b300.sh` when compile is enabled)
 
 4) **Experimental: RoPE(K) directly into KV cache**
 

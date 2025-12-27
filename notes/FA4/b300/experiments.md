@@ -178,7 +178,9 @@ scripts/profile_b300_denoise_drilldown.sh
 - Self-attn stack filter shows `aten::contiguous` / `aten::clone` disappear when projections are not fused.
 
 **Decision:**  
-Treat fused projections as a **B300 hazard**; keep them opt-in on SM103 (default-disabled in `scripts/run_daydream_b300.sh`).
+Treat fused projections as a **B300 eager-mode hazard**; keep them opt-in for eager debugging.
+
+Update (post VAE decode fix + compile): with `--compile` and `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1`, enabling fused projections is a small throughput win (see next card).
 
 **Artifacts:**  
 - `outputs/b300_cu130_none_bias0.3_kickoff_perf.log`  
@@ -313,6 +315,67 @@ Keep the knob; strongly consider default-on for B300 (run script already default
 **Lessons (write like you’re teaching “future you”):**  
 - If you see `aten::slow_conv_dilated3d` + `vol2col_kernel` dominating decode, suspect **layout/stride** issues in streaming resample/caching, not “bad cuDNN”.  
 - Always profile decode in streaming mode (second call) — first-batch behavior can mask the steady-state layout.
+
+### 2025-12-27 — Fused projections ON (compile path)
+
+**Question:**  
+Now that VAE decode is fixed, does enabling fused QKV projections help or hurt throughput on the **compiled** path?
+
+**Hypothesis:**  
+With `torch.compile` on, the downstream view/materialization overhead from fused projections should be reduced or fused away, so fewer/bigger GEMMs may win.
+
+**Change (one thing):**  
+Set `SCOPE_DISABLE_FUSED_PROJECTIONS=0` (enable fused projections).
+
+**Benchmark config:**  
+- GPU: B300 (SM103)  
+- Env: cu130 decode env (`.venv-b300-cu130-decode`)  
+- torch / cuda: `2.9.0+cu130` / `13.0`  
+- Settings: `320x576`, steps=`4`, bias=`0.3`, quantization=`none`  
+- Notes: `--compile`, `SCOPE_KV_BIAS_BACKEND=fa4`, `WANVAE_STREAM_DECODE_MODE=chunk`, `WANVAE_DECODE_CHANNELS_LAST_3D=1`, `WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1`
+
+**Command(s):**
+```bash
+# Baseline: fused projections disabled
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_DISABLE_FUSED_PROJECTIONS=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 --iters 6 --skip 2 \
+  --compile --quantization none --kv-cache-attention-bias 0.3 --cudnn-benchmark \
+  |& tee outputs/b300_cu130_triton351_compile_default_blocks_perf_ensurecontig.log
+
+# Change: fused projections enabled
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_DISABLE_FUSED_PROJECTIONS=0 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
+PROFILE_PIPELINE_BLOCKS=1 PROFILE_PIPELINE_BLOCKS_JSON=outputs/b300_cu130_triton351_compile_fuseproj_on_blocks_profile.json \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 --iters 6 --skip 2 \
+  --compile --quantization none --kv-cache-attention-bias 0.3 --cudnn-benchmark \
+  |& tee outputs/b300_cu130_triton351_compile_fuseproj_on_perf.log
+```
+
+**Baseline:**  
+- Avg FPS (skip=2): `29.36` (`outputs/b300_cu130_triton351_compile_default_blocks_perf_ensurecontig.log`)
+
+**Result:**  
+- Avg FPS (skip=2): `30.08` (`outputs/b300_cu130_triton351_compile_fuseproj_on_perf.log`)
+
+**Decision:**  
+Prefer fused projections ON when running compiled B300 path; keep “disable fused projections” as an eager/debug knob.
+
+**Artifacts:**  
+- `outputs/b300_cu130_triton351_compile_fuseproj_on_perf.log`  
+- `outputs/b300_cu130_triton351_compile_fuseproj_on_blocks_profile.json`
 
 ### 2025-12-27 — VAE decode: channels-last 3D activations
 

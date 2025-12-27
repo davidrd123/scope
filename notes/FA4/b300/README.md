@@ -82,7 +82,8 @@ Optional (B300-specific) knobs:
 
 ```bash
 # B300 hazard: fused to_qkv(...).chunk(...) can create strided Q/K views and
-# trigger extra copies. Our B300 run script defaults this on.
+# trigger extra copies in eager mode. For the compiled path we currently prefer
+# fused projections ON; use this knob for eager/debug.
 export SCOPE_DISABLE_FUSED_PROJECTIONS=1
 
 # Experimental: write RoPE(K) directly into the KV cache window (neutral so far).

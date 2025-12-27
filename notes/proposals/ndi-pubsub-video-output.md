@@ -13,6 +13,11 @@ Add NDI (Network Device Interface) output to enable network-based video streamin
 3. **V2V pipelines** — Feed output to secondary video-to-video models
 4. **Cross-platform** — Works Mac ↔ Windows ↔ Linux
 
+This proposal intentionally separates:
+
+- **MVP multi-output**: producer-side fan-out (Spout + NDI) from `FrameProcessor.process_chunk()`; no broadcaster/ring-buffer required.
+- **End-state pub-sub**: a non-destructive ring buffer when we truly need multiple independent consumers/cursors (e.g., multiple WebRTC clients).
+
 ## Current Architecture
 
 ```
@@ -23,6 +28,31 @@ Pipeline → output_queue (destructive) → WebRTC → Single Browser
 
 **Key observation:** Spout is currently fed from `FrameProcessor.get()` (consumer-side), not `process_chunk()` (producer-side). This means **no WebRTC consumer = no Spout output**.
 
+### What exists today (in code)
+
+Scope already has the architectural shape this proposal wants: **`FrameProcessor` is the choke point where “frames become outputs.”**
+
+- **WebRTC video (destructive, single-consumer)**
+  - `src/scope/server/frame_processor.py`: `FrameProcessor.process_chunk()` enqueues frames into `self.output_queue`
+  - `src/scope/server/tracks.py`: `VideoProcessingTrack.recv()` consumes via `FrameProcessor.get()`
+- **REST latest frame (non-destructive, latest-only)**
+  - `src/scope/server/frame_processor.py`: `latest_frame_cpu` + `get_latest_frame()` (returns a clone)
+  - `src/scope/server/app.py`: `GET /api/v1/realtime/frame/latest` encodes the latest frame as PNG
+- **Spout output (Windows)**
+  - `src/scope/server/frame_processor.py`: background sender thread (`_spout_sender_loop`) and `spout_sender_queue`
+  - **But:** frames are enqueued to Spout inside `FrameProcessor.get()` (i.e., on WebRTC consumption)
+
+### Key gaps / mismatches to address
+
+These are the concrete mismatches between “pub-sub outputs” and how the current server works:
+
+- **Spout is consumer-coupled**: if WebRTC is paused, slow, or absent, Spout output is throttled/starved.
+- **`output_queue` is destructive by design**: one consumer drains frames; “true” multi-consumer needs a ring buffer or per-consumer queues.
+- **REST/CLI control surface is curated**: there’s no generic `/api/v1/realtime/parameters` endpoint, so the CLI can’t toggle arbitrary output params today.
+- **Session scoping is per-WebRTC-session today**: each WebRTC session creates its own `FrameProcessor`, while REST endpoints generally assume a single active session.
+- **Schema has Spout but no NDI**: `Parameters.spout_sender` / `HardwareInfoResponse.spout_available` exist; there’s no `ndi_sender` / `ndi_available` yet.
+- **Format/convert costs must be explicit**: NDI typically wants BGRX/BGRA/UYVY; conversion should happen off the generation thread with drop-if-full backpressure.
+
 **Limitations:**
 - WebRTC queue is destructive (one consumer)
 - Spout is **consumer-coupled** to WebRTC (stops when WebRTC stops/pauses)
@@ -32,6 +62,19 @@ Pipeline → output_queue (destructive) → WebRTC → Single Browser
 - No generic REST endpoint to toggle outputs from CLI
 
 ## Proposed Architecture
+
+### MVP (no broadcaster yet)
+
+This is the minimal shape needed to add NDI and make Spout “real fan-out”:
+
+```
+Pipeline → FrameProcessor.process_chunk() → output_queue (WebRTC)
+                                   ├──→ spout_sender_queue (Spout thread)
+                                   ├──→ NDISender queue (NDI thread)
+                                   └──→ latest_frame_cpu (REST latest)
+```
+
+### End-state (true pub-sub / independent cursors)
 
 ```
 Pipeline → frame_broadcaster (non-destructive)
@@ -44,9 +87,9 @@ Pipeline → frame_broadcaster (non-destructive)
 
 ### Key Changes
 
-1. **Frame Broadcaster** — Replace destructive queue with pub-sub pattern
-2. **NDI Sender** — New output consumer for network streaming
-3. **Consumer Registry** — Each output has independent read cursor
+1. **Producer-side fan-out** — Feed Spout/NDI from `process_chunk()`, not from `get()`
+2. **NDI Sender** — New output sink (queue + background thread, drop-if-full semantics)
+3. **Optional Frame Broadcaster** — Only when we need independent cursors/backpressure (e.g., multiple WebRTC consumers)
 
 ### Two Implementation Paths
 
@@ -54,7 +97,7 @@ Pipeline → frame_broadcaster (non-destructive)
 - Add NDI as peer output sink alongside Spout
 - **Prerequisite:** Move Spout enqueue from `get()` to `process_chunk()` (producer-side)
 - Feed both from `process_chunk()` after CPU uint8 conversion
-- No full pub-sub needed yet
+- No full pub-sub needed yet (NDI itself supports multiple receivers)
 
 **Path 2: Full Pub-Sub (Future)**
 - Replace `output_queue` with `FrameBroadcaster` (ring buffer)
@@ -69,23 +112,24 @@ Pipeline → frame_broadcaster (non-destructive)
 Before (or alongside) adding NDI, move Spout to producer-side:
 
 ```python
-# Current (consumer-coupled):
-def get(self):
-    frame = self.output_queue.get()
-    if self.spout_sender:
-        self.spout_sender_queue.put(frame.copy())  # ← Coupled to WebRTC
+# Current (consumer-coupled): `FrameProcessor.get()` enqueues Spout when WebRTC reads.
+def get(self) -> torch.Tensor | None:
+    frame = self.output_queue.get_nowait()
+    if self.spout_sender_enabled and self.spout_sender is not None:
+        self.spout_sender_queue.put_nowait(frame.numpy())
     return frame
 
-# Target (producer-coupled):
-def process_chunk(self, ...):
-    # ... generate frame ...
-    output = (output * 255.0).clamp(0,255).to(uint8).cpu()
+# Target (producer-coupled): publish outputs in `process_chunk()` after CPU uint8 conversion.
+output = (
+  (output * 255.0).clamp(0, 255).to(dtype=torch.uint8).contiguous().detach().cpu()
+)
 
-    self.output_queue.put(output)        # WebRTC
-    if self.spout_sender:
-        self.spout_sender_queue.put(output.copy())  # ← Producer-side
-    if self.ndi_sender:
-        self.ndi_sender.send_frame(output.copy())   # ← Producer-side
+for frame in output:
+    self.output_queue.put_nowait(frame)  # WebRTC
+    if self.spout_sender_enabled and self.spout_sender is not None:
+        self.spout_sender_queue.put_nowait(frame.numpy())  # Spout (drop if full)
+    if self.ndi_sender is not None:
+        self.ndi_sender.send_frame(frame.numpy())  # NDI (drop if full)
 ```
 
 This is the ideal hook point: stable CPU tensor buffer suitable for all outputs.
@@ -130,9 +174,12 @@ Add NDI output alongside existing Spout:
 ```python
 # src/scope/server/ndi/sender.py
 
+# Note: treat this as pseudocode. The exact API differs between Python NDI bindings;
+# the important part is the semantics (queue + background thread + drop-if-full).
+
 import NDIlib as ndi
 import numpy as np
-from queue import Queue
+from queue import Empty, Full, Queue
 from threading import Thread
 
 class NDISender:
@@ -161,7 +208,7 @@ class NDISender:
         while self._running:
             try:
                 frame = self.queue.get(timeout=0.1)
-            except:
+            except Empty:
                 continue
 
             # Frame arrives as RGB uint8 (HWC). Convert to BGRX in this thread
@@ -185,7 +232,7 @@ class NDISender:
         """Non-blocking frame send. Drops if queue full."""
         try:
             self.queue.put_nowait(frame)
-        except:
+        except Full:
             pass  # Drop frame if queue full
 
     def stop(self):
@@ -199,31 +246,15 @@ class NDISender:
 
 ### Phase 2: Integration with FrameProcessor
 
-```python
-# In frame_processor.py
+Integration points (all in `src/scope/server/frame_processor.py`), mirroring the existing Spout pattern:
 
-class FrameProcessor:
-    def __init__(self, ...):
-        # ... existing init
-        self.ndi_sender: NDISender | None = None
+1. Add NDI fields to `FrameProcessor.__init__` (at minimum `ndi_sender` + enabled flag; queue/thread can live inside `NDISender` or mirror Spout’s `*_queue` + background loop).
+2. In `FrameProcessor.start()`: pop and apply `ndi_sender` from `self.parameters` (like `spout_sender`).
+3. In `FrameProcessor.update_parameters()`: intercept `ndi_sender` and apply immediately (don’t wait for a chunk boundary).
+4. In `FrameProcessor.process_chunk()`: after CPU uint8 conversion, publish frames to Spout/NDI and `output_queue` from the same producer-side loop, with independent drop/backpressure policies.
+5. In `FrameProcessor.stop()`: stop/join the NDI thread and destroy the sender (avoid deadlocks when `stop()` is called from the worker thread).
 
-    def _initialize_ndi(self, config: NDIConfig):
-        if config.enabled:
-            self.ndi_sender = NDISender(name=config.name)
-            self.ndi_sender.start()
-
-    def _output_frame(self, frame: np.ndarray):
-        # Existing: WebRTC queue
-        self.output_queue.put(frame)
-
-        # Existing: Spout (Windows)
-        if self.spout_sender:
-            self.spout_sender_queue.put(frame.copy())
-
-        # NEW: NDI
-        if self.ndi_sender:
-            self.ndi_sender.send_frame(frame.copy())
-```
+Important: to keep NDI/Spout independent, don’t gate sink publishing on `FrameProcessor.get()` or WebRTC consumption (each sink should drop frames if it can’t keep up).
 
 ### Phase 3: Configuration Hooks
 
@@ -231,18 +262,15 @@ Follow Spout's pattern for config handling:
 
 ```python
 # FrameProcessor.start()
-def start(self, initial_parameters: dict):
-    # Pop NDI config from initial params (like Spout)
-    if "ndi_sender" in initial_parameters:
-        self._apply_ndi_config(initial_parameters.pop("ndi_sender"))
+if "ndi_sender" in self.parameters:
+    ndi_config = self.parameters.pop("ndi_sender")
+    self._update_ndi_sender(ndi_config)
 
 # FrameProcessor.update_parameters()
-def update_parameters(self, params: dict):
-    # Intercept NDI config immediately (don't queue)
-    if "ndi_sender" in params:
-        self._apply_ndi_config(params.pop("ndi_sender"))
-    # Queue remaining params for chunk boundary
-    self.pending_parameters.put(params)
+if "ndi_sender" in parameters:
+    ndi_config = parameters.pop("ndi_sender")
+    self._update_ndi_sender(ndi_config)
+# queue remaining parameters (mailbox semantics)
 ```
 
 **Environment variables:**
@@ -456,6 +484,7 @@ class HardwareInfoResponse(BaseModel):
 ### Pause semantics
 
 - Current pause controls both generation and playback (tied together)
+- Concretely, `apply_control_message` calls `VideoProcessingTrack.pause()` and forwards `paused` to `FrameProcessor.update_parameters()`
 - NDI/Spout should follow **generation pause**, not browser playback pause
 - Today they're tied, so NDI stops when paused (reasonable default)
 - If you ever want "keep generating but pause browser," you'd need to separate those

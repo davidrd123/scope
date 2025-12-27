@@ -37,12 +37,16 @@ Most REST endpoints call `get_active_session()` which requires:
 So a hardware control surface must assume:
 - a WebRTC session is already established and connected.
 
+**Important implication:** a "router" that opens its *own* WebRTC connection risks creating a second connected session, which will break most REST control (no REST endpoints accept `session_id` today). For any design that needs continuous parameter updates, prefer either:
+- adding a server-side "set parameters" endpoint that forwards to `apply_control_message`, or
+- running the router inside the same WebRTC client that already owns the data-channel.
+
 ---
 
 ## Canonical parameter names (don't invent new ones)
 
 ### For WebRTC data-channel updates (authoritative)
-See: `docs/api/parameters.md`
+See: `docs/api/parameters.md` (plus `src/scope/realtime/control_state.py` for additional supported keys)
 
 Common keys:
 - `prompts: [{text, weight}]`
@@ -51,7 +55,7 @@ Common keys:
 - `noise_controller: bool`
 - `manage_cache: bool`
 - `reset_cache: bool` (one-shot hard cut)
-- `kv_cache_attention_bias: float`
+- `kv_cache_attention_bias: float` (supported; not currently listed in `docs/api/parameters.md`)
 - `transition: { target_prompts, num_steps, temporal_interpolation_method }`
 - `lora_scales: [{path, scale}]` (requires runtime LoRA merge mode at load)
 - `spout_sender`, `spout_receiver` (Windows)
@@ -237,6 +241,8 @@ class StreamDeckController:
 For smooth faders/encoders (10–60Hz updates), WebRTC data-channel is the best match,
 because REST does not currently provide a "set arbitrary parameters" endpoint.
 
+**Practical note:** a standalone router process cannot currently send data-channel messages into the existing active session. To drive continuous controls from a separate process, we'd likely need a REST forwarder endpoint (e.g. `/api/v1/realtime/parameters`) or to run the router inside the WebRTC client.
+
 | Fader | Canonical video key (today) | Notes |
 |------|------------------------------|------|
 | 1 | `denoising_step_list` | Choose from presets (you cannot send a scalar "steps") |
@@ -377,7 +383,7 @@ A separate process that:
 1. polls `/api/v1/realtime/state` for current state
 2. translates hardware input into either:
    - REST calls (discrete actions)
-   - WebRTC data-channel messages (continuous params + snapshot)
+   - (future) generic parameter updates (needs a server forwarder endpoint, or running inside the WebRTC client)
 3. (optional) forwards audio intent to Tidal via OSC (see `tidal-cycles-integration.md`)
 
 ### Unified Input Router
@@ -616,7 +622,7 @@ control = [
 ## Open Questions
 
 1. **Continuous control transport**: add a REST endpoint for arbitrary params, or rely on WebRTC data-channel?
-   - Today: WebRTC data-channel is the only "generic parameter update" path documented.
+   - Today: WebRTC data-channel is the only "generic parameter update" path, but it's only available to the WebRTC client (not an external router process).
 
 2. **WorldState patching**: do we add `/realtime/world/patch`?
    - Today: `/realtime/world` is full replace.
@@ -643,6 +649,7 @@ control = [
 ### Internal
 
 - `docs/api/parameters.md` (canonical parameter names)
+- `src/scope/realtime/control_state.py` (ControlState fields incl. `kv_cache_attention_bias`)
 - `src/scope/server/app.py` (REST realtime endpoints)
 - `src/scope/server/webrtc.py` (`apply_control_message` message translation)
 - `src/scope/server/frame_processor.py` (reserved keys + soft transition behavior)
