@@ -69,6 +69,12 @@ Pick the Python for your cu130 env (example):
 PY=.venv-b300-cu130-decode/bin/python
 ```
 
+Offline timeline render (uses B300 “known-good” env defaults + BF16):
+
+```bash
+scripts/render_timeline_b300.sh ~/.daydream-scope/recordings/session_*.timeline.json out.mp4
+```
+
 Canonical BF16 env vars (SM103-safe defaults):
 
 ```bash
