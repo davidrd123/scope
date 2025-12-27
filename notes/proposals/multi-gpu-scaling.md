@@ -10,6 +10,12 @@ Enable multi-GPU inference for the KREA realtime pipeline to scale FPS beyond si
 
 Key framing: **multi-GPU only helps if we can overlap work** (or otherwise avoid turning “more devices” into “more copies + more latency”).
 
+Before diving in, clarify which “scaling” you mean:
+- **Scale a single stream’s FPS** (hard; needs overlap + careful orchestration).
+- **Scale total throughput across streams/users** (easy: run independent sessions pinned to GPUs; little/no model partitioning).
+
+This proposal is primarily about **single-stream FPS**, but many of the measurements apply to throughput scaling too.
+
 StreamDiffusionV2 reports multi-GPU viability (including **~58 FPS with a 14B model on 4× H100**) using pipeline-parallel style orchestration, but we should treat those numbers as *reported* until we reproduce comparable behavior in our stack.
 
 ## What We Know
@@ -43,17 +49,15 @@ No distributed primitives currently wired.
 
 ### Current Single-GPU Baseline (B300, 2025-12-27)
 
-| Config | FPS | Notes |
-|--------|-----|-------|
-| BF16, no compile | ~19-20 | Stable baseline |
-| BF16, `--compile` | ~22-23 | Default recommended |
-| BF16, `--compile`, channels_last_3d | ~21.5 | Latest (decode: ~195ms) |
+The B300 baseline moved quickly as we fixed decode slow-path issues. Avoid hard-coding numbers here; treat the B300 “truth” as:
+- `notes/FA4/b300/session-state.md` (best-known config + block shares + caveats)
 
-Block-level breakdown (compiled):
-- **denoise**: ~65% (dominant)
-- **decode**: ~35% (post channels_last_3d optimization)
+As of 2025-12-27, the best-known **quality-preserving** config on B300 is **~30+ FPS** (BF16 + `--compile`) and the block profile looks like:
+- `denoise` dominant
+- `recompute_kv_cache` non-trivial
+- `decode` no longer dominant at the canonical `320x576` resolution (≈ “solved”)
 
-Multi-GPU would need to beat ~23 FPS to be worthwhile on B300.
+This matters for multi-GPU: **VAE offload only pays if decode is a large share at the target resolution/settings.**
 
 ### Vendored Resources
 
@@ -74,13 +78,26 @@ These are kernel-level primitives, not pipeline orchestration.
 
 ## Potential Approaches
 
+### Approach 0: Multi-Session Scaling (Throughput, Not Single-Stream FPS)
+
+Run independent sessions pinned to different GPUs (no model partitioning). This doesn’t make one stream faster, but it’s the lowest-risk way to “scale on multiple GPUs”.
+
+**Pros:**
+- Minimal architectural risk (no cross-GPU KV cache / activations)
+- Great for multiple users/streams
+- Can often be done by routing “session → GPU” at the server layer
+
+**Cons:**
+- Doesn’t help a single stream exceed single-GPU FPS
+- Still needs a device assignment/routing story (and graceful fallback)
+
 ### Approach A: VAE Offload (Simplest)
 
 Move VAE encode/decode to a second GPU while transformer runs on primary.
 
 **Pros:**
 - Minimal code changes
-- VAE decode is **~35% of compiled pipeline time** on B300 (post-optimization)
+- VAE decode can be a large share on some stacks/resolutions (historically ~25–35% on B300 before the decode fast-path fix)
 - No transformer modification
 
 **Cons:**
@@ -91,7 +108,7 @@ Move VAE encode/decode to a second GPU while transformer runs on primary.
 
 **Upper bound intuition (if perfectly overlapped, ignoring copy overhead):**
 - Speedup is capped by the larger stage share: `speedup <= 1 / max(denoise_share, decode_share)`
-- With the current compiled breakdown (~65% denoise / ~35% decode), best-case is ~`1/0.65 ≈ 1.54×` (then subtract copy/jitter costs)
+- On the current best-known B300 config, decode is no longer dominant at `320x576`, so the theoretical bound is much smaller (and copy/jitter can erase it).
 
 **Complexity:** Low
 
@@ -152,6 +169,41 @@ Before writing orchestration code, measure the two things that decide if Approac
 - Can decode run concurrently with denoise without fighting for CPU scheduling / streams?
 - Does the server architecture make it easy to pipeline across chunks (queue latents, decode previous while denoising next)?
 
+## Decision Gates (When to Stop vs Build)
+
+Multi-GPU work can balloon quickly. These gates prevent “endless exploration”:
+
+### Gate 0: Define the objective
+
+Pick one:
+- **Lower latency** (time-to-first-frame / time-to-new-prompt)
+- **Higher steady-state FPS**
+- **Higher total throughput (multi-session)**
+
+Each objective implies different architecture choices and success metrics.
+
+### Gate 1: Amdahl sanity check (is there even headroom?)
+
+If a candidate stage is only `p` share of steady-state time, the absolute best-case speedup from “perfectly overlapping” it is:
+
+`speedup <= 1 / (1 - p)`
+
+Example: if decode is 15% share, perfect overlap caps at ~1.18× *before* copy overhead/jitter.
+
+If the theoretical bound is small, don’t build it unless it also improves latency/UX.
+
+### Gate 2: Measured P2P + overlap
+
+Proceed only if:
+- P2P is available (or copy time is still comfortably below the saved compute time), and
+- you can demonstrate *real overlap* with a microbenchmark (not just “two devices exist”).
+
+### Gate 3: End-to-end win at equal quality
+
+Only “count” wins that:
+- preserve output quality (BF16 baseline), and
+- improve an end-to-end metric (steady FPS or latency), not just a microbench.
+
 ## Suggested Investigation Path
 
 ### Phase 1: Measure (Before Building)
@@ -171,6 +223,60 @@ Before writing orchestration code, measure the two things that decide if Approac
 1. **VAE decode offload** - run decode on GPU 1 *with pipelining* (decode chunk N-1 while denoise chunk N), measure impact
 2. If beneficial, try encode offload too (or keep encode on GPU 0 if it’s not dominant)
 3. Only then consider transformer partitioning
+
+## Testing Program (Concrete)
+
+Treat this as an experiment ladder: each stage produces artifacts (logs, profiles) and has a pass/fail.
+
+### Test 1: Hardware topology + P2P
+
+Artifacts:
+- `nvidia-smi topo -m` output (NVLink vs PCIe)
+- `torch.cuda.can_access_peer(0, 1)` (and enabling peer access if needed)
+
+Pass:
+- P2P is supported and enabled for the target device pair.
+
+### Test 2: Copy microbench (latents and/or frames)
+
+Measure end-to-end copy time for the *actual tensors you’d move*:
+- latents: GPU0 → GPU1 (decode input)
+- frames: GPU1 → GPU0 (if required by the server plumbing)
+
+Pass:
+- Copy time is comfortably below the compute you’re trying to overlap (otherwise you just moved the bottleneck).
+
+### Test 3: Overlap microbench
+
+Goal: prove we can overlap “denoise-like work” on GPU0 with “decode-like work” on GPU1.
+
+Approach:
+- Run a representative denoise chunk on GPU0 in one thread/stream
+- Run a representative decode call on GPU1 in another thread/stream
+- Use CUDA events to measure wall time vs per-device time
+
+Pass:
+- Wall time is close to `max(t_denoise, t_decode)` (not `t_denoise + t_decode`).
+
+### Test 4: End-to-end offload prototype (Approach A)
+
+Minimal implementation idea:
+- GPU0 produces latents for chunk N and enqueues them
+- A background worker on GPU1 decodes chunk N-1 concurrently
+- The main loop consumes decoded frames and continues streaming
+
+Pass:
+- Measured end-to-end improvement on the canonical harness (and a “looks correct for 1–2 minutes” quality sanity check).
+
+### Test 5: Stress + jitter
+
+Measure jitter under:
+- playlist nav events (hard/soft cuts, transitions)
+- variable prompt lengths
+- sustained run (minutes)
+
+Pass:
+- No periodic stalls, no obvious runaway latency, and stable memory usage.
 
 ### Phase 4: Production Hardening (If Warranted)
 
@@ -204,4 +310,4 @@ Before writing orchestration code, measure the two things that decide if Approac
 
 - `src/scope/core/pipelines/krea_realtime_video/pipeline.py` - current device handling
 - `src/scope/core/pipelines/streamdiffusionv2/` - reference pipeline (no multi-GPU yet)
-- `notes/FA4/b300/session-state.md` - current single-GPU performance baseline
+- `notes/FA4/b300/session-state.md` - current B300 single-GPU performance baseline (truth source)
