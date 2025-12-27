@@ -62,14 +62,17 @@ Pipeline → frame_broadcaster (non-destructive)
 
 ### Receiver Support
 
-| Application | NDI Support |
-|-------------|-------------|
-| TouchDesigner | Native (NDI In TOP) |
-| OBS | Plugin (obs-ndi) |
-| vMix | Native |
-| Resolume | Native |
-| FFmpeg | Via `libndi` |
-| VLC | Plugin |
+| Application | NDI Support | Use Case |
+|-------------|-------------|----------|
+| TouchDesigner | Native (NDI In TOP) | Real-time compositing, effects |
+| Unreal Engine | Plugin (NDI SDK) | Virtual production, LED walls |
+| Unity | Plugin (NDI for Unity) | Real-time environments |
+| OBS | Plugin (obs-ndi) | Streaming, recording |
+| vMix | Native | Live production |
+| Resolume | Native | VJ, projection mapping |
+| FFmpeg | Via `libndi` | Transcoding, pipelines |
+
+**Virtual production note:** NDI into Unreal/Unity enables AI video as a texture source for LED wall content, virtual sets, or real-time material inputs. Teammates have Unreal experience if this becomes a focus.
 
 ## Implementation
 
