@@ -37,6 +37,20 @@ vae = vae.to(device=device, dtype=dtype)
 
 No distributed primitives currently wired.
 
+### Current Single-GPU Baseline (B300, 2025-12-27)
+
+| Config | FPS | Notes |
+|--------|-----|-------|
+| BF16, no compile | ~19-20 | Stable baseline |
+| BF16, `--compile` | ~22-23 | Default recommended |
+| BF16, `--compile`, channels_last_3d | ~21.5 | Latest (decode: ~195ms) |
+
+Block-level breakdown (compiled):
+- **denoise**: ~65% (dominant)
+- **decode**: ~35% (post channels_last_3d optimization)
+
+Multi-GPU would need to beat ~23 FPS to be worthwhile on B300.
+
 ### Vendored Resources
 
 We have Blackwell-specific distributed GEMM patterns in `vendored/cutlass-cute/python/CuTeDSL/distributed/`:
@@ -62,12 +76,13 @@ Move VAE encode/decode to a second GPU while transformer runs on primary.
 
 **Pros:**
 - Minimal code changes
-- VAE is ~25% of pipeline time on B300
+- VAE decode is **~35% of compiled pipeline time** on B300 (post-optimization)
 - No transformer modification
 
 **Cons:**
 - Limited scaling (2 GPUs max benefit)
 - Cross-GPU tensor copies for latents
+- Layout considerations: VAE benefits from `channels_last_3d` (`WANVAE_DECODE_CHANNELS_LAST_3D=1`), need to ensure cross-GPU copies preserve this
 
 **Complexity:** Low
 
@@ -148,6 +163,7 @@ Split spatial patches across GPUs ([DistriFusion paper](https://arxiv.org/abs/24
 - What's the minimum GPU memory per device for useful partitioning?
 - Does NVLink vs PCIe matter significantly?
 - How does `torch.compile` interact with multi-GPU?
+  - *Partial answer:* `max-autotune` modes can hard-abort on SM103 with Triton <3.5.1 (tcgen05 LLVM intrinsic). Guards exist in pipeline.py. Multi-GPU would need similar guards per device.
 
 ## Non-Goals (For Now)
 
