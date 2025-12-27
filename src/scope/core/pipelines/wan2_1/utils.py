@@ -43,11 +43,14 @@ def initialize_kv_cache(
             kv_cache_existing[i]["v"].zero_()
 
             if reset_indices:
+                # Indices are used in Python control flow / slicing and frequently
+                # converted to Python ints. Keeping them on CUDA would introduce
+                # device→host syncs (`aten::item`, Memcpy DtoH). Store them on CPU.
                 kv_cache_existing[i]["global_end_index"] = torch.tensor(
-                    [0], dtype=torch.long, device=device
+                    [0], dtype=torch.long
                 )
                 kv_cache_existing[i]["local_end_index"] = torch.tensor(
-                    [0], dtype=torch.long, device=device
+                    [0], dtype=torch.long
                 )
 
         return kv_cache_existing
@@ -58,11 +61,12 @@ def initialize_kv_cache(
                 {
                     "k": torch.zeros(k_shape, dtype=dtype, device=device).contiguous(),
                     "v": torch.zeros(v_shape, dtype=dtype, device=device).contiguous(),
+                    # See note above: keep indices on CPU to avoid CUDA syncs.
                     "global_end_index": torch.tensor(
-                        [0], dtype=torch.long, device=device
+                        [0], dtype=torch.long
                     ),
                     "local_end_index": torch.tensor(
-                        [0], dtype=torch.long, device=device
+                        [0], dtype=torch.long
                     ),
                 }
             )
