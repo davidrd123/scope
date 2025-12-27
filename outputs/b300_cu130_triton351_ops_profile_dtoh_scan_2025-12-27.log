@@ -1,0 +1,537 @@
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 for torchao version 0.15.0+cu130             Please see https://github.com/pytorch/ao/issues/2919 for more info
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Fetching 6 files: 100%|██████████| 6/6 [00:00<00:00, 131072.00it/s]
+Warning: Could not load sageattention: No module named 'sageattention'
+sageattention package is not installed
+SAGEATTN_AVAILABLE: False
+TRITON_ROTARY_AVAILABLE: True, USE_TRITON_ROTARY: True
+TRITON_ROPE_FUSED_AVAILABLE: True, USE_TRITON_ROPE_FUSED: True
+CUDA device: NVIDIA B300 SXM6 AC
+Compute capability: (10, 3)
+torch: 2.9.0+cu130 (cuda=13.0)
+cudnn.benchmark: True
+compile=True
+SCOPE_KV_BIAS_BACKEND=fa4
+DISABLE_FLEX_ATTENTION_COMPILE=1
+WANVAE_STREAM_DECODE_MODE=chunk
+WANVAE_DECODE_CHANNELS_LAST_3D=1
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas
+with_stack=True (stack_n=12)
+Loaded diffusion model in 0.078304s
+Loaded text encoder in 0.316519s
+Loaded VAE in 0.138s
+Warmed up (3 runs) in 18.87s
+Pre-warm (outside profiler): 1 iteration(s)
+Profiling: 1 iteration(s)
+Profiled wall time: 12.746s
+
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                             Torch-Compiled Region: 0/2         1.24%       6.456ms        73.87%     384.006ms       2.400ms       0.000us         0.00%     194.100ms       1.213ms           160  
+                            Torch-Compiled Region: 13/1         1.72%       8.966ms        38.82%     201.811ms       1.009ms       0.000us         0.00%     127.284ms     636.421us           200  
+                             Torch-Compiled Region: 1/2         1.10%       5.693ms        38.10%     198.063ms       1.238ms       0.000us         0.00%      88.732ms     554.577us           160  
+                                               aten::mm         1.15%       5.992ms         1.53%       7.963ms      13.272us      82.760ms        33.26%      82.760ms     137.933us           600  
+## Call CompiledFxGraph fzkr5p2ai4jlimh5nkeoy4kj6gag...         0.00%       0.000us         0.00%       0.000us       0.000us      82.565ms        33.18%      82.565ms     412.824us           200  
+                            Torch-Compiled Region: 19/0         0.91%       4.722ms         6.01%      31.255ms     156.277us       0.000us         0.00%      81.130ms     405.649us           200  
+## Call CompiledFxGraph fzkr5p2ai4jlimh5nkeoy4kj6gag...         2.72%      14.160ms         4.82%      25.057ms     125.287us       0.000us         0.00%      81.130ms     405.649us           200  
+                                            aten::addmm         2.05%      10.680ms         2.60%      13.518ms      21.457us      68.430ms        27.50%      68.430ms     108.619us           630  
+                             Torch-Compiled Region: 8/1         0.80%       4.146ms        28.93%     150.366ms     939.790us       0.000us         0.00%      52.893ms     330.584us           160  
+                             Torch-Compiled Region: 9/1        18.33%      95.282ms        23.56%     122.470ms     765.440us      33.379ms        13.41%      50.917ms     318.230us           160  
+                             Torch-Compiled Region: 0/1         0.32%       1.670ms        17.82%      92.642ms       2.316ms       0.000us         0.00%      43.596ms       1.090ms            40  
+                            Torch-Compiled Region: 14/1         1.22%       6.365ms        27.67%     143.812ms     719.058us       0.000us         0.00%      40.696ms     203.479us           200  
+          nvjet_tst_256x128_64x5_2x1_2cta_v_bz_bias_TNT         0.00%       0.000us         0.00%       0.000us       0.000us      37.472ms        15.06%      37.472ms     187.361us           200  
+## Call CompiledFxGraph fe3p354nzwxb6oufl3yqqnv5n7oj...         0.00%       0.000us         0.00%       0.000us       0.000us      34.418ms        13.83%      34.418ms     215.111us           160  
+## Call CompiledFxGraph fe3p354nzwxb6oufl3yqqnv5n7oj...         1.64%       8.532ms         2.67%      13.864ms      86.649us       0.000us         0.00%      33.830ms     211.439us           160  
+               nvjet_tst_256x160_64x5_2x1_2cta_v_bz_TNT         0.00%       0.000us         0.00%       0.000us       0.000us      33.643ms        13.52%      33.643ms     168.216us           200  
+               nvjet_tst_128x256_64x6_2x1_2cta_v_bz_TNT         0.00%       0.000us         0.00%       0.000us       0.000us      33.460ms        13.45%      33.460ms     167.300us           200  
+kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100F...         0.00%       0.000us         0.00%       0.000us       0.000us      33.379ms        13.41%      33.379ms     208.621us           160  
+          nvjet_tst_256x128_64x5_2x2_2cta_h_bz_bias_TNT         0.00%       0.000us         0.00%       0.000us       0.000us      30.345ms        12.19%      30.345ms      75.862us           400  
+## Call CompiledFxGraph ffw4q4kngccow57pa2mkgee77ogp...         0.00%       0.000us         0.00%       0.000us       0.000us      18.676ms         7.51%      18.676ms      93.381us           200  
+## Call CompiledFxGraph ffw4q4kngccow57pa2mkgee77ogp...         1.70%       8.838ms         2.76%      14.359ms      71.795us       0.000us         0.00%      18.284ms      91.421us           200  
+## Call CompiledFxGraph fcceaggubatdtr6yp77cg7bal2px...         1.52%       7.886ms         2.53%      13.158ms      54.824us       0.000us         0.00%      18.104ms      75.433us           240  
+## Call CompiledFxGraph fcceaggubatdtr6yp77cg7bal2px...         0.00%       0.000us         0.00%       0.000us       0.000us      18.104ms         7.28%      18.104ms      75.433us           240  
+                             Torch-Compiled Region: 1/1         0.27%       1.388ms         9.38%      48.781ms       1.220ms       0.000us         0.00%      17.136ms     428.396us            40  
+               nvjet_tst_256x128_64x5_2x2_2cta_h_bz_TNT         0.00%       0.000us         0.00%       0.000us       0.000us      15.657ms         6.29%      15.657ms      78.284us           200  
+                            Torch-Compiled Region: 18/0         0.86%       4.486ms         3.19%      16.602ms      83.010us       0.000us         0.00%      15.024ms      75.119us           200  
+                                           aten::linear         0.12%     617.518us         1.27%       6.600ms      34.735us       0.000us         0.00%      12.854ms      67.651us           190  
+                                            aten::copy_         1.86%       9.649ms         3.66%      19.047ms       4.704us      10.863ms         4.37%      10.863ms       2.683us          4049  
+                                    FlashAttnVarlenFunc        13.58%      70.608ms        13.96%      72.571ms     302.380us      10.696ms         4.30%      10.696ms      44.567us           240  
+kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100F...         0.00%       0.000us         0.00%       0.000us       0.000us      10.696ms         4.30%      10.696ms      44.567us           240  
+      triton_red_fused_add_mul_native_layer_norm_view_0         0.89%       4.626ms         1.18%       6.138ms      15.345us      10.549ms         4.24%      10.549ms      26.371us           400  
+      triton_red_fused_add_mul_native_layer_norm_view_0         0.00%       0.000us         0.00%       0.000us       0.000us      10.549ms         4.24%      10.549ms      26.371us           400  
+void at::native::elementwise_kernel<128, 4, at::nati...         0.00%       0.000us         0.00%       0.000us       0.000us      10.183ms         4.09%      10.183ms       3.144us          3239  
+## Call CompiledFxGraph fk64ajjwdf2q6mjilnqgjewiklnr...         0.00%       0.000us         0.00%       0.000us       0.000us       8.625ms         3.47%       8.625ms     215.618us            40  
+## Call CompiledFxGraph fk64ajjwdf2q6mjilnqgjewiklnr...         0.41%       2.123ms         0.67%       3.472ms      86.798us       0.000us         0.00%       8.477ms     211.937us            40  
+                            Torch-Compiled Region: 21/0         0.19%     987.203us         7.10%      36.924ms     923.104us       0.000us         0.00%       8.157ms     203.926us            40  
+                            Torch-Compiled Region: 22/0         0.23%       1.207ms         5.74%      29.835ms     745.864us       0.000us         0.00%       7.662ms     191.556us            40  
+                            Torch-Compiled Region: 15/1         2.71%      14.070ms        19.74%     102.631ms     513.153us       0.000us         0.00%       7.388ms      36.939us           200  
+                                      aten::convolution         0.02%      89.497us         5.93%      30.839ms     700.892us       0.000us         0.00%       7.289ms     165.658us            44  
+                                     aten::_convolution         0.04%     201.558us         5.92%      30.750ms     698.858us       0.000us         0.00%       7.289ms     165.658us            44  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+Self CPU time total: 519.813ms
+Self CUDA time total: 248.832ms
+
+
+Grouped-by-stack summary (group_by_stack_n=12):
+
+Top op keys within stack filters:
+| device_ms | pct | calls | groups | key |
+|---:|---:|---:|---:|---|
+| 194.100 | 11.91% | 160 | 40 | `Torch-Compiled Region: 0/2` |
+| 163.695 | 10.04% | 400 | 4 | `## Call CompiledFxGraph fzkr5p2ai4jlimh5nkeoy4kj6gag3djpy7rrfhfz6gvfo74pftp2 ##` |
+| 127.284 | 7.81% | 200 | 40 | `Torch-Compiled Region: 13/1` |
+| 88.732 | 5.44% | 160 | 40 | `Torch-Compiled Region: 1/2` |
+| 82.760 | 5.08% | 600 | 41 | `aten::mm` |
+| 81.130 | 4.98% | 200 | 40 | `Torch-Compiled Region: 19/0` |
+| 68.430 | 4.20% | 630 | 128 | `aten::addmm` |
+| 68.248 | 4.19% | 320 | 160 | `## Call CompiledFxGraph fe3p354nzwxb6oufl3yqqnv5n7oj6ozrogyabdrellckb4pv7r4i ##` |
+| 52.893 | 3.24% | 160 | 40 | `Torch-Compiled Region: 8/1` |
+| 50.917 | 3.12% | 160 | 40 | `Torch-Compiled Region: 9/1` |
+| 43.596 | 2.67% | 40 | 40 | `Torch-Compiled Region: 0/1` |
+| 40.696 | 2.50% | 200 | 40 | `Torch-Compiled Region: 14/1` |
+| 37.472 | 2.30% | 200 | 80 | `nvjet_tst_256x128_64x5_2x1_2cta_v_bz_bias_TNT` |
+| 36.960 | 2.27% | 400 | 157 | `## Call CompiledFxGraph ffw4q4kngccow57pa2mkgee77ogpi55si5mvf26jkdld7scmyvs7 ##` |
+| 36.208 | 2.22% | 480 | 34 | `## Call CompiledFxGraph fcceaggubatdtr6yp77cg7bal2pxb7hmqu76agprelqh5hx5asm4 ##` |
+| 33.643 | 2.06% | 200 | 1 | `nvjet_tst_256x160_64x5_2x1_2cta_v_bz_TNT` |
+| 33.460 | 2.05% | 200 | 1 | `nvjet_tst_128x256_64x6_2x1_2cta_v_bz_TNT` |
+| 33.379 | 2.05% | 160 | 40 | `kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor0000o11101213_tensor0000o11101213_tensor0000o10111213_tensor0000o11101213_None_None_None_Non_0` |
+| 30.345 | 1.86% | 400 | 42 | `nvjet_tst_256x128_64x5_2x2_2cta_h_bz_bias_TNT` |
+| 21.097 | 1.29% | 800 | 4 | `triton_red_fused_add_mul_native_layer_norm_view_0` |
+| 17.136 | 1.05% | 40 | 40 | `Torch-Compiled Region: 1/1` |
+| 17.102 | 1.05% | 80 | 80 | `## Call CompiledFxGraph fk64ajjwdf2q6mjilnqgjewiklnrsdt2pevlvsuyisl466jtpaa3 ##` |
+| 15.657 | 0.96% | 200 | 40 | `nvjet_tst_256x128_64x5_2x2_2cta_h_bz_TNT` |
+| 15.024 | 0.92% | 200 | 40 | `Torch-Compiled Region: 18/0` |
+| 13.470 | 0.83% | 400 | 2 | `triton_poi_fused_addmm_gelu_view_1` |
+| 12.854 | 0.79% | 190 | 46 | `aten::linear` |
+| 10.917 | 0.67% | 400 | 94 | `## Call CompiledFxGraph f732rfwuj3e43dof7xqnzwq6bnjpadzz7val5ryx64zqiuudjyof ##` |
+| 10.863 | 0.67% | 3,842 | 73 | `aten::copy_` |
+| 10.696 | 0.66% | 240 | 80 | `FlashAttnVarlenFunc` |
+| 10.696 | 0.66% | 240 | 80 | `kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor000o111012_tensor000o111012_tensor000o101112_tensorptrbf16gmemalign16odiv81div8_None_tensorp_0` |
+| 10.183 | 0.62% | 3,239 | 71 | `void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1})` |
+| 9.963 | 0.61% | 800 | 117 | `## Call CompiledFxGraph f4oz2wvcxejxwpdxprvuut3twkm7x5q4nrlvgkq2bxu63do7rkav ##` |
+| 9.599 | 0.59% | 400 | 173 | `## Call CompiledFxGraph fuh67mwwyfifvu65poxmdnfvc3zukk5l7ofvfw7wqcnloi5p64op ##` |
+| 8.275 | 0.51% | 400 | 2 | `triton_red_fused_add_mul_native_layer_norm_split_unsqueeze_view_1` |
+| 8.157 | 0.50% | 40 | 40 | `Torch-Compiled Region: 21/0` |
+| 7.662 | 0.47% | 40 | 40 | `Torch-Compiled Region: 22/0` |
+| 7.388 | 0.45% | 200 | 40 | `Torch-Compiled Region: 15/1` |
+| 7.289 | 0.45% | 20 | 17 | `aten::convolution` |
+| 7.289 | 0.45% | 20 | 17 | `aten::_convolution` |
+| 6.919 | 0.42% | 13 | 13 | `aten::conv3d` |
+| 6.683 | 0.41% | 8 | 8 | `aten::slow_conv_dilated3d` |
+| 6.238 | 0.38% | 3,549 | 13 | `aten::fill_` |
+| 5.255 | 0.32% | 400 | 86 | `triton_red_fused__to_copy_add_addmm_mean_mul_pow_rsqrt_view_0` |
+| 4.981 | 0.31% | 400 | 160 | `Torch-Compiled Region: 3/0` |
+| 4.981 | 0.31% | 400 | 165 | `Torch-Compiled Region: 4/1` |
+| 4.981 | 0.31% | 400 | 178 | `Torch-Compiled Region: 7/1` |
+| 4.981 | 0.31% | 400 | 22 | `rope_fused_3way_kernel_v2_0` |
+| 4.981 | 0.31% | 400 | 22 | `rope_fused_3way_kernel_v2` |
+| 4.952 | 0.30% | 400 | 160 | `triton_red_fused__to_copy_add_mean_mul_pow_rsqrt_split_view_0` |
+| 4.719 | 0.29% | 400 | 160 | `triton_red_fused__to_copy_add_mean_mul_pow_rsqrt_split_view_1` |
+| 4.403 | 0.27% | 400 | 2 | `triton_poi_fused_add_addmm_mul_view_2` |
+| 3.931 | 0.24% | 40 | 40 | `Torch-Compiled Region: 23/0` |
+| 3.931 | 0.24% | 40 | 40 | `Torch-Compiled Region: 15/2` |
+| 3.080 | 0.19% | 40 | 40 | `Torch-Compiled Region: 24/0` |
+| 2.541 | 0.16% | 400 | 54 | `## Call CompiledFxGraph fy2diovumaytikxgbn47fhbd5ncpe2aly5adrlxorw2ifhz2izcc ##` |
+| 1.562 | 0.10% | 80 | 7 | `## Call CompiledFxGraph fz2xsbnhyncv5m3nm7v2bf6vozcxvz5hjd4576llteuddvmlokvy ##` |
+| 1.103 | 0.07% | 7 | 7 | `void at::native::vol2col_kernel<c10::BFloat16>(long, c10::BFloat16 const*, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, c10::BFloat16*)` |
+| 0.999 | 0.06% | 81 | 2 | `aten::zero_` |
+| 0.997 | 0.06% | 80 | 1 | `void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)` |
+| 0.937 | 0.06% | 185 | 50 | `Memcpy DtoD (Device -> Device)` |
+- aten::item: top 15
+  count=1       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.002
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: WanDiffusionWrapper_0
+    scope/core/pipelines/krea_realtime_video/blocks/recompute_kv_cache.py(133): __call__
+    torch/utils/_contextlib.py(117): decorate_context
+    scope/core/pipelines/krea_realtime_video/modular_blocks.py(173): __call__
+    torch/utils/_contextlib.py(117): decorate_context
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.007
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_0
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.008
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_1
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.008
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_2
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.008
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_3
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.008
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_4
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.008
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_5
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.008
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_6
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.008
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_7
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.008
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_8
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.008
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_9
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.008
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_10
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.008
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_11
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.008
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_12
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.008
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_13
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+- aten::_local_scalar_dense: top 15
+  count=1       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.001
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: WanDiffusionWrapper_0
+    scope/core/pipelines/krea_realtime_video/blocks/recompute_kv_cache.py(133): __call__
+    torch/utils/_contextlib.py(117): decorate_context
+    scope/core/pipelines/krea_realtime_video/modular_blocks.py(173): __call__
+    torch/utils/_contextlib.py(117): decorate_context
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.003
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_0
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.003
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_1
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.003
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_2
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.003
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_3
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.003
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_4
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.003
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_5
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.003
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_6
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.003
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_7
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.003
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_8
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.003
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_9
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.003
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_10
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.003
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_11
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.003
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_12
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+  count=5       device_ms=   0.000 self_device_ms=   0.000 cpu_ms=   0.003
+    <built-in method item of Tensor object at 0x74a4ec374e60>
+    torch/_dynamo/guards.py(1632): <lambda>
+    torch/nn/modules/module.py(1779): _call_impl
+    torch/_dynamo/eval_frame.py(791): compile_wrapper
+    nn.Module: CausalWanAttentionBlock_13
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference
+    scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward
+    torch/nn/modules/module.py(1779): _call_impl
+    nn.Module: CausalWanModel_0
+    scope/core/pipelines/wan2_1/components/generator.py(314): _call_model
+    scope/core/pipelines/wan2_1/components/generator.py(332): forward
+    torch/nn/modules/module.py(1779): _call_impl
+- Memcpy DtoH (Device -> Pinned): (no events)
+
+Wrote JSON: outputs/b300_cu130_triton351_ops_profile_dtoh_scan_2025-12-27.json
+Wrote summary: outputs/b300_cu130_triton351_ops_profile_dtoh_scan_2025-12-27.md
