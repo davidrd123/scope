@@ -105,4 +105,7 @@ export SCOPE_KV_BIAS_BACKEND="${SCOPE_KV_BIAS_BACKEND:-fa4}"
 # Faster steady-state decode mode on B300.
 export WANVAE_STREAM_DECODE_MODE="${WANVAE_STREAM_DECODE_MODE:-chunk}"
 
+# Small decode win: use channels-last 3D activations for Conv3d-heavy VAE decode.
+export WANVAE_DECODE_CHANNELS_LAST_3D="${WANVAE_DECODE_CHANNELS_LAST_3D:-1}"
+
 exec "$BIN" "${SCRIPT_ARGS[@]}"

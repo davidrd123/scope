@@ -213,6 +213,10 @@ From `profile_krea_pipeline_blocks.py`:
 | vae_decode | ? | ? |
 | vae_decode_inner | ? | ? |
 
+**New measurement (B300, cu130, `--compile`, 320x576, bias=0.3):**
+- Baseline decode: ~`199.9ms/call` (`outputs/b300_cu130_none_bias0.3_no_fuseproj_compile_blocks_profile.json`)
+- With `WANVAE_DECODE_CHANNELS_LAST_3D=1`: ~`195.1ms/call` (~`-2.4%`) (`outputs/b300_cu130_none_bias0.3_no_fuseproj_compile_blocks_cl3d_profile.json`)
+
 ### Decode Op Timing
 
 From `profile_krea_pipeline_ops.py --with-stack`:

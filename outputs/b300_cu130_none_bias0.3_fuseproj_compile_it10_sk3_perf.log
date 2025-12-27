@@ -1,0 +1,29 @@
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+Skipping import of cpp extensions due to incompatible torch version 2.9.0+cu130 for torchao version 0.15.0+cu130             Please see https://github.com/pytorch/ao/issues/2919 for more info
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Fetching 6 files: 100%|██████████| 6/6 [00:00<00:00, 135300.13it/s]
+Warning: Could not load sageattention: No module named 'sageattention'
+sageattention package is not installed
+SAGEATTN_AVAILABLE: False
+TRITON_ROTARY_AVAILABLE: True, USE_TRITON_ROTARY: True
+TRITON_ROPE_FUSED_AVAILABLE: True, USE_TRITON_ROPE_FUSED: True
+CUDA device: NVIDIA B300 SXM6 AC
+Compute capability: (10, 3)
+torch: 2.9.0+cu130 (cuda=13.0)
+cudnn.benchmark: True
+Loaded diffusion model in 0.079282s
+Loaded text encoder in 0.308185s
+Loaded VAE in 0.134s
+Warmed up (3 runs) in 12.21s
+iter=000 frames=  9 seconds=0.4947 fps=18.19
+iter=001 frames= 12 seconds=0.5272 fps=22.76
+iter=002 frames= 12 seconds=0.5591 fps=21.46
+iter=003 frames= 12 seconds=0.5619 fps=21.36
+iter=004 frames= 12 seconds=0.5556 fps=21.60
+iter=005 frames= 12 seconds=0.5532 fps=21.69
+iter=006 frames= 12 seconds=0.5530 fps=21.70
+iter=007 frames= 12 seconds=0.5513 fps=21.77
+iter=008 frames= 12 seconds=0.5525 fps=21.72
+iter=009 frames= 12 seconds=0.8465 fps=14.18
+
+Avg FPS (skip=3): 20.57
+Wrote per-iter JSON: outputs/b300_cu130_none_bias0.3_fuseproj_compile_it10_sk3_perf.json

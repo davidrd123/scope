@@ -241,7 +241,7 @@ Noise note: if you previously saw `torch/_dynamo` “Backend compiler exception 
 Server opt-in: set `SCOPE_COMPILE_KREA_PIPELINE=1` before launching. `scripts/run_daydream_b300.sh` defaults it to `1`; the server still disables compile by default when quantization is enabled (override for experiments with `SCOPE_COMPILE_KREA_PIPELINE_ALLOW_QUANTIZATION=1`).
 
 **Compile mode experiments:** `src/scope/core/pipelines/krea_realtime_video/pipeline.py` supports `SCOPE_TORCH_COMPILE_MODE`, but on B300/SM103:
-- `max-autotune-no-cudagraphs` can hard-abort with a tcgen05 LLVM intrinsic error.
+- `max-autotune*` can hard-abort with a tcgen05 LLVM intrinsic error (Triton/Inductor SM103). Guardrail: we ignore `max-autotune*` on SM103 unless `SCOPE_ALLOW_MAX_AUTOTUNE_SM103=1` (and you should have `triton>=3.5.1`).
 - `reduce-overhead` (CUDAGraph Trees) is known-bad: we can hit `RuntimeError: accessing tensor output of CUDAGraphs that has been overwritten by a subsequent run`.
   - Tried: `SCOPE_CUDAGRAPH_MARK_STEP_BEGIN=1`, stabilizing KV-cache index tensors, compiling the whole model in `reduce-overhead` mode → still unstable.
   - Guardrail: on SM103 we now ignore `SCOPE_TORCH_COMPILE_MODE=reduce-overhead` unless `SCOPE_ALLOW_REDUCE_OVERHEAD_SM103=1`.
@@ -355,6 +355,12 @@ On B300/SM103, fused projections (`to_qkv(...).chunk(3, dim=-1)`) can create str
 This avoids one explicit K copy by writing the RoPE’d K directly into the KV cache window.
 
 - Set `SCOPE_ROPE_K_TO_CACHE=1` (currently ~neutral; keep opt-in)
+
+5) **VAE decode: channels-last 3D activations**
+
+This uses `torch.channels_last_3d` for the Conv3d-heavy VAE decode activations (small but measurable win on B300).
+
+- Set `WANVAE_DECODE_CHANNELS_LAST_3D=1` (default in `scripts/run_daydream_b300.sh`)
 
 ## Key Discovery This Session
 

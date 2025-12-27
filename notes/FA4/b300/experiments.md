@@ -238,6 +238,94 @@ Keep as an opt-in knob (do not enable by default). Revisit only if we can make t
 - `outputs/b300_cu130_ops_profile_selfattn_no_fuseproj_stack.md`  
 - `outputs/b300_cu130_ops_profile_selfattn_no_fuseproj_rope_k_to_cache_stack.md`  
 
+### 2025-12-27 — VAE decode: channels-last 3D activations
+
+**Question:**  
+Can we shave VAE decode time by using `torch.channels_last_3d` activations for the Conv3d-heavy decode path?
+
+**Hypothesis:**  
+cuDNN Conv3d should run a bit faster with channels-last 3D activations on Blackwell (small but steady gain).
+
+**Change (one thing):**  
+Set `WANVAE_DECODE_CHANNELS_LAST_3D=1` (casts `zs` to channels-last 3D right before `WanVAE_.stream_decode`).
+
+**Benchmark config:**  
+- GPU: B300 (SM103)  
+- Env: cu130 decode env (`.venv-b300-cu130-decode`)  
+- torch / cuda: `2.9.0+cu130` / `13.0`  
+- Settings: `320x576`, steps=`4`, bias=`0.3`, quantization=`none`  
+- Notes: `--compile`, `SCOPE_DISABLE_FUSED_PROJECTIONS=1`, `SCOPE_KV_BIAS_BACKEND=fa4`, `WANVAE_STREAM_DECODE_MODE=chunk`, `DISABLE_FLEX_ATTENTION_COMPILE=1`
+
+**Command(s):**
+```bash
+# Baseline (compile; no channels-last)
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_DISABLE_FUSED_PROJECTIONS=1 \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 6 --skip 2 \
+  --kv-cache-attention-bias 0.3 \
+  --quantization none \
+  --cudnn-benchmark \
+  --compile \
+  --profile-blocks \
+  --profile-blocks-json outputs/b300_cu130_none_bias0.3_no_fuseproj_compile_blocks_profile.json
+
+# Change
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+SCOPE_DISABLE_FUSED_PROJECTIONS=1 \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 6 --skip 2 \
+  --kv-cache-attention-bias 0.3 \
+  --quantization none \
+  --cudnn-benchmark \
+  --compile \
+  --profile-blocks \
+  --profile-blocks-json outputs/b300_cu130_none_bias0.3_no_fuseproj_compile_blocks_cl3d_profile.json
+```
+
+**Baseline:**  
+- Avg FPS (skip=2): `21.28`  
+- Block time per call: `denoise=272.0ms`, `decode=199.9ms`, `recompute_kv_cache=91.4ms`
+
+**Result:**  
+- Avg FPS (skip=2): `21.50`  
+- Block time per call: `decode=195.1ms` (**-4.8ms**, ~`-2.4%`), `denoise≈flat`, `recompute_kv_cache≈flat`
+
+**Decision:**  
+Keep and default-on for B300 (`scripts/run_daydream_b300.sh` sets `WANVAE_DECODE_CHANNELS_LAST_3D=1`).
+
+**Artifacts:**  
+- `outputs/b300_cu130_none_bias0.3_no_fuseproj_compile_blocks_profile.json`  
+- `outputs/b300_cu130_none_bias0.3_no_fuseproj_compile_blocks_cl3d_profile.json`  
+- `outputs/b300_cu130_none_bias0.3_no_fuseproj_compile_blocks_perf.log`  
+- `outputs/b300_cu130_none_bias0.3_no_fuseproj_compile_blocks_cl3d_perf.log`
+
+### 2025-12-27 — torch.compile mode `max-autotune-no-cudagraphs` can hard-abort on SM103
+
+**Status:** Failed (process abort)
+
+**Question:**  
+Can `SCOPE_TORCH_COMPILE_MODE=max-autotune-no-cudagraphs` improve steady-state FPS on B300 by enabling more autotuning (without cudagraphs)?
+
+**Result:**  
+On SM103 with `triton==3.5.0`, the run can hard-abort during Inductor autotuning with:
+- `LLVM ERROR: Cannot select: intrinsic %llvm.nvvm.tcgen05.wait.st`
+
+**Decision:**  
+Treat `max-autotune*` as opt-in on SM103 until the Triton fix is present. The pipeline now ignores `SCOPE_TORCH_COMPILE_MODE=max-autotune*` on SM103 unless you set `SCOPE_ALLOW_MAX_AUTOTUNE_SM103=1` (and you should have `triton>=3.5.1`).
+
+**Artifacts:**  
+- `outputs/b300_cu130_none_bias0.3_no_fuseproj_compile_mode_maxautotune_nocg_perf.log`
+
 ### 2025-12-26 — Baseline choice: `--quantization none` vs `fp8_e4m3fn` (B300 cu130)
 
 **Status:** Done

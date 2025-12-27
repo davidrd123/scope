@@ -148,6 +148,37 @@ class KreaRealtimeVideoPipeline(Pipeline, LoRAEnabledPipeline):
                     + "mode. Set SCOPE_ALLOW_REDUCE_OVERHEAD_SM103=1 to force."
                 )
                 compile_mode = ""
+            if (
+                compile_mode.startswith("max-autotune")
+                and is_sm103()
+                and os.getenv("SCOPE_ALLOW_MAX_AUTOTUNE_SM103", "0") != "1"
+            ):
+                # On SM103 + torch 2.9 / triton 3.5.0, Inductor autotuning can hard-abort
+                # with an LLVM tcgen05 intrinsic error:
+                #   LLVM ERROR: Cannot select: intrinsic %llvm.nvvm.tcgen05.wait.st
+                #
+                # Triton 3.5.1 includes an SM103 fix; treat max-autotune as opt-in on SM103
+                # unless the user explicitly overrides.
+                triton_ok = False
+                try:
+                    import triton  # type: ignore
+
+                    ver = (triton.__version__ or "").split("+", 1)[0].split(".")
+                    major = int(ver[0]) if len(ver) > 0 else 0
+                    minor = int(ver[1]) if len(ver) > 1 else 0
+                    patch = int(ver[2]) if len(ver) > 2 else 0
+                    triton_ok = (major, minor, patch) >= (3, 5, 1)
+                except Exception:
+                    triton_ok = False
+
+                if not triton_ok:
+                    logger.warning(
+                        "SCOPE_TORCH_COMPILE_MODE=%s can hard-abort on SM103 with triton<3.5.1 "
+                        + "(tcgen05 LLVM intrinsic). Falling back to default compile mode. "
+                        + "Set SCOPE_ALLOW_MAX_AUTOTUNE_SM103=1 to force.",
+                        compile_mode,
+                    )
+                    compile_mode = ""
             compile_kwargs = {"fullgraph": False}
             if compile_mode:
                 compile_kwargs["mode"] = compile_mode

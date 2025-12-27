@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 _PROFILE_WANVAE_DECODE = os.getenv("PROFILE_WANVAE_DECODE", "0") == "1"
 _PROFILE_WANVAE_DECODE_JSON = os.getenv("PROFILE_WANVAE_DECODE_JSON")
+_WANVAE_DECODE_CHANNELS_LAST_3D = os.getenv("WANVAE_DECODE_CHANNELS_LAST_3D", "0") == "1"
 _wanvae_decode_cpu_ms = defaultdict(float)
 _wanvae_decode_gpu_ms = defaultdict(float)
 _wanvae_decode_counts = defaultdict(int)
@@ -279,6 +280,7 @@ class WanVAEWrapper(torch.nn.Module):
                     "latent_shape": list(latent.shape),
                     "latent_dtype": str(latent.dtype),
                     "latent_device": str(latent.device),
+                    "WANVAE_DECODE_CHANNELS_LAST_3D": bool(_WANVAE_DECODE_CHANNELS_LAST_3D),
                 }
             )
 
@@ -286,6 +288,8 @@ class WanVAEWrapper(torch.nn.Module):
             # [batch, frames, channels, h, w] -> [batch, channels, frames, h, w]
             zs = latent.permute(0, 2, 1, 3, 4)
             zs = zs.to(torch.bfloat16).to("cuda")
+            if _WANVAE_DECODE_CHANNELS_LAST_3D and zs.is_cuda and zs.ndim == 5:
+                zs = zs.contiguous(memory_format=torch.channels_last_3d)
 
         with _ProfileWanVAEDecode("get_scale"):
             device, dtype = latent.device, latent.dtype
