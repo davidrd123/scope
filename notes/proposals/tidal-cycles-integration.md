@@ -418,7 +418,9 @@ if "_rcp_music_action" in merged_updates:
 
 ### Playlist Integration
 
-Extend playlist format to include music intent per prompt:
+**Future extension:** attach music intent metadata to playlist entries.
+
+**MVP recommendation:** keep the existing caption-file playlist format unchanged and use a separate cue sheet keyed by `playlist_index` (or by a stable prompt ID/hash). This avoids a playlist-format migration just to get audio control.
 
 ```yaml
 # prompts.yaml
@@ -438,6 +440,8 @@ Extend playlist format to include music intent per prompt:
 ```
 
 ### CLI Commands
+
+**Optional (post-MVP):** a `video-cli music ...` wrapper is nice ergonomics, but it’s not required to validate the architecture. Early on, prefer a standalone music-machine script (or `curl`) so we don’t couple audio tooling to WebRTC session state.
 
 ```bash
 # Manual intent override
@@ -478,7 +482,8 @@ Tidal supports Ableton Link for shared tempo/phase:
 - **Rate-limit:** Cap intent sends (10-30 Hz max) and coalesce updates (mailbox semantics)
 - **Allowlist + clamp:** Never accept arbitrary OSC paths from the network
 - **Auth:** Optional bearer token for the bridge if exposed beyond localhost
-- **Logging:** Log events so you can replay a "performance" offline
+- **Logging:** Log events so you can replay a "performance" offline (ideally keyed by `chunk_index` so it can line up with video timelines)
+  - Future: integrate audio-event logging with session timeline export so a single “recording” can replay both video prompts/cuts and music intent.
 
 ---
 
