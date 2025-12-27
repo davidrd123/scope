@@ -10,6 +10,7 @@ These are guardrails for coding agents working in this repo.
 - Treat **untracked** files/dirs as user-owned workspace state: do not delete or relocate them unless asked.
 - Avoid editing dependency/lock files (`pyproject.toml`, `uv.lock`) unless the user explicitly asks.
 - Avoid touching shared virtualenvs (e.g. `.venv`) unless the user explicitly asks; prefer isolated envs for experiments.
+- If profiling/benchmarks OOM due to an existing GPU process, run `nvidia-smi` to identify it and **ask before terminating** any non-trivial process.
 - If external documentation (blogs/specs/release notes) would materially speed up or de-risk a task, pause and ask the user to fetch/curate it before proceeding; be explicit about exactly what to collect and in what format (links, excerpts, PDFs, etc.).
 
 ## B300 Perf Work
