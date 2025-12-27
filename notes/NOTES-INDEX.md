@@ -213,8 +213,9 @@ Concrete implementation proposals with specs and checklists.
 
 | File | Description |
 |------|-------------|
-| [vace-14b-integration/plan.md](vace-14b-integration/plan.md) | VACE-14B integration plan |
-| [vace-14b-integration/work-log.md](vace-14b-integration/work-log.md) | Integration work log |
+| [proposals/vace-14b-integration.md](proposals/vace-14b-integration.md) | VACE-14B integration plan |
+| [proposals/vace-14b-integration/work-log.md](proposals/vace-14b-integration/work-log.md) | Integration work log |
+| [proposals/vace-14b-integration/research/](proposals/vace-14b-integration/research/) | Architecture research |
 
 ---
 
@@ -328,6 +329,7 @@ notes/
 │   └── DeepResearch/       # AI-assisted research
 ├── concepts/               # Phase 2 vision docs (narrative engine, workflows)
 ├── proposals/              # Implementation proposals (ready to build)
+│   └── vace-14b-integration/  # VACE-14B supporting materials
 ├── research/               # Dated research & specs
 │   └── 2025-12-*/          # By date
 ├── plans/                  # Development plans
@@ -335,6 +337,5 @@ notes/
 ├── offline/                # Offline rendering
 ├── krea/                   # Krea pipeline notes
 ├── reference/              # Code patterns & guides
-├── vace-14b-integration/   # VACE work
 └── daydream/               # Program info & cohort materials
 ```

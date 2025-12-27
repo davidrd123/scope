@@ -341,3 +341,13 @@ The mixin is already implemented and tested with 1.3B pipelines. For 14B, the di
 3. Implement **Step 4–5–7** (Krea pipeline + block graph) and verify `pipeline.vace_enabled` + basic R2V.
 4. Decide **Step 8** (KV recompute semantics) and the quantization policy; document the choice.
 5. Validate on target hardware: VRAM headroom + perf impact + qualitative output.
+
+---
+
+## Supporting Materials
+
+| File | Contents |
+|------|----------|
+| [`vace-14b-integration/work-log.md`](vace-14b-integration/work-log.md) | Chronological context, prior assumptions |
+| [`vace-14b-integration/research/`](vace-14b-integration/research/) | Architecture research, upstream availability |
+| [`../guides/vace-architecture-explainer.md`](../guides/vace-architecture-explainer.md) | Repo-wide VACE overview (how it works today) |
