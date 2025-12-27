@@ -25,6 +25,14 @@ _wanvae_decode_gpu_ms = defaultdict(float)
 _wanvae_decode_counts = defaultdict(int)
 _wanvae_decode_meta: dict[str, object] = {}
 
+_PROFILE_WANVAE_ENCODE = os.getenv("PROFILE_WANVAE_ENCODE", "0") == "1"
+_PROFILE_WANVAE_ENCODE_JSON = os.getenv("PROFILE_WANVAE_ENCODE_JSON")
+_WANVAE_ENCODE_CHANNELS_LAST_3D = os.getenv("WANVAE_ENCODE_CHANNELS_LAST_3D", "0") == "1"
+_wanvae_encode_cpu_ms = defaultdict(float)
+_wanvae_encode_gpu_ms = defaultdict(float)
+_wanvae_encode_counts = defaultdict(int)
+_wanvae_encode_meta: dict[str, object] = {}
+
 
 def _should_profile_wanvae_decode() -> bool:
     if not _PROFILE_WANVAE_DECODE:
@@ -100,12 +108,94 @@ def _wanvae_decode_profile_report() -> None:
 atexit.register(_wanvae_decode_profile_report)
 
 
+def _should_profile_wanvae_encode() -> bool:
+    if not _PROFILE_WANVAE_ENCODE:
+        return False
+    if hasattr(torch, "compiler") and hasattr(torch.compiler, "is_compiling"):
+        if torch.compiler.is_compiling():
+            return False
+    return True
+
+
+def _wanvae_encode_profile_report() -> None:
+    if not _wanvae_encode_counts:
+        return
+
+    total_cpu_ms = sum(_wanvae_encode_cpu_ms.values())
+    total_gpu_ms = sum(_wanvae_encode_gpu_ms.values())
+    logger.info("=== WanVAE Encode Profiling Report ===")
+    for name, cpu_ms in sorted(_wanvae_encode_cpu_ms.items(), key=lambda kv: -kv[1]):
+        calls = _wanvae_encode_counts.get(name, 0)
+        gpu_ms = _wanvae_encode_gpu_ms.get(name, 0.0)
+        cpu_pct = (100.0 * cpu_ms / total_cpu_ms) if total_cpu_ms > 0 else 0.0
+        gpu_pct = (100.0 * gpu_ms / total_gpu_ms) if total_gpu_ms > 0 else 0.0
+        cpu_per_call = (cpu_ms / calls) if calls else 0.0
+        gpu_per_call = (gpu_ms / calls) if calls else 0.0
+        logger.info(
+            "  %s: CPU %.1fms (%.1f%%) GPU %.1fms (%.1f%%) [%d calls, CPU %.2fms/call, GPU %.2fms/call]",
+            name,
+            cpu_ms,
+            cpu_pct,
+            gpu_ms,
+            gpu_pct,
+            calls,
+            cpu_per_call,
+            gpu_per_call,
+        )
+    logger.info("  TOTAL: CPU %.1fms GPU %.1fms", total_cpu_ms, total_gpu_ms)
+
+    if _PROFILE_WANVAE_ENCODE_JSON:
+        meta = dict(_wanvae_encode_meta)
+        meta.setdefault("torch", torch.__version__)
+        meta.setdefault("cuda", torch.version.cuda)
+        if torch.cuda.is_available():
+            try:
+                meta.setdefault("cuda_device", torch.cuda.get_device_name(0))
+                meta.setdefault("cuda_capability", list(torch.cuda.get_device_capability(0)))
+            except Exception:
+                pass
+        payload = {
+            "meta": meta,
+            "total_cpu_ms": total_cpu_ms,
+            "total_gpu_ms": total_gpu_ms,
+            "steps": {
+                name: {
+                    "cpu_ms": _wanvae_encode_cpu_ms.get(name, 0.0),
+                    "gpu_ms": _wanvae_encode_gpu_ms.get(name, 0.0),
+                    "calls": int(_wanvae_encode_counts.get(name, 0)),
+                }
+                for name in sorted(_wanvae_encode_counts.keys())
+            },
+        }
+        try:
+            with open(_PROFILE_WANVAE_ENCODE_JSON, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2, sort_keys=True)
+            logger.info("Wrote WanVAE encode profile JSON: %s", _PROFILE_WANVAE_ENCODE_JSON)
+        except Exception as e:
+            logger.warning(
+                "Failed writing WanVAE encode profile JSON (%s): %s",
+                _PROFILE_WANVAE_ENCODE_JSON,
+                e,
+            )
+
+
+atexit.register(_wanvae_encode_profile_report)
+
+
 def reset_wanvae_decode_profile() -> None:
     """Clear accumulated WanVAEWrapper.decode_to_pixel profiling counters."""
     _wanvae_decode_cpu_ms.clear()
     _wanvae_decode_gpu_ms.clear()
     _wanvae_decode_counts.clear()
     _wanvae_decode_meta.clear()
+
+
+def reset_wanvae_encode_profile() -> None:
+    """Clear accumulated WanVAEWrapper.encode_to_latent profiling counters."""
+    _wanvae_encode_cpu_ms.clear()
+    _wanvae_encode_gpu_ms.clear()
+    _wanvae_encode_counts.clear()
+    _wanvae_encode_meta.clear()
 
 
 class _ProfileWanVAEDecode:
@@ -138,6 +228,38 @@ class _ProfileWanVAEDecode:
 
         _wanvae_decode_cpu_ms[self.name] += (time.perf_counter() - self._cpu_start) * 1000.0
         _wanvae_decode_counts[self.name] += 1
+
+
+class _ProfileWanVAEEncode:
+    __slots__ = ("name", "_cpu_start", "_start", "_end")
+
+    def __init__(self, name: str):
+        self.name = name
+        self._cpu_start = None
+        self._start = None
+        self._end = None
+
+    def __enter__(self):
+        if not _should_profile_wanvae_encode():
+            return self
+        self._cpu_start = time.perf_counter()
+        if torch.cuda.is_available():
+            self._start = torch.cuda.Event(enable_timing=True)
+            self._end = torch.cuda.Event(enable_timing=True)
+            self._start.record()
+        return self
+
+    def __exit__(self, *_exc):
+        if self._cpu_start is None:
+            return
+
+        if self._start is not None and self._end is not None:
+            self._end.record()
+            self._end.synchronize()
+            _wanvae_encode_gpu_ms[self.name] += self._start.elapsed_time(self._end)
+
+        _wanvae_encode_cpu_ms[self.name] += (time.perf_counter() - self._cpu_start) * 1000.0
+        _wanvae_encode_counts[self.name] += 1
 
 
 class WanVAEWrapper(torch.nn.Module):
@@ -212,21 +334,38 @@ class WanVAEWrapper(torch.nn.Module):
         Returns:
             Latent tensor [batch, frames, channels, height, width]
         """
-        device, dtype = pixel.device, pixel.dtype
-        scale = self._get_scale(device, dtype)
+        if _should_profile_wanvae_encode():
+            _wanvae_encode_meta.update(
+                {
+                    "use_cache": bool(use_cache),
+                    "pixel_shape": list(pixel.shape),
+                    "pixel_dtype": str(pixel.dtype),
+                    "pixel_device": str(pixel.device),
+                    "WANVAE_ENCODE_CHANNELS_LAST_3D": bool(_WANVAE_ENCODE_CHANNELS_LAST_3D),
+                }
+            )
+
+        with _ProfileWanVAEEncode("prep_memory_format"):
+            if _WANVAE_ENCODE_CHANNELS_LAST_3D and pixel.is_cuda and pixel.ndim == 5:
+                pixel = pixel.contiguous(memory_format=torch.channels_last_3d)
+
+        with _ProfileWanVAEEncode("get_scale"):
+            device, dtype = pixel.device, pixel.dtype
+            scale = self._get_scale(device, dtype)
 
         if use_cache:
-            # Streaming encode - cache is maintained across calls
-            latent = self.model.stream_encode(pixel)
-            # Apply normalization (stream_encode returns unnormalized)
-            latent = self._apply_encoding_normalization(latent, scale)
+            with _ProfileWanVAEEncode("stream_encode"):
+                latent = self.model.stream_encode(pixel)
+            with _ProfileWanVAEEncode("normalize"):
+                # stream_encode returns unnormalized.
+                latent = self._apply_encoding_normalization(latent, scale)
         else:
-            # Batch encode with one-time cache (does not affect streaming state)
-            # Create a temporary cache for the one-time encode
-            latent = self._encode_with_cache(pixel, scale, self._create_encoder_cache())
+            with _ProfileWanVAEEncode("encode_with_cache"):
+                latent = self._encode_with_cache(pixel, scale, self._create_encoder_cache())
 
-        # [batch, channels, frames, h, w] -> [batch, frames, channels, h, w]
-        return latent.permute(0, 2, 1, 3, 4)
+        with _ProfileWanVAEEncode("post_permute"):
+            # [batch, channels, frames, h, w] -> [batch, frames, channels, h, w]
+            return latent.permute(0, 2, 1, 3, 4)
 
     def _encode_with_cache(
         self, x: torch.Tensor, scale: list, feat_cache: list

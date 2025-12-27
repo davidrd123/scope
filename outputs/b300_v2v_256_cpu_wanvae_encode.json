@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "WANVAE_ENCODE_CHANNELS_LAST_3D": false,
+    "cuda": "13.0",
+    "cuda_capability": [
+      10,
+      3
+    ],
+    "cuda_device": "NVIDIA B300 SXM6 AC",
+    "pixel_device": "cuda:0",
+    "pixel_dtype": "torch.bfloat16",
+    "pixel_shape": [
+      1,
+      3,
+      12,
+      256,
+      256
+    ],
+    "torch": "2.9.0+cu130",
+    "use_cache": true
+  },
+  "steps": {
+    "get_scale": {
+      "calls": 1,
+      "cpu_ms": 0.054988000101729995,
+      "gpu_ms": 0.03824000060558319
+    },
+    "normalize": {
+      "calls": 1,
+      "cpu_ms": 0.06337800004985183,
+      "gpu_ms": 0.042527999728918076
+    },
+    "post_permute": {
+      "calls": 1,
+      "cpu_ms": 0.02353999980186927,
+      "gpu_ms": 0.008320000022649765
+    },
+    "prep_memory_format": {
+      "calls": 1,
+      "cpu_ms": 0.02539000024626148,
+      "gpu_ms": 0.006016000173985958
+    },
+    "stream_encode": {
+      "calls": 1,
+      "cpu_ms": 44.36437499998647,
+      "gpu_ms": 44.343711853027344
+    }
+  },
+  "total_cpu_ms": 44.53167100018618,
+  "total_gpu_ms": 44.43881585355848
+}

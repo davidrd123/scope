@@ -1217,3 +1217,85 @@ Keep (default-on). The win is small, but it’s correctness-preserving and makes
 
 **Lessons:**  
 - A lot of the VAE decode cost is still in conv3d itself (not just padding glue), so bigger wins likely need **algorithmic** or **layout** changes (or cuDNN version fixes), not just removing `F.pad`.  
+
+### 2025-12-27 — V2V “low FPS” triage (pipeline vs input-rate cap)
+
+**Observation (UI):**  
+Krea “video-to-video” at `256x256`, 2 denoise steps looked like `~5–9 FPS` in the UI.
+
+**Question:**  
+Is V2V actually compute-bound (VAE encode + denoise + decode), or is the UI rate limited by **input FPS / frame availability**?
+
+**Key design constraint (server):**  
+FrameProcessor outputs at **`min(input_fps, pipeline_fps)`** to preserve temporal accuracy. If your input stream is ~`9 FPS`,
+the output stream will also be ~`9 FPS` even if the pipeline can run faster.
+
+- Code: `src/scope/server/frame_processor.py` (`get_output_fps()`).
+
+**Change (non-destructive):**  
+Added V2V support to the offline benchmark scripts so we can measure compute in isolation:
+- `scripts/profile_krea_pipeline_blocks.py` now supports `--input-mode video` and synthetic video input.
+- Added WanVAE encode profiling hooks: `PROFILE_WANVAE_ENCODE=1` + `PROFILE_WANVAE_ENCODE_JSON=...`.
+
+**Benchmark config (offline):**  
+- GPU: B300 (SM103)  
+- Env: `.venv-b300-cu130-decode`  
+- Settings: `256x256`, bias=`0.3`, quantization=`none`, `--compile`, 2 denoise steps (`--denoising-step-list 1000 500`)  
+- KV-bias: `SCOPE_KV_BIAS_BACKEND=fa4`, `SCOPE_ENABLE_FA4_VARLEN=1`
+
+**Command(s):**
+```bash
+# V2V baseline (CPU frame list, realistic server-like path)
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_ENABLE_FA4_VARLEN=1 \
+PROFILE_PIPELINE_BLOCKS=1 \
+PROFILE_PIPELINE_BLOCKS_JSON=outputs/b300_v2v_256_cpu_v2_blocks.json \
+PROFILE_WANVAE_ENCODE=1 \
+PROFILE_WANVAE_ENCODE_JSON=outputs/b300_v2v_256_cpu_v2_wanvae_encode.json \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 256 --width 256 \
+  --iters 4 --skip 1 --pre-iters 1 \
+  --compile --quantization none \
+  --kv-cache-attention-bias 0.3 \
+  --input-mode video --video-source cpu \
+  --denoising-step-list 1000 500 --noise-scale 0.7 \
+  --json outputs/b300_v2v_256_cpu_v2_perf.json
+
+# V2V baseline (GPU tensor, skips preprocessing/HtoD path)
+PROFILE_PIPELINE_BLOCKS_JSON=outputs/b300_v2v_256_gpu_v2_blocks.json \
+PROFILE_WANVAE_ENCODE_JSON=outputs/b300_v2v_256_gpu_v2_wanvae_encode.json \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 256 --width 256 \
+  --iters 4 --skip 1 --pre-iters 1 \
+  --compile --quantization none \
+  --kv-cache-attention-bias 0.3 \
+  --input-mode video --video-source gpu \
+  --denoising-step-list 1000 500 --noise-scale 0.7 \
+  --json outputs/b300_v2v_256_gpu_v2_perf.json
+```
+
+**Result (offline):**  
+- V2V CPU input: **~`59.8 FPS`** (`outputs/b300_v2v_256_cpu_v2_perf.log`)  
+- V2V GPU input: **~`57.0 FPS`** (`outputs/b300_v2v_256_gpu_v2_perf.log`)
+
+Block profile (CPU input, per pipeline call, `~200ms` total for 12 frames):
+- `denoise`: ~`83ms/call`
+- `recompute_kv_cache`: ~`46ms/call`
+- `auto_prepare_latents` (includes VAE encode): ~`42ms/call`
+- `decode`: ~`27ms/call`
+
+**Interpretation / next step (UI):**  
+If the UI is showing `~5–9 FPS` at this resolution/steps, it’s very likely **not** the core pipeline throughput; it’s usually:
+- low measured **input FPS** (WebRTC capture / source rate), or
+- frame-buffer starvation (pipeline waiting for enough input frames).
+
+To confirm, check the input-vs-pipeline cap logic in `FrameProcessor.get_output_fps()` and inspect the measured input FPS in the UI/server status.
+
+**Artifacts:**  
+- `outputs/b300_v2v_256_cpu_v2_perf.log`, `outputs/b300_v2v_256_cpu_v2_blocks.json`, `outputs/b300_v2v_256_cpu_v2_wanvae_encode.json`  
+- `outputs/b300_v2v_256_gpu_v2_perf.log`, `outputs/b300_v2v_256_gpu_v2_blocks.json`, `outputs/b300_v2v_256_gpu_v2_wanvae_encode.json`

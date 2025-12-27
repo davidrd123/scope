@@ -45,6 +45,49 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--pre-iters", type=int, default=1, help="Warm iterations outside profiler")
     parser.add_argument("--kv-cache-attention-bias", type=float, default=0.3)
     parser.add_argument(
+        "--input-mode",
+        choices=["text", "video"],
+        default="text",
+        help="Profile text-to-video (text) or video-to-video (video).",
+    )
+    parser.add_argument(
+        "--video-source",
+        choices=["cpu", "gpu"],
+        default="cpu",
+        help="For V2V: provide input frames as CPU list (realistic server path) or a prepacked GPU tensor (skips preprocessing/HtoD).",
+    )
+    parser.add_argument(
+        "--video-frames",
+        type=int,
+        default=None,
+        help="For V2V: number of input frames to provide. Default uses num_frame_per_block*vae_temporal_downsample_factor (+1 for first block).",
+    )
+    parser.add_argument(
+        "--video-input-height",
+        type=int,
+        default=None,
+        help="For V2V + --video-source cpu: input frame height before preprocessing/resize (defaults to --height).",
+    )
+    parser.add_argument(
+        "--video-input-width",
+        type=int,
+        default=None,
+        help="For V2V + --video-source cpu: input frame width before preprocessing/resize (defaults to --width).",
+    )
+    parser.add_argument(
+        "--denoising-step-list",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Optional override for denoising_step_list (e.g. --denoising-step-list 1000 500).",
+    )
+    parser.add_argument(
+        "--noise-scale",
+        type=float,
+        default=0.7,
+        help="For V2V: blend factor between encoded latents and fresh noise (0=preserve input, 1=ignore input).",
+    )
+    parser.add_argument(
         "--compile",
         action="store_true",
         help="Enable torch.compile for the diffusion attention blocks (same as the server's SCOPE_COMPILE_KREA_PIPELINE=1).",
@@ -296,11 +339,51 @@ def main() -> int:
     )
 
     prompts = [{"text": args.prompt, "weight": 100}]
+    video = None
+    if args.input_mode == "video":
+        num_frame_per_block = int(getattr(pipeline.components.config, "num_frame_per_block", 3))
+        vae_temporal_downsample_factor = int(
+            getattr(pipeline.components.config, "vae_temporal_downsample_factor", 4)
+        )
+        default_frames = (num_frame_per_block * vae_temporal_downsample_factor) + 1
+        num_frames = int(args.video_frames) if args.video_frames is not None else default_frames
+        if args.video_source == "gpu":
+            video_u8 = torch.randint(
+                0,
+                256,
+                (1, 3, num_frames, args.height, args.width),
+                device="cuda",
+                dtype=torch.uint8,
+            )
+            video = (video_u8.to(dtype=torch.bfloat16) / 255.0) * 2.0 - 1.0
+        else:
+            in_h = int(args.video_input_height) if args.video_input_height is not None else args.height
+            in_w = int(args.video_input_width) if args.video_input_width is not None else args.width
+            video = [
+                torch.randint(
+                    0,
+                    256,
+                    (1, in_h, in_w, 3),
+                    device="cpu",
+                    dtype=torch.uint8,
+                )
+                for _ in range(num_frames)
+            ]
+
+    call_kwargs: dict[str, object] = {
+        "prompts": prompts,
+        "kv_cache_attention_bias": args.kv_cache_attention_bias,
+    }
+    if args.denoising_step_list is not None:
+        call_kwargs["denoising_step_list"] = list(args.denoising_step_list)
+    if video is not None:
+        call_kwargs["video"] = video
+        call_kwargs["noise_scale"] = float(args.noise_scale)
 
     if args.pre_iters:
         print(f"Pre-warm (outside profiler): {args.pre_iters} iteration(s)")
         for _ in range(args.pre_iters):
-            pipeline(prompts=prompts, kv_cache_attention_bias=args.kv_cache_attention_bias)
+            pipeline(**call_kwargs)
         torch.cuda.synchronize()
 
     print(f"Profiling: {args.iters} iteration(s)")
@@ -322,7 +405,7 @@ def main() -> int:
         experimental_config=experimental_config,
     ) as prof:
         for _ in range(args.iters):
-            pipeline(prompts=prompts, kv_cache_attention_bias=args.kv_cache_attention_bias)
+            pipeline(**call_kwargs)
         torch.cuda.synchronize()
 
     dt = time.perf_counter() - t0
