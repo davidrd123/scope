@@ -178,6 +178,8 @@ def _maybe_set_default_env() -> None:
 
     os.environ.setdefault("DISABLE_FLEX_ATTENTION_COMPILE", "1")
     os.environ.setdefault("WANVAE_STREAM_DECODE_MODE", "chunk")
+    os.environ.setdefault("WANVAE_DECODE_CHANNELS_LAST_3D", "1")
+    os.environ.setdefault("WANVAE_RESAMPLE_ENSURE_CONTIGUOUS", "1")
     os.environ.setdefault("TRITON_PTXAS_PATH", "/usr/local/cuda-12.9/bin/ptxas")
 
 
@@ -247,6 +249,8 @@ def main() -> int:
     print(f"SCOPE_KV_BIAS_BACKEND={os.getenv('SCOPE_KV_BIAS_BACKEND')}")
     print(f"DISABLE_FLEX_ATTENTION_COMPILE={os.getenv('DISABLE_FLEX_ATTENTION_COMPILE')}")
     print(f"WANVAE_STREAM_DECODE_MODE={os.getenv('WANVAE_STREAM_DECODE_MODE')}")
+    print(f"WANVAE_DECODE_CHANNELS_LAST_3D={os.getenv('WANVAE_DECODE_CHANNELS_LAST_3D')}")
+    print(f"WANVAE_RESAMPLE_ENSURE_CONTIGUOUS={os.getenv('WANVAE_RESAMPLE_ENSURE_CONTIGUOUS')}")
     print(f"TRITON_PTXAS_PATH={os.getenv('TRITON_PTXAS_PATH')}")
     if args.with_stack:
         print(f"with_stack=True (stack_n={args.stack_n})")

@@ -1,0 +1,2768 @@
+{
+  "events": [
+    {
+      "count": 403,
+      "cpu_time_total_us": 2054.4420000004056,
+      "device_time_total_us": 192.448999999968,
+      "key": "aten::to",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 11,
+      "cpu_time_total_us": 6.529999999928123,
+      "device_time_total_us": 3.2640000000001237,
+      "key": "cudaStreamIsCapturing",
+      "self_device_time_total_us": 3.2640000000001237
+    },
+    {
+      "count": 1,
+      "cpu_time_total_us": 57.93899999999985,
+      "device_time_total_us": 3.2640000000001237,
+      "key": "aten::randn",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 4,
+      "cpu_time_total_us": 100.40599999999836,
+      "device_time_total_us": 12.92799999998988,
+      "key": "aten::normal_",
+      "self_device_time_total_us": 12.92799999998988
+    },
+    {
+      "count": 4,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 12.92799999998988,
+      "key": "void at::native::(anonymous namespace)::distribution_elementwise_grid_stride_kernel<float, 4, at::native::templates::cuda::normal_and_transform<c10::BFloat16, float, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1})::{lambda(curandStatePhilox4_32_10*)#2}, at::native::(anonymous namespace)::distribution_nullary_kernel<c10::BFloat16, float, float4, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_and_transform<c10::BFloat16, float, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1})::{lambda(curandStatePhilox4_32_10*)#2}, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_and_transform<c10::BFloat16, float, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1})::{lambda(curandStatePhilox4_32_10*)#2} const&, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1})::{lambda(int, float)#1}>(long, at::PhiloxCudaState, at::native::templates::cuda::normal_and_transform<c10::BFloat16, float, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1})::{lambda(curandStatePhilox4_32_10*)#2}, at::native::(anonymous namespace)::distribution_nullary_kernel<c10::BFloat16, float, float4, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_and_transform<c10::BFloat16, float, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1})::{lambda(curandStatePhilox4_32_10*)#2}, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_and_transform<c10::BFloat16, float, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::CUDAGeneratorImpl*, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1})::{lambda(curandStatePhilox4_32_10*)#2} const&, at::native::templates::cuda::normal_kernel<at::CUDAGeneratorImpl*>(at::TensorBase const&, double, double, at::CUDAGeneratorImpl*)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(float)#1})::{lambda(int, float)#1})",
+      "self_device_time_total_us": 12.92799999998988
+    },
+    {
+      "count": 67,
+      "cpu_time_total_us": 1405.4320000003283,
+      "device_time_total_us": 364.9949999999858,
+      "key": "aten::cat",
+      "self_device_time_total_us": 364.9949999999858
+    },
+    {
+      "count": 505,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 2573.5960000006457,
+      "key": "Memcpy DtoD (Device -> Device)",
+      "self_device_time_total_us": 2573.5960000006457
+    },
+    {
+      "count": 86,
+      "cpu_time_total_us": 438.457999999956,
+      "device_time_total_us": 992.6149999999977,
+      "key": "aten::zero_",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 3719,
+      "cpu_time_total_us": 19467.597000000445,
+      "device_time_total_us": 3706.144000000688,
+      "key": "aten::fill_",
+      "self_device_time_total_us": 1299.2750000000995
+    },
+    {
+      "count": 80,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 991.334999999998,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)",
+      "self_device_time_total_us": 991.334999999998
+    },
+    {
+      "count": 120,
+      "cpu_time_total_us": 1890.6180000001025,
+      "device_time_total_us": 192.448999999968,
+      "key": "aten::_to_copy",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 4129,
+      "cpu_time_total_us": 20162.82499999937,
+      "device_time_total_us": 5311.928000001198,
+      "key": "aten::copy_",
+      "self_device_time_total_us": 5311.928000001198
+    },
+    {
+      "count": 80,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 63.32800000000066,
+      "key": "Memcpy HtoD (Pageable -> Device)",
+      "self_device_time_total_us": 63.32800000000066
+    },
+    {
+      "count": 1,
+      "cpu_time_total_us": 12.918999999999869,
+      "device_time_total_us": 1.2799999999997453,
+      "key": "aten::zeros",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 173,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 307.94000000010146,
+      "key": "void at::native::vectorized_elementwise_kernel<2, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+      "self_device_time_total_us": 307.94000000010146
+    },
+    {
+      "count": 261,
+      "cpu_time_total_us": 540.4769999999799,
+      "device_time_total_us": 16.608999999989464,
+      "key": "aten::reshape",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 10,
+      "cpu_time_total_us": 643.4650000000265,
+      "device_time_total_us": 364.8010000001559,
+      "key": "aten::conv2d",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 44,
+      "cpu_time_total_us": 30752.44500000003,
+      "device_time_total_us": 3636.0610000008637,
+      "key": "aten::convolution",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 44,
+      "cpu_time_total_us": 30665.185999999958,
+      "device_time_total_us": 3636.0610000008637,
+      "key": "aten::_convolution",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 36,
+      "cpu_time_total_us": 1136.1880000001192,
+      "device_time_total_us": 407.42600000014136,
+      "key": "aten::cudnn_convolution",
+      "self_device_time_total_us": 370.84900000009293
+    },
+    {
+      "count": 10,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 61.2490000001053,
+      "key": "void cudnn::engines_precompiled::nchwToNhwcKernel<__nv_bfloat16, __nv_bfloat16, float, false, true, (cudnnKernelDataType_t)0>(cudnn::engines_precompiled::nchw2nhwc_params_t<float>, __nv_bfloat16 const*, __nv_bfloat16*)",
+      "self_device_time_total_us": 61.2490000001053
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 62.62400000000616,
+      "key": "cutlass3x_sm100_tensorop_s256x128x16implicit_gemm_fprop_bf16_bf16_f32_void_bf16_f32_256x128x64_dyn_cga_ndhwc_ndhwc_ndhwc_align8_2sm_relu_valpha",
+      "self_device_time_total_us": 62.62400000000616
+    },
+    {
+      "count": 36,
+      "cpu_time_total_us": 203.7350000000297,
+      "device_time_total_us": 197.08900000010908,
+      "key": "aten::add_",
+      "self_device_time_total_us": 197.08900000010908
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 67.96800000000894,
+      "key": "void cudnn::engines_precompiled::nhwcToNchwKernel<__nv_bfloat16, __nv_bfloat16, float, true, false, (cudnnKernelDataType_t)0>(cudnn::engines_precompiled::nhwc2nchw_params_t<float>, __nv_bfloat16 const*, __nv_bfloat16*)",
+      "self_device_time_total_us": 67.96800000000894
+    },
+    {
+      "count": 24,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 364.834000000119,
+      "key": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<c10::BFloat16> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<c10::BFloat16> const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<c10::BFloat16> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<c10::BFloat16> const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 364.834000000119
+    },
+    {
+      "count": 17,
+      "cpu_time_total_us": 281.43499999997584,
+      "device_time_total_us": 19.743000000012216,
+      "key": "aten::stack",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 188,
+      "cpu_time_total_us": 783.4239999998144,
+      "device_time_total_us": 109.18700000002809,
+      "key": "aten::flatten",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 73,
+      "cpu_time_total_us": 797.9200000003602,
+      "device_time_total_us": 194.18200000007437,
+      "key": "aten::clone",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 1432,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 2871.197000000632,
+      "key": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 2871.197000000632
+    },
+    {
+      "count": 165,
+      "cpu_time_total_us": 2334.163000000164,
+      "device_time_total_us": 292.96499999982916,
+      "key": "aten::is_nonzero",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 1492,
+      "cpu_time_total_us": 36501.52900000011,
+      "device_time_total_us": 2202.5679999996064,
+      "key": "aten::item",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 1492,
+      "cpu_time_total_us": 35348.537000001015,
+      "device_time_total_us": 2202.5679999996064,
+      "key": "aten::_local_scalar_dense",
+      "self_device_time_total_us": 2202.5679999996064
+    },
+    {
+      "count": 10,
+      "cpu_time_total_us": 133.92700000002333,
+      "device_time_total_us": 14.145999999942433,
+      "key": "aten::arange",
+      "self_device_time_total_us": 7.072999999971216
+    },
+    {
+      "count": 25,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 91.00899999996545,
+      "key": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#6}::operator()() const::{lambda(double)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#6}::operator()() const::{lambda(double)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+      "self_device_time_total_us": 91.00899999996545
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 7.072999999971216,
+      "key": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#6}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#6}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#6}::operator()() const::{lambda(long)#1}>::result_type*)",
+      "self_device_time_total_us": 7.072999999971216
+    },
+    {
+      "count": 37,
+      "cpu_time_total_us": 301.0200000001478,
+      "device_time_total_us": 86.65799999987576,
+      "key": "aten::div",
+      "self_device_time_total_us": 86.65799999987576
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 9.087999999985186,
+      "key": "void at::native::vectorized_elementwise_kernel<2, at::native::BUnaryFunctor<double, double, double, at::native::binary_internal::MulFunctor<double> >, std::array<char*, 2ul> >(int, at::native::BUnaryFunctor<double, double, double, at::native::binary_internal::MulFunctor<double> >, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 9.087999999985186
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 48.868999999986954,
+      "device_time_total_us": 8.351999999997133,
+      "key": "aten::neg",
+      "self_device_time_total_us": 8.351999999997133
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 8.351999999997133,
+      "key": "void at::native::vectorized_elementwise_kernel<2, at::native::neg_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#6}::operator()() const::{lambda(double)#1}, std::array<char*, 2ul> >(int, at::native::neg_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#6}::operator()() const::{lambda(double)#1}, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 8.351999999997133
+    },
+    {
+      "count": 10,
+      "cpu_time_total_us": 198.2049999999481,
+      "device_time_total_us": 92.82999999989624,
+      "key": "aten::pow",
+      "self_device_time_total_us": 42.59099999996033
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 44.06900000003043,
+      "device_time_total_us": 7.647999999975582,
+      "key": "aten::scalar_tensor",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 42.59099999996033,
+      "key": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl<at::native::(anonymous namespace)::pow_tensor_tensor_kernel(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#6}::operator()() const::{lambda(double, double)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::pow_tensor_tensor_kernel(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#6}::operator()() const::{lambda(double, double)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl<at::native::(anonymous namespace)::pow_tensor_tensor_kernel(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#6}::operator()() const::{lambda(double, double)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::pow_tensor_tensor_kernel(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#6}::operator()() const::{lambda(double, double)#1} const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 42.59099999996033
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 60.858000000001994,
+      "device_time_total_us": 9.856999999999971,
+      "key": "aten::outer",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 82,
+      "cpu_time_total_us": 564.8370000002296,
+      "device_time_total_us": 269.72999999994136,
+      "key": "aten::mul",
+      "self_device_time_total_us": 269.72999999994136
+    },
+    {
+      "count": 10,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 22.784999999985303,
+      "key": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<double, double, double, at::native::binary_internal::MulFunctor<double> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<double, double, double, at::native::binary_internal::MulFunctor<double> > const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<double, double, double, at::native::binary_internal::MulFunctor<double> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<double, double, double, at::native::binary_internal::MulFunctor<double> > const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 22.784999999985303
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 48.928000000016254,
+      "device_time_total_us": 23.135999999944943,
+      "key": "aten::cos",
+      "self_device_time_total_us": 23.135999999944943
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 23.135999999944943,
+      "key": "void at::native::vectorized_elementwise_kernel<2, at::native::cos_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#1}::operator()() const::{lambda(double)#1}, std::array<char*, 2ul> >(int, at::native::cos_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#1}::operator()() const::{lambda(double)#1}, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 23.135999999944943
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 51.04900000002726,
+      "device_time_total_us": 23.90399999996771,
+      "key": "aten::sin",
+      "self_device_time_total_us": 23.90399999996771
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 23.90399999996771,
+      "key": "void at::native::vectorized_elementwise_kernel<2, at::native::sin_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#1}::operator()() const::{lambda(double)#1}, std::array<char*, 2ul> >(int, at::native::sin_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#1}::operator()() const::{lambda(double)#1}, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 23.90399999996771
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 8.127999999973326,
+      "key": "void at::native::(anonymous namespace)::CatArrayBatchedCopy_alignedK_contig<at::native::(anonymous namespace)::OpaqueType<8u>, unsigned int, 2, 128, 1, 16>(at::native::(anonymous namespace)::OpaqueType<8u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<8u>, unsigned int, 128, 1>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)",
+      "self_device_time_total_us": 8.127999999973326
+    },
+    {
+      "count": 13,
+      "cpu_time_total_us": 99.19499999997606,
+      "device_time_total_us": 19.872000000011212,
+      "key": "aten::type_as",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 10,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 32.99199999997745,
+      "key": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+      "self_device_time_total_us": 32.99199999997745
+    },
+    {
+      "count": 190,
+      "cpu_time_total_us": 6578.995999999774,
+      "device_time_total_us": 12964.769999999731,
+      "key": "aten::linear",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 430,
+      "cpu_time_total_us": 8012.030999999608,
+      "device_time_total_us": 31483.727999999635,
+      "key": "aten::addmm",
+      "self_device_time_total_us": 31483.727999999635
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 17.311999999984437,
+      "key": "nvjet_tst_64x8_64x16_4x1_v_bz_bias_TNT",
+      "self_device_time_total_us": 17.311999999984437
+    },
+    {
+      "count": 39,
+      "cpu_time_total_us": 245.02899999979854,
+      "device_time_total_us": 53.05999999991127,
+      "key": "aten::silu",
+      "self_device_time_total_us": 53.05999999991127
+    },
+    {
+      "count": 17,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 53.05999999991127,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::silu_kernel(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#6}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::silu_kernel(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#6}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 53.05999999991127
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 69.9840000000022,
+      "key": "nvjet_tst_64x8_64x16_2x1_v_bz_splitK_bias_TNT",
+      "self_device_time_total_us": 69.9840000000022
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 14.080000000025393,
+      "key": "void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __nv_bfloat16, false, float, __nv_bfloat16, __nv_bfloat16, true, true, false, false>(cublasLt::cublasSplitKParams<float>, float const*, __nv_bfloat16 const*, float*, __nv_bfloat16*, float const*, float const*, __nv_bfloat16 const*, float const*, __nv_bfloat16*, void*, long, float*, int*, float*, float*, float const*, float const*, float const*, float const*, float const*)",
+      "self_device_time_total_us": 14.080000000025393
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 287.71499999999196,
+      "key": "nvjet_tst_256x8_64x6_4x1_v_bz_bias_TNT",
+      "self_device_time_total_us": 287.71499999999196
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 31.552999999964413,
+      "key": "void at::native::(anonymous namespace)::CatArrayBatchedCopy_alignedK_contig<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 2, 128, 1, 8>(at::native::(anonymous namespace)::OpaqueType<2u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 128, 1>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)",
+      "self_device_time_total_us": 31.552999999964413
+    },
+    {
+      "count": 10,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 175.93599999999333,
+      "key": "nvjet_tst_144x128_64x8_1x2_2cta_h_bz_bias_TNN",
+      "self_device_time_total_us": 175.93599999999333
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 56.28799999999319,
+      "device_time_total_us": 23.008000000041648,
+      "key": "aten::gelu",
+      "self_device_time_total_us": 23.008000000041648
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 23.008000000041648,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::GeluCUDAKernelImpl(at::TensorIteratorBase&, at::native::GeluType)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::GeluCUDAKernelImpl(at::TensorIteratorBase&, at::native::GeluType)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 23.008000000041648
+    },
+    {
+      "count": 40,
+      "cpu_time_total_us": 43636.26599999999,
+      "device_time_total_us": 52775.84600000001,
+      "key": "Torch-Compiled Region: 0/1",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 14371.135000000082,
+      "device_time_total_us": 4541.088000000197,
+      "key": "## Call CompiledFxGraph fykf4eh4paj6eytlsiqjalfu6saslprgfv7azwixjwgnn36txthc ##",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 2239.0439999997716,
+      "device_time_total_us": 388.35000000013406,
+      "key": "triton_poi_fused_add_unsqueeze_0",
+      "self_device_time_total_us": 388.35000000013406
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 5053.130000000098,
+      "key": "## Call CompiledFxGraph fykf4eh4paj6eytlsiqjalfu6saslprgfv7azwixjwgnn36txthc ##",
+      "self_device_time_total_us": 5053.130000000098
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 388.35000000013406,
+      "key": "triton_poi_fused_add_unsqueeze_0",
+      "self_device_time_total_us": 388.35000000013406
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 1506.2060000002666,
+      "device_time_total_us": 4152.738000000063,
+      "key": "triton_red_fused_add_mul_native_layer_norm_split_unsqueeze_view_1",
+      "self_device_time_total_us": 4152.738000000063
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 4152.738000000063,
+      "key": "triton_red_fused_add_mul_native_layer_norm_split_unsqueeze_view_1",
+      "self_device_time_total_us": 4152.738000000063
+    },
+    {
+      "count": 40,
+      "cpu_time_total_us": 27050.533000000018,
+      "device_time_total_us": 25148.506000000052,
+      "key": "Torch-Compiled Region: 1/1",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 40,
+      "cpu_time_total_us": 4382.370999999991,
+      "device_time_total_us": 10277.837000000056,
+      "key": "## Call CompiledFxGraph fuerq27apmsb63irvfj2omfonzgokg7zwoewsmzlbgle7oevigjt ##",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 1200,
+      "cpu_time_total_us": 13256.97600000046,
+      "device_time_total_us": 129123.28400000048,
+      "key": "aten::mm",
+      "self_device_time_total_us": 129123.28400000048
+    },
+    {
+      "count": 40,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 10611.413000000013,
+      "key": "## Call CompiledFxGraph fuerq27apmsb63irvfj2omfonzgokg7zwoewsmzlbgle7oevigjt ##",
+      "self_device_time_total_us": 10611.413000000013
+    },
+    {
+      "count": 800,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 60975.64299999985,
+      "key": "nvjet_tst_256x128_64x5_2x2_2cta_h_bz_TNT",
+      "self_device_time_total_us": 60975.64299999985
+    },
+    {
+      "count": 400,
+      "cpu_time_total_us": 3330.5490000003574,
+      "device_time_total_us": 5496.04100000042,
+      "key": "triton_red_fused__to_copy_add_addmm_mean_mul_pow_rsqrt_view_0",
+      "self_device_time_total_us": 5496.04100000042
+    },
+    {
+      "count": 400,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 5496.04100000042,
+      "key": "triton_red_fused__to_copy_add_addmm_mean_mul_pow_rsqrt_view_0",
+      "self_device_time_total_us": 5496.04100000042
+    },
+    {
+      "count": 400,
+      "cpu_time_total_us": 58849.411999999975,
+      "device_time_total_us": 5130.531999999502,
+      "key": "Torch-Compiled Region: 3/0",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 400,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 30876.044999999605,
+      "key": "nvjet_tst_256x128_64x5_2x2_2cta_h_bz_bias_TNT",
+      "self_device_time_total_us": 30876.044999999605
+    },
+    {
+      "count": 400,
+      "cpu_time_total_us": 50419.280999999726,
+      "device_time_total_us": 5130.531999999502,
+      "key": "Torch-Compiled Region: 4/1",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 400,
+      "cpu_time_total_us": 33941.05199999926,
+      "device_time_total_us": 5130.531999999502,
+      "key": "Torch-Compiled Region: 7/1",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 400,
+      "cpu_time_total_us": 22051.615000000238,
+      "device_time_total_us": 5130.531999999502,
+      "key": "## Call CompiledFxGraph fciwnstlgutbbrvhk6j6rfmddtlmlqqiatrps6phji37wfcgw4vo ##",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 400,
+      "cpu_time_total_us": 7661.003999999972,
+      "device_time_total_us": 5130.531999999502,
+      "key": "rope_fused_3way_kernel_v2_0",
+      "self_device_time_total_us": 5130.531999999502
+    },
+    {
+      "count": 400,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 5130.531999999502,
+      "key": "rope_fused_3way_kernel_v2",
+      "self_device_time_total_us": 5130.531999999502
+    },
+    {
+      "count": 400,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 5130.531999999502,
+      "key": "## Call CompiledFxGraph fciwnstlgutbbrvhk6j6rfmddtlmlqqiatrps6phji37wfcgw4vo ##",
+      "self_device_time_total_us": 5130.531999999502
+    },
+    {
+      "count": 40,
+      "cpu_time_total_us": 14768.380000000026,
+      "device_time_total_us": 14344.136999999992,
+      "key": "Torch-Compiled Region: 15/0",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 40,
+      "cpu_time_total_us": 7967.723999999972,
+      "device_time_total_us": 13843.016999999993,
+      "key": "Torch-Compiled Region: 16/0",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 40,
+      "cpu_time_total_us": 6815.8050000000285,
+      "device_time_total_us": 13843.016999999993,
+      "key": "## Call CompiledFxGraph flwczbr2va6dg3efruela4opqksbqbcddxpjzr47fiv62qbso3w7 ##",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 80,
+      "cpu_time_total_us": 624.2170000000269,
+      "device_time_total_us": 603.5850000000119,
+      "key": "triton_poi_fused_copy_slice_0",
+      "self_device_time_total_us": 603.5850000000119
+    },
+    {
+      "count": 40,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 14372.14700000001,
+      "key": "## Call CompiledFxGraph flwczbr2va6dg3efruela4opqksbqbcddxpjzr47fiv62qbso3w7 ##",
+      "self_device_time_total_us": 14372.14700000001
+    },
+    {
+      "count": 80,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 603.5850000000119,
+      "key": "triton_poi_fused_copy_slice_0",
+      "self_device_time_total_us": 603.5850000000119
+    },
+    {
+      "count": 240,
+      "cpu_time_total_us": 13105.63299999995,
+      "device_time_total_us": 23018.922999999675,
+      "key": "flash_attn::_flash_attn_forward",
+      "self_device_time_total_us": 23018.922999999675
+    },
+    {
+      "count": 240,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 23018.922999999675,
+      "key": "void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<128, 128, 64, 4, false, false, cutlass::bfloat16_t, Flash_kernel_traits<128, 128, 64, 4, cutlass::bfloat16_t> >, false, false, false, false, false, true, false, false>(flash::Flash_fwd_params)",
+      "self_device_time_total_us": 23018.922999999675
+    },
+    {
+      "count": 80,
+      "cpu_time_total_us": 564.2850000000017,
+      "device_time_total_us": 127.93499999998949,
+      "key": "triton_poi_fused_copy__fill_1",
+      "self_device_time_total_us": 127.93499999998949
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 65558.73899999952,
+      "device_time_total_us": 133299.85300000064,
+      "key": "Torch-Compiled Region: 13/1",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 56994.23700000014,
+      "device_time_total_us": 133299.85300000064,
+      "key": "## Call CompiledFxGraph f3xe5wyeoz3mjoa4uwronzbu27nnhqzgktf5hbdcuquz6tflrwl5 ##",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 3095.4100000002954,
+      "device_time_total_us": 5328.392000000532,
+      "key": "triton_red_fused_add_mul_native_layer_norm_view_0",
+      "self_device_time_total_us": 5328.392000000532
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 1763.0410000001084,
+      "device_time_total_us": 2706.0960000000105,
+      "key": "triton_red_fused__flash_attn_forward__to_copy_add_addmm_mean_mul_pow_rsqrt_view_1",
+      "self_device_time_total_us": 2706.0960000000105
+    },
+    {
+      "count": 80,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 127.93499999998949,
+      "key": "triton_poi_fused_copy__fill_1",
+      "self_device_time_total_us": 127.93499999998949
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 136692.53200000044,
+      "key": "## Call CompiledFxGraph f3xe5wyeoz3mjoa4uwronzbu27nnhqzgktf5hbdcuquz6tflrwl5 ##",
+      "self_device_time_total_us": 136692.53200000044
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 5328.392000000532,
+      "key": "triton_red_fused_add_mul_native_layer_norm_view_0",
+      "self_device_time_total_us": 5328.392000000532
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 2359.74899999998,
+      "device_time_total_us": 5199.714000000298,
+      "key": "triton_red_fused_add_addmm_mul_native_layer_norm_view_2",
+      "self_device_time_total_us": 5199.714000000298
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 1575.050999999974,
+      "device_time_total_us": 6785.42400000003,
+      "key": "triton_poi_fused_addmm_gelu_view_3",
+      "self_device_time_total_us": 6785.42400000003
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 2706.0960000000105,
+      "key": "triton_red_fused__flash_attn_forward__to_copy_add_addmm_mean_mul_pow_rsqrt_view_1",
+      "self_device_time_total_us": 2706.0960000000105
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 1526.6439999997638,
+      "device_time_total_us": 1711.9839999998294,
+      "key": "triton_poi_fused_add_addmm_mul_view_4",
+      "self_device_time_total_us": 1711.9839999998294
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 5199.714000000298,
+      "key": "triton_red_fused_add_addmm_mul_native_layer_norm_view_2",
+      "self_device_time_total_us": 5199.714000000298
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 33925.70600000043,
+      "key": "nvjet_tst_128x256_64x6_2x1_2cta_v_bz_TNT",
+      "self_device_time_total_us": 33925.70600000043
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 6785.42400000003,
+      "key": "triton_poi_fused_addmm_gelu_view_3",
+      "self_device_time_total_us": 6785.42400000003
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 34221.9350000002,
+      "key": "nvjet_tst_256x160_64x5_2x1_2cta_v_bz_TNT",
+      "self_device_time_total_us": 34221.9350000002
+    },
+    {
+      "count": 200,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 1711.9839999998294,
+      "key": "triton_poi_fused_add_addmm_mul_view_4",
+      "self_device_time_total_us": 1711.9839999998294
+    },
+    {
+      "count": 65,
+      "cpu_time_total_us": 456.42099999992934,
+      "device_time_total_us": 226.08099999997648,
+      "key": "aten::add",
+      "self_device_time_total_us": 226.08099999997648
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 127.07599999995728,
+      "device_time_total_us": 84.54500000003463,
+      "key": "aten::layer_norm",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 112.64600000002247,
+      "device_time_total_us": 84.54500000003463,
+      "key": "aten::native_layer_norm",
+      "self_device_time_total_us": 84.54500000003463
+    },
+    {
+      "count": 496,
+      "cpu_time_total_us": 3719.34099999952,
+      "device_time_total_us": 961.7360000002809,
+      "key": "aten::sub",
+      "self_device_time_total_us": 961.7360000002809
+    },
+    {
+      "count": 16,
+      "cpu_time_total_us": 198.95399999990332,
+      "device_time_total_us": 29.2479999998759,
+      "key": "aten::abs",
+      "self_device_time_total_us": 14.62399999993795
+    },
+    {
+      "count": 8,
+      "cpu_time_total_us": 105.39800000006653,
+      "device_time_total_us": 54.36700000003475,
+      "key": "aten::argmin",
+      "self_device_time_total_us": 54.36700000003475
+    },
+    {
+      "count": 8,
+      "cpu_time_total_us": 123.74799999999959,
+      "device_time_total_us": 23.96800000005169,
+      "key": "aten::index",
+      "self_device_time_total_us": 23.96800000005169
+    },
+    {
+      "count": 160,
+      "cpu_time_total_us": 327629.0690000002,
+      "device_time_total_us": 208105.08600000126,
+      "key": "Torch-Compiled Region: 0/2",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 160,
+      "cpu_time_total_us": 249248.32199999996,
+      "device_time_total_us": 97891.48500000041,
+      "key": "Torch-Compiled Region: 1/2",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 160,
+      "cpu_time_total_us": 18503.442000000206,
+      "device_time_total_us": 41199.62900000051,
+      "key": "## Call CompiledFxGraph fed4ov6qe57tzjn5yggz6dav3tn4vnbpeuuzyim6fjrswsfn4qe6 ##",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 160,
+      "cpu_time_total_us": 196449.67400000014,
+      "device_time_total_us": 54585.59400000021,
+      "key": "Torch-Compiled Region: 8/1",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 160,
+      "cpu_time_total_us": 168328.42700000017,
+      "device_time_total_us": 52588.9760000004,
+      "key": "Torch-Compiled Region: 9/1",
+      "self_device_time_total_us": 33670.82200000033
+    },
+    {
+      "count": 160,
+      "cpu_time_total_us": 7371.56900000036,
+      "device_time_total_us": 299.6169999999911,
+      "key": "## Call CompiledFxGraph fyvf37qhzinj4m5not5y2blsxlzpklgx7damtm3kr3zolnvu5f7p ##",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 160,
+      "cpu_time_total_us": 1725.5209999996077,
+      "device_time_total_us": 299.6169999999911,
+      "key": "triton_poi_fused_add_sub_0",
+      "self_device_time_total_us": 299.6169999999911
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 84.54500000003463,
+      "key": "void at::native::(anonymous namespace)::vectorized_layer_norm_kernel<c10::BFloat16, float, false>(int, float, c10::BFloat16 const*, c10::BFloat16 const*, c10::BFloat16 const*, float*, float*, c10::BFloat16*)",
+      "self_device_time_total_us": 84.54500000003463
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 16.063999999969383,
+      "key": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctorOnSelf_add<c10::BFloat16> >(at::TensorIteratorBase&, at::native::CUDAFunctorOnSelf_add<c10::BFloat16> const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctorOnSelf_add<c10::BFloat16> >(at::TensorIteratorBase&, at::native::CUDAFunctorOnSelf_add<c10::BFloat16> const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 16.063999999969383
+    },
+    {
+      "count": 13,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 195.64899999992485,
+      "key": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 195.64899999992485
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 42.65600000003178,
+      "key": "nvjet_tst_16x64_64x16_2x1_v_bz_bias_TNN",
+      "self_device_time_total_us": 42.65600000003178
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 18.689000000042142,
+      "key": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl<at::native::CUDAFunctor_add<double> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<double> const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl<at::native::CUDAFunctor_add<double> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<double> const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 18.689000000042142
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 9.535999999949127,
+      "key": "void at::native::vectorized_elementwise_kernel<2, at::native::AbsFunctor<double>, std::array<char*, 2ul> >(int, at::native::AbsFunctor<double>, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 9.535999999949127
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 41.631000000030326,
+      "key": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<double, at::native::ArgMinOps<double>, unsigned int, long, 4, 4> >(at::native::ReduceOp<double, at::native::ArgMinOps<double>, unsigned int, long, 4, 4>)",
+      "self_device_time_total_us": 41.631000000030326
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 15.584000000060769,
+      "key": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})",
+      "self_device_time_total_us": 15.584000000060769
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 12.73600000004808,
+      "key": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<double> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<double> const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<double> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<double> const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 12.73600000004808
+    },
+    {
+      "count": 160,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 42507.79199999986,
+      "key": "## Call CompiledFxGraph fed4ov6qe57tzjn5yggz6dav3tn4vnbpeuuzyim6fjrswsfn4qe6 ##",
+      "self_device_time_total_us": 42507.79199999986
+    },
+    {
+      "count": 160,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 299.6169999999911,
+      "key": "triton_poi_fused_add_sub_0",
+      "self_device_time_total_us": 299.6169999999911
+    },
+    {
+      "count": 160,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 299.6169999999911,
+      "key": "## Call CompiledFxGraph fyvf37qhzinj4m5not5y2blsxlzpklgx7damtm3kr3zolnvu5f7p ##",
+      "self_device_time_total_us": 299.6169999999911
+    },
+    {
+      "count": 1280,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 2202.5679999996064,
+      "key": "Memcpy DtoH (Device -> Pinned)",
+      "self_device_time_total_us": 2202.5679999996064
+    },
+    {
+      "count": 480,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 914.8240000001388,
+      "key": "void at::native::vectorized_elementwise_kernel<2, at::native::CUDAFunctorOnSelf_add<long>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<long>, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 914.8240000001388
+    },
+    {
+      "count": 160,
+      "cpu_time_total_us": 1392.698000000113,
+      "device_time_total_us": 337.0509999999049,
+      "key": "aten::gt",
+      "self_device_time_total_us": 337.0509999999049
+    },
+    {
+      "count": 160,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 337.0509999999049,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::compare_scalar_kernel<long>(at::TensorIteratorBase&, at::native::(anonymous namespace)::OpType, long)::{lambda(long)#1}, std::array<char*, 2ul> >(int, at::native::compare_scalar_kernel<long>(at::TensorIteratorBase&, at::native::(anonymous namespace)::OpType, long)::{lambda(long)#1}, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 337.0509999999049
+    },
+    {
+      "count": 160,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 33670.82200000033,
+      "key": "kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor0000o11101213_tensor0000o11101213_tensor0000o10111213_tensor0000o11101213_None_None_None_Non_0",
+      "self_device_time_total_us": 33670.82200000033
+    },
+    {
+      "count": 3,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 10.016000000032363,
+      "key": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl<at::native::CUDAFunctor_add<float> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<float> const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl<at::native::CUDAFunctor_add<float> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<float> const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 10.016000000032363
+    },
+    {
+      "count": 3,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 5.087999999988824,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::AbsFunctor<float>, std::array<char*, 2ul> >(int, at::native::AbsFunctor<float>, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 5.087999999988824
+    },
+    {
+      "count": 3,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 12.736000000004424,
+      "key": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::ArgMinOps<float>, unsigned int, long, 4, 4> >(at::native::ReduceOp<float, at::native::ArgMinOps<float>, unsigned int, long, 4, 4>)",
+      "self_device_time_total_us": 12.736000000004424
+    },
+    {
+      "count": 3,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 8.38399999999092,
+      "key": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})",
+      "self_device_time_total_us": 8.38399999999092
+    },
+    {
+      "count": 3,
+      "cpu_time_total_us": 43.35899999999674,
+      "device_time_total_us": 5.471000000019558,
+      "key": "aten::rsub",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 3,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 5.471000000019558,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnOther_add<float>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnOther_add<float>, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 5.471000000019558
+    },
+    {
+      "count": 6,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 24.097000000008848,
+      "key": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 24.097000000008848
+    },
+    {
+      "count": 3,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 5.28000000002794,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<float>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<float>, std::array<char*, 3ul>)",
+      "self_device_time_total_us": 5.28000000002794
+    },
+    {
+      "count": 3,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 5.120000000024447,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::bfloat16_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::bfloat16_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(float)#1}, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 5.120000000024447
+    },
+    {
+      "count": 30,
+      "cpu_time_total_us": 315.89400000026217,
+      "device_time_total_us": 39.393000000098255,
+      "key": "aten::contiguous",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 1,
+      "cpu_time_total_us": 15.320000000006985,
+      "device_time_total_us": 2.048000000009779,
+      "key": "aten::reciprocal",
+      "self_device_time_total_us": 2.048000000009779
+    },
+    {
+      "count": 1,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 2.048000000009779,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::reciprocal_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#6}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::reciprocal_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#6}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 2.048000000009779
+    },
+    {
+      "count": 9,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 27.19900000002235,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::AUnaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul> >(int, at::native::AUnaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 27.19900000002235
+    },
+    {
+      "count": 9,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 77.56999999989057,
+      "key": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::DivFunctor<c10::BFloat16> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::DivFunctor<c10::BFloat16> > const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::DivFunctor<c10::BFloat16> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::DivFunctor<c10::BFloat16> > const&)::{lambda(int)#1})",
+      "self_device_time_total_us": 77.56999999989057
+    },
+    {
+      "count": 34,
+      "cpu_time_total_us": 30163.00999999995,
+      "device_time_total_us": 3271.260000000708,
+      "key": "aten::conv3d",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 1,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 4.0640000000130385,
+      "key": "cutlass3x_sm100_tensorop_s256x64x16implicit_gemm_fprop_bf16_bf16_f32_void_bf16_f32_256x64x64_dyn_cga_ndhwc_ndhwc_ndhwc_align8_2sm_relu_valpha",
+      "self_device_time_total_us": 4.0640000000130385
+    },
+    {
+      "count": 4,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 160.67199999996228,
+      "key": "cutlass3x_sm100_tensorop_s128x128x16implicit_gemm_fprop_bf16_bf16_f32_void_bf16_f32_128x128x64_dyn_cga_ndhwc_ndhwc_ndhwc_align8_2sm_relu_valpha",
+      "self_device_time_total_us": 160.67199999996228
+    },
+    {
+      "count": 30,
+      "cpu_time_total_us": 270.09399999992456,
+      "device_time_total_us": 62.177000000025146,
+      "key": "aten::linalg_vector_norm",
+      "self_device_time_total_us": 62.177000000025146
+    },
+    {
+      "count": 5,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 21.792000000015832,
+      "key": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<c10::BFloat16, at::native::NormTwoOps<c10::BFloat16, float, c10::BFloat16>, unsigned int, c10::BFloat16, 4, 4> >(at::native::ReduceOp<c10::BFloat16, at::native::NormTwoOps<c10::BFloat16, float, c10::BFloat16>, unsigned int, c10::BFloat16, 4, 4>)",
+      "self_device_time_total_us": 21.792000000015832
+    },
+    {
+      "count": 30,
+      "cpu_time_total_us": 198.48499999992782,
+      "device_time_total_us": 16.161000000021886,
+      "key": "aten::clamp_min",
+      "self_device_time_total_us": 16.161000000021886
+    },
+    {
+      "count": 8,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 16.161000000021886,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#9}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#9}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 16.161000000021886
+    },
+    {
+      "count": 8,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 25.599999999976717,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<c10::BFloat16>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<c10::BFloat16>, std::array<char*, 2ul>)",
+      "self_device_time_total_us": 25.599999999976717
+    },
+    {
+      "count": 3,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 11.39199999999255,
+      "key": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul>)",
+      "self_device_time_total_us": 11.39199999999255
+    },
+    {
+      "count": 2,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 14.271999999997206,
+      "key": "nvjet_tst_192x128_64x6_2x1_2cta_v_bz_TNT",
+      "self_device_time_total_us": 14.271999999997206
+    },
+    {
+      "count": 1,
+      "cpu_time_total_us": 57.02899999998044,
+      "device_time_total_us": 273.2820000000065,
+      "key": "aten::scaled_dot_product_attention",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 1,
+      "cpu_time_total_us": 44.04899999999907,
+      "device_time_total_us": 273.2820000000065,
+      "key": "aten::_scaled_dot_product_efficient_attention",
+      "self_device_time_total_us": 0.0
+    },
+    {
+      "count": 1,
+      "cpu_time_total_us": 31.04899999999907,
+      "device_time_total_us": 273.2820000000065,
+      "key": "aten::_efficient_attention_forward",
+      "self_device_time_total_us": 273.2820000000065
+    },
+    {
+      "count": 1,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 273.2820000000065,
+      "key": "fmha_cutlassF_bf16_aligned_32x128_gmem_sm80(PyTorchMemEffAttention::AttentionKernel<cutlass::bfloat16_t, cutlass::arch::Sm80, true, 32, 128, 65536, true, true>::Params)",
+      "self_device_time_total_us": 273.2820000000065
+    },
+    {
+      "count": 8,
+      "cpu_time_total_us": 29080.679999999993,
+      "device_time_total_us": 3031.5460000006133,
+      "key": "aten::slow_conv_dilated3d",
+      "self_device_time_total_us": 624.6770000000251
+    },
+    {
+      "count": 3,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 473.66800000006333,
+      "key": "void at::native::vol2col_kernel<c10::BFloat16>(long, c10::BFloat16 const*, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, c10::BFloat16*)",
+      "self_device_time_total_us": 473.66800000006333
+    },
+    {
+      "count": 3,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 151.00899999996182,
+      "key": "nvjet_tst_128x192_64x7_2x1_2cta_v_badd_NNT",
+      "self_device_time_total_us": 151.00899999996182
+    },
+    {
+      "count": 3,
+      "cpu_time_total_us": 0,
+      "device_time_total_us": 40.38500000000931,
+      "key": "void at::native::reduce_kernel<128, 4, at::native::ReduceOp<c10::BFloat16, at::native::NormTwoOps<c10::BFloat16, float, c10::BFloat16>, unsigned int, c10::BFloat16, 4, 4> >(at::native::ReduceOp<c10::BFloat16, at::native::NormTwoOps<c10::BFloat16, float, c10::BFloat16>, unsigned int, c10::BFloat16, 4, 4>)",
+      "self_device_time_total_us": 40.38500000000931
+    }
+  ],
+  "meta": {
+    "cudnn_benchmark": true,
+    "device_cc": [
+      10,
+      3
+    ],
+    "device_name": "NVIDIA B300 SXM6 AC",
+    "disable_flex_attention_compile": "1",
+    "height": 320,
+    "iters": 1,
+    "kv_bias_backend": "fa4",
+    "kv_cache_attention_bias": 0.3,
+    "pre_iters": 1,
+    "profiled_wall_time_s": 7.533111598000687,
+    "stack_exclude": null,
+    "stack_include": [
+      "CausalWanSelfAttention"
+    ],
+    "stack_keys": [
+      "aten::copy_",
+      "aten::contiguous",
+      "aten::clone",
+      "aten::_to_copy",
+      "aten::fill_",
+      "aten::transpose"
+    ],
+    "stack_limit": 25,
+    "stack_n": 12,
+    "torch_cuda_version": "13.0",
+    "torch_version": "2.9.0+cu130",
+    "triton_ptxas_path": "/usr/local/cuda-12.9/bin/ptxas",
+    "wanvae_stream_decode_mode": "chunk",
+    "width": 576,
+    "with_stack": true
+  },
+  "stack_groups": {
+    "aten::_to_copy": [],
+    "aten::clone": [],
+    "aten::contiguous": [],
+    "aten::copy_": [
+      {
+        "count": 8,
+        "cpu_time_total_us": 64.68000000006577,
+        "device_time_total_us": 55.96900000004098,
+        "self_device_time_total_us": 55.96900000004098,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_23",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_23",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 76.34799999992538,
+        "device_time_total_us": 55.84099999985483,
+        "self_device_time_total_us": 55.84099999985483,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_18",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_18",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 63.57799999999406,
+        "device_time_total_us": 55.776000000027125,
+        "self_device_time_total_us": 55.776000000027125,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_8",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_8",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 67.05800000003364,
+        "device_time_total_us": 55.55199999999604,
+        "self_device_time_total_us": 55.55199999999604,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_4",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_4",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 63.6189999999915,
+        "device_time_total_us": 55.521999999982654,
+        "self_device_time_total_us": 55.521999999982654,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_12",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_12",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 63.149999999965075,
+        "device_time_total_us": 55.52199999985169,
+        "self_device_time_total_us": 55.52199999985169,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_37",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_37",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 63.2099999999773,
+        "device_time_total_us": 55.3920000000071,
+        "self_device_time_total_us": 55.3920000000071,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_27",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_27",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 64.31899999998859,
+        "device_time_total_us": 55.361000000091735,
+        "self_device_time_total_us": 55.361000000091735,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_28",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_28",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 67.10500000001048,
+        "device_time_total_us": 55.36100000002625,
+        "self_device_time_total_us": 55.36100000002625,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_0",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_0",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 64.4580000000351,
+        "device_time_total_us": 55.36099999998987,
+        "self_device_time_total_us": 55.36099999998987,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_1",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_1",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 63.9780000000319,
+        "device_time_total_us": 55.36099999997532,
+        "self_device_time_total_us": 55.36099999997532,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_38",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_38",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 61.36900000003516,
+        "device_time_total_us": 55.35999999992782,
+        "self_device_time_total_us": 55.35999999992782,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_34",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_34",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 67.7170000000333,
+        "device_time_total_us": 55.32900000002701,
+        "self_device_time_total_us": 55.32900000002701,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_3",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_3",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 65.36600000002363,
+        "device_time_total_us": 55.264999999970314,
+        "self_device_time_total_us": 55.264999999970314,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_11",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_11",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 63.597999999983585,
+        "device_time_total_us": 55.26399999996647,
+        "self_device_time_total_us": 55.26399999996647,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_20",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_20",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 74.1660000000702,
+        "device_time_total_us": 55.13699999997334,
+        "self_device_time_total_us": 55.13699999997334,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_15",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_15",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 66.34900000003108,
+        "device_time_total_us": 55.10500000001048,
+        "self_device_time_total_us": 55.10500000001048,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_17",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_17",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 65.158999999956,
+        "device_time_total_us": 55.10399999994843,
+        "self_device_time_total_us": 55.10399999994843,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_5",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_5",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 65.13900000008289,
+        "device_time_total_us": 54.81500000010419,
+        "self_device_time_total_us": 54.81500000010419,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_25",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_25",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 8,
+        "cpu_time_total_us": 63.19000000003143,
+        "device_time_total_us": 54.72099999996135,
+        "self_device_time_total_us": 54.72099999996135,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_24",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_24",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 6,
+        "cpu_time_total_us": 47.27600000001257,
+        "device_time_total_us": 41.9199999999837,
+        "self_device_time_total_us": 41.9199999999837,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_33",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_33",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 6,
+        "cpu_time_total_us": 60.10899999999674,
+        "device_time_total_us": 41.824999999967986,
+        "self_device_time_total_us": 41.824999999967986,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_16",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_16",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 6,
+        "cpu_time_total_us": 48.9500000000553,
+        "device_time_total_us": 41.79200000000128,
+        "self_device_time_total_us": 41.79200000000128,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_19",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_19",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 6,
+        "cpu_time_total_us": 46.928000000014435,
+        "device_time_total_us": 41.69500000002154,
+        "self_device_time_total_us": 41.69500000002154,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_31",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_31",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      },
+      {
+        "count": 6,
+        "cpu_time_total_us": 49.390000000043074,
+        "device_time_total_us": 41.631000000052154,
+        "self_device_time_total_us": 41.631000000052154,
+        "stack": [
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_9",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_9",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward",
+          "torch/nn/modules/module.py(1779): _call_impl"
+        ]
+      }
+    ],
+    "aten::fill_": [
+      {
+        "count": 4,
+        "cpu_time_total_us": 35.99800000000687,
+        "device_time_total_us": 7.776000000041677,
+        "self_device_time_total_us": 7.776000000041677,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_4",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_4",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 36.08800000001793,
+        "device_time_total_us": 7.552000000010594,
+        "self_device_time_total_us": 7.552000000010594,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_18",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_18",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 36.73800000002666,
+        "device_time_total_us": 7.455999999976484,
+        "self_device_time_total_us": 7.455999999976484,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_5",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_5",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 36.2779999999766,
+        "device_time_total_us": 7.423999999999069,
+        "self_device_time_total_us": 7.423999999999069,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_3",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_3",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 35.649999999965075,
+        "device_time_total_us": 7.423999999969965,
+        "self_device_time_total_us": 7.423999999969965,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_17",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_17",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 37.43999999994412,
+        "device_time_total_us": 7.392999999952735,
+        "self_device_time_total_us": 7.392999999952735,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_38",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_38",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 39.95999999995547,
+        "device_time_total_us": 7.328000000015891,
+        "self_device_time_total_us": 7.328000000015891,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_0",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_0",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 36.06999999997788,
+        "device_time_total_us": 7.327999999994063,
+        "self_device_time_total_us": 7.327999999994063,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_12",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_12",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 36.359000000025844,
+        "device_time_total_us": 7.327999999994063,
+        "self_device_time_total_us": 7.327999999994063,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_15",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_15",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 35.92799999998533,
+        "device_time_total_us": 7.327999999979511,
+        "self_device_time_total_us": 7.327999999979511,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_20",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_20",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 37.86800000000221,
+        "device_time_total_us": 7.136999999973341,
+        "self_device_time_total_us": 7.136999999973341,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_8",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_8",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 38.48799999997573,
+        "device_time_total_us": 7.103999999977532,
+        "self_device_time_total_us": 7.103999999977532,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_1",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_1",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 36.89899999999034,
+        "device_time_total_us": 7.072000000014668,
+        "self_device_time_total_us": 7.072000000014668,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_11",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_11",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 38.587999999988824,
+        "device_time_total_us": 7.070999999996275,
+        "self_device_time_total_us": 7.070999999996275,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_37",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_37",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 37.88900000001013,
+        "device_time_total_us": 6.975999999995111,
+        "self_device_time_total_us": 6.975999999995111,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_28",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_28",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 47.550000000046566,
+        "device_time_total_us": 6.816000000020722,
+        "self_device_time_total_us": 6.816000000020722,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_23",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_23",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 36.93999999994412,
+        "device_time_total_us": 6.815999999991618,
+        "self_device_time_total_us": 6.815999999991618,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_34",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_34",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 37.06799999998475,
+        "device_time_total_us": 6.815999999977066,
+        "self_device_time_total_us": 6.815999999977066,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_24",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_24",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 37.06899999998859,
+        "device_time_total_us": 6.721000000019558,
+        "self_device_time_total_us": 6.721000000019558,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_27",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_27",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 36.95899999994435,
+        "device_time_total_us": 6.655999999973574,
+        "self_device_time_total_us": 6.655999999973574,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_25",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_25",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 3,
+        "cpu_time_total_us": 28.530000000013388,
+        "device_time_total_us": 5.72800000004645,
+        "self_device_time_total_us": 5.72800000004645,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_2",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_2",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 3,
+        "cpu_time_total_us": 28.52699999998731,
+        "device_time_total_us": 5.600000000034925,
+        "self_device_time_total_us": 5.600000000034925,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_10",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_10",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 3,
+        "cpu_time_total_us": 28.160000000003492,
+        "device_time_total_us": 5.536000000036438,
+        "self_device_time_total_us": 5.536000000036438,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_22",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_22",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 3,
+        "cpu_time_total_us": 28.04900000001362,
+        "device_time_total_us": 5.37599999998929,
+        "self_device_time_total_us": 5.37599999998929,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_30",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_30",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      },
+      {
+        "count": 3,
+        "cpu_time_total_us": 28.54000000000815,
+        "device_time_total_us": 5.37599999998929,
+        "self_device_time_total_us": 5.37599999998929,
+        "stack": [
+          "<built-in method fill_ of Tensor object at 0x7cb3ec3b90e0>",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_31",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_31",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2623): forward"
+        ]
+      }
+    ],
+    "aten::transpose": [
+      {
+        "count": 4,
+        "cpu_time_total_us": 8.260000000002037,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_6",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_0",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 8.450000000011642,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_7",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_1",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 3,
+        "cpu_time_total_us": 5.7599999999656575,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_8",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_2",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 7.898999999961234,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_9",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_3",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 7.789999999964493,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_10",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_4",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 8.308999999964726,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_11",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_5",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 3,
+        "cpu_time_total_us": 10.739999999990687,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_12",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_6",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 3,
+        "cpu_time_total_us": 6.009999999980209,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_13",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_7",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 7.889999999999418,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_14",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_8",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 3,
+        "cpu_time_total_us": 6.269999999974971,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_15",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_9",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 3,
+        "cpu_time_total_us": 6.05000000000291,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_16",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_10",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 7.598999999972875,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_17",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_11",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 7.6789999999746215,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_18",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_12",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 2,
+        "cpu_time_total_us": 3.8700000000098953,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_19",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_13",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 2,
+        "cpu_time_total_us": 3.789999999993597,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_20",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_14",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 7.830000000016298,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_21",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_15",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 3,
+        "cpu_time_total_us": 6.350000000005821,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_22",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_16",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 7.819999999977881,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_23",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_17",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 7.929999999993015,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_24",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_18",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 3,
+        "cpu_time_total_us": 5.909999999959837,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_25",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_19",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 8.089999999967404,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_26",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_20",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 1,
+        "cpu_time_total_us": 1.9400000000023283,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_27",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_21",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper",
+          "nn.Module: CausalWanAttentionBlock_21",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(2286): _forward_inference"
+        ]
+      },
+      {
+        "count": 3,
+        "cpu_time_total_us": 5.970000000059372,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_28",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_22",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 7.840000000025611,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_29",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_23",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      },
+      {
+        "count": 4,
+        "cpu_time_total_us": 7.8100000000267755,
+        "device_time_total_us": 0.0,
+        "self_device_time_total_us": 0.0,
+        "stack": [
+          "<built-in function linear>",
+          "torch/nn/modules/linear.py(130): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: Linear_30",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1196): torch_dynamo_resume_in_forward_at_1196",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1190): torch_dynamo_resume_in_forward_at_1190",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(939): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "nn.Module: CausalWanSelfAttention_24",
+          "scope/core/pipelines/krea_realtime_video/modules/causal_model.py(1730): forward",
+          "torch/nn/modules/module.py(1779): _call_impl",
+          "torch/_dynamo/eval_frame.py(791): compile_wrapper"
+        ]
+      }
+    ]
+  }
+}

@@ -28,6 +28,7 @@ ITERS="${ITERS:-6}"
 SKIP="${SKIP:-2}"
 QUANTIZATION="${QUANTIZATION:-none}"
 KV_CACHE_ATTENTION_BIAS="${KV_CACHE_ATTENTION_BIAS:-0.3}"
+COMPILE="${COMPILE:-0}"
 
 OUT_PREFIX_DEFAULT="outputs/b300_cu130_${QUANTIZATION}_bias${KV_CACHE_ATTENTION_BIAS}_drilldown"
 OUT_PREFIX="${OUT_PREFIX:-$OUT_PREFIX_DEFAULT}"
@@ -69,6 +70,10 @@ export SCOPE_KV_BIAS_BACKEND="${SCOPE_KV_BIAS_BACKEND:-fa4}"
 # Faster steady-state decode mode on B300.
 export WANVAE_STREAM_DECODE_MODE="${WANVAE_STREAM_DECODE_MODE:-chunk}"
 
+# Keep decode on the fast Conv3d path (avoid `aten::slow_conv_dilated3d` / vol2col fallback).
+export WANVAE_DECODE_CHANNELS_LAST_3D="${WANVAE_DECODE_CHANNELS_LAST_3D:-1}"
+export WANVAE_RESAMPLE_ENSURE_CONTIGUOUS="${WANVAE_RESAMPLE_ENSURE_CONTIGUOUS:-1}"
+
 export PROFILE_PIPELINE_BLOCKS=1
 export PROFILE_PIPELINE_BLOCKS_JSON="${OUT_PREFIX}_blocks_profile.json"
 export PROFILE_DENOISE_STEPS=1
@@ -79,9 +84,19 @@ export PROFILE_WANVAE_DECODE=1
 export PROFILE_WANVAE_DECODE_JSON="${OUT_PREFIX}_vae_decode.json"
 export PROFILE_WANVAE_DECODE_INNER=1
 export PROFILE_WANVAE_DECODE_INNER_JSON="${OUT_PREFIX}_vae_decode_inner.json"
-export PROFILE_ATTENTION=1
+if [[ "$COMPILE" == "1" ]]; then
+  # The attention profilers are pruned during torch.compile tracing; leave them off to avoid confusion.
+  echo "NOTE: COMPILE=1: disabling PROFILE_ATTENTION (pruned under torch.compile tracing)." >&2
+else
+  export PROFILE_ATTENTION=1
+fi
 
-PYTHONPATH=src "$PY" scripts/profile_krea_pipeline_blocks.py \
+COMPILE_ARGS=()
+if [[ "$COMPILE" == "1" ]]; then
+  COMPILE_ARGS+=(--compile)
+fi
+
+PYTHONPATH=src "$PY" scripts/profile_krea_pipeline_blocks.py "${COMPILE_ARGS[@]}" \
   --height "$HEIGHT" --width "$WIDTH" \
   --iters "$ITERS" --skip "$SKIP" \
   --quantization "$QUANTIZATION" \

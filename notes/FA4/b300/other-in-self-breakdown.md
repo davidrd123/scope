@@ -1,8 +1,8 @@
 # "other_in_self" Breakdown: Stack-Attributed Analysis
 
-> Status: Stub (needs profiling run to fill in)
+> Status: Partial (post-VAE-fix snapshot recorded; needs periodic refresh)
 > Priority: **High** — can't optimize what we haven't measured
-> Date: 2025-12-26
+> Date: 2025-12-27
 > Sources:
 > - External references + constraints: [`claude01.md`](../DeepResearch/2025-12-26/B300_step_back/doc_ref_guide/claude01.md)
 > - “Don’t guess, measure” decision rules: [`5pro_rp02.md`](../DeepResearch/2025-12-26/B300_step_back/round01/5pro_rp02.md)
@@ -48,16 +48,44 @@ The profiler shows "other_in_self" as the majority of self_attn time after FA4 K
 
 Enable `PROFILE_ATTENTION=1` and record the report at exit. This tells you how much `self_attn` time is KV-bias vs everything else, and also records sub-blocks like `qkv_projection`, `rope_apply`, and `cache_update` when enabled.
 
-**Kickoff baseline (B300 / cu130, BF16, bias=0.3, FA4):**
-- Command (uses the canonical B300 script):
-  - `OUT_PREFIX=outputs/b300_cu130_none_bias0.3_kickoff ITERS=4 SKIP=1 QUANTIZATION=none KV_CACHE_ATTENTION_BIAS=0.3 scripts/profile_b300_denoise_drilldown.sh`
-- Artifacts:
-  - `outputs/b300_cu130_none_bias0.3_kickoff_perf.log`
-  - `outputs/b300_cu130_none_bias0.3_kickoff_blocks_profile.json`
-  - `outputs/b300_cu130_none_bias0.3_kickoff_denoise_steps.json`
-  - `outputs/b300_cu130_none_bias0.3_kickoff_generator_steps.json`
-  - `outputs/b300_cu130_none_bias0.3_kickoff_vae_decode.json`
-  - `outputs/b300_cu130_none_bias0.3_kickoff_vae_decode_inner.json`
+**Kickoff snapshot (B300 / cu130, BF16, bias=0.3, FA4, decode fixed):**
+
+> Note: `PROFILE_ATTENTION=1` is **not compatible with `--compile`** for the self-attn regions (the profiling blocks get pruned during tracing). Run without `--compile` to get the nested breakdown numbers.
+
+**Command:**
+```bash
+OUT_PREFIX=outputs/b300_cu130_none_bias0.3_drilldown_post_vae_fix
+TRITON_PTXAS_PATH=/usr/local/cuda-12.9/bin/ptxas \
+DISABLE_FLEX_ATTENTION_COMPILE=1 \
+SCOPE_KV_BIAS_BACKEND=fa4 \
+SCOPE_DISABLE_FUSED_PROJECTIONS=1 \
+WANVAE_STREAM_DECODE_MODE=chunk \
+WANVAE_DECODE_CHANNELS_LAST_3D=1 \
+WANVAE_RESAMPLE_ENSURE_CONTIGUOUS=1 \
+PROFILE_PIPELINE_BLOCKS=1 PROFILE_PIPELINE_BLOCKS_JSON=${OUT_PREFIX}_blocks_profile.json \
+PROFILE_DENOISE_STEPS=1 PROFILE_DENOISE_STEPS_JSON=${OUT_PREFIX}_denoise_steps.json \
+PROFILE_GENERATOR_STEPS=1 PROFILE_GENERATOR_STEPS_JSON=${OUT_PREFIX}_generator_steps.json \
+PROFILE_WANVAE_DECODE=1 PROFILE_WANVAE_DECODE_JSON=${OUT_PREFIX}_vae_decode.json \
+PROFILE_WANVAE_DECODE_INNER=1 PROFILE_WANVAE_DECODE_INNER_JSON=${OUT_PREFIX}_vae_decode_inner.json \
+PROFILE_ATTENTION=1 \
+PYTHONPATH=src \
+.venv-b300-cu130-decode/bin/python scripts/profile_krea_pipeline_blocks.py \
+  --height 320 --width 576 \
+  --iters 4 --skip 1 \
+  --quantization none \
+  --kv-cache-attention-bias 0.3 \
+  --cudnn-benchmark \
+  --json ${OUT_PREFIX}_perf.json \
+  |& tee ${OUT_PREFIX}_perf.log
+```
+
+**Artifacts:**
+- `outputs/b300_cu130_none_bias0.3_drilldown_post_vae_fix_perf.log`
+- `outputs/b300_cu130_none_bias0.3_drilldown_post_vae_fix_blocks_profile.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_post_vae_fix_denoise_steps.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_post_vae_fix_generator_steps.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_post_vae_fix_vae_decode.json`
+- `outputs/b300_cu130_none_bias0.3_drilldown_post_vae_fix_vae_decode_inner.json`
 
 **Observed `PROFILE_ATTENTION` report (from `*_perf.log`, profiled iterations only):**
 
@@ -72,9 +100,9 @@ Enable `PROFILE_ATTENTION=1` and record the report at exit. This tells you how m
 | `output_projection` | 67.0 | 600 | 0.11 | cuBLAS GEMM |
 
 **Derived (nested) breakdown:**
-- `other_in_self` = **509.8ms** (**68.2%** of `self_attn`) in this run.
-- `kv_bias_total` = **203.6ms** (**27.2%** of `self_attn`).
-- `block_mask` = **34.4ms** (**4.6%** of `self_attn`).
+- `other_in_self` = **505.5ms** (**67.6%** of `self_attn`) in this run.
+- `kv_bias_total` = **206.2ms** (**27.6%** of `self_attn`).
+- `block_mask` = **35.9ms** (**4.8%** of `self_attn`).
 
 ### Step 1: Stack-attributed op profiling (to find the real copy sources)
 
@@ -218,6 +246,19 @@ Based on the breakdown above:
 | Metric | Value |
 |--------|-------|
 | aten::copy_ calls | ~35,000 |
+
+### After VAE Decode Fix (Compile On)
+
+Stack-attributed snapshot (compile on; self-attn only):
+- `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_ensurecontig_stack.md`
+- `outputs/b300_cu130_triton351_ops_profile_selfattn_compile_ensurecontig_stack.json`
+
+Key takeaways from that snapshot:
+- In self-attn stacks, `aten::contiguous` / `aten::clone` / `aten::_to_copy` are **already eliminated** (no events) when fused projections are disabled.
+- Remaining measurable Python-visible overhead inside self-attn is mostly:
+  - `aten::copy_` (cache writes / small copies): `device_ms=2.518, calls=480` (filtered to `CausalWanSelfAttention`)
+  - `aten::fill_` (small counters/indices): `device_ms=0.289, calls=160` (filtered)
+- Big remaining time in denoise is still dominated by GEMMs + fused graphs (see “Top ops” in the snapshot).
 | aten::fill_ calls | ~35,000 |
 | Total self_attn | ? ms |
 | other_in_self | ? ms |
