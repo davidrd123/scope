@@ -79,7 +79,18 @@ class TimelinePromptItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     text: str = Field(..., description="Prompt text")
-    weight: float = Field(default=100.0, description="Prompt weight")
+    weight: float = Field(default=1.0, description="Prompt weight")
+
+
+class TimelineSoftCut(BaseModel):
+    """Soft cut parameters for temporary KV cache bias override."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    bias: float
+    chunks: int = 2
+    restoreBias: float | None = None
+    restoreWasSet: bool = False
 
 
 class TimelineSegment(BaseModel):
@@ -87,10 +98,14 @@ class TimelineSegment(BaseModel):
 
     startTime: float
     endTime: float
+    startChunk: int | None = None
+    endChunk: int | None = None
     prompts: list[TimelinePromptItem] | None = None
     text: str | None = None
     transitionSteps: int | None = None
     temporalInterpolationMethod: TemporalInterpolationMethod | None = None
+    initCache: bool | None = None
+    softCut: TimelineSoftCut | None = None
 
     def prompt_items(self) -> list[dict]:
         if self.prompts:
@@ -165,6 +180,12 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     )
 
     parser.add_argument("--fps", type=int, default=16, help="Output FPS")
+    parser.add_argument(
+        "--timebase",
+        choices=["auto", "chunk", "time"],
+        default="auto",
+        help="Segment scheduling timebase (auto prefers chunk when available)",
+    )
     parser.add_argument(
         "--height",
         type=int,
@@ -686,8 +707,37 @@ def render_timeline(argv: list[str] | None = None) -> int:
 
     outputs: list["torch.Tensor"] = []
     produced_frames = 0
+    call_index = 0
     seg_idx = 0
     active_segment = segments[0]
+
+    # Replay state: initCache (one-shot) and softCut (countdown + restore)
+    pending_init_cache = False
+    soft_active = False
+    soft_chunks_remaining = 0
+    soft_restore_bias: float | None = None
+    soft_restore_was_set = False
+
+    timebase = args.timebase
+    if timebase == "auto":
+        has_chunk_fields = all(
+            s.startChunk is not None and s.endChunk is not None for s in segments
+        )
+        timebase = "chunk" if has_chunk_fields else "time"
+    elif timebase == "chunk":
+        has_chunk_fields = all(
+            s.startChunk is not None and s.endChunk is not None for s in segments
+        )
+        if not has_chunk_fields:
+            logger.warning(
+                "Requested --timebase=chunk but segments are missing startChunk/endChunk; falling back to time-based scheduling"
+            )
+            timebase = "time"
+
+    target_calls: int | None = None
+    if timebase == "chunk":
+        end_chunks = [s.endChunk for s in segments if s.endChunk is not None]
+        target_calls = max(end_chunks) if end_chunks else None
 
     # Initialize prompts with the first segment
     first_prompts = active_segment.prompt_items()
@@ -695,22 +745,33 @@ def render_timeline(argv: list[str] | None = None) -> int:
         raise SystemExit("First timeline segment has no prompts")
     parameters["prompts"] = first_prompts
 
-    last_segment_id = (active_segment.startTime, active_segment.endTime)
+    last_seg_idx: int | None = None
 
-    while produced_frames < target_frames:
+    while True:
+        if timebase == "chunk":
+            if target_calls is not None and call_index >= target_calls:
+                break
+        else:
+            if produced_frames >= target_frames:
+                break
+
         current_time = produced_frames / fps
 
-        # Advance segments by startTime so gaps behave like "hold last prompt"
+        # Advance segments so gaps behave like "hold last prompt"
         # until the next segment begins.
-        while (
-            seg_idx + 1 < len(segments)
-            and current_time >= segments[seg_idx + 1].startTime
-        ):
+        while seg_idx + 1 < len(segments):
+            next_seg = segments[seg_idx + 1]
+            if timebase == "chunk":
+                next_start = next_seg.startChunk
+                if next_start is None or call_index < next_start:
+                    break
+            else:
+                if current_time < next_seg.startTime:
+                    break
             seg_idx += 1
             active_segment = segments[seg_idx]
 
-        current_segment_id = (active_segment.startTime, active_segment.endTime)
-        if current_segment_id != last_segment_id:
+        if seg_idx != last_seg_idx:
             target_prompts = active_segment.prompt_items()
             if not target_prompts:
                 logger.warning(
@@ -755,11 +816,49 @@ def render_timeline(argv: list[str] | None = None) -> int:
                         temporal_method,
                     )
 
-            last_segment_id = current_segment_id
+            # One-shot initCache support (precedence: recorded file is authoritative).
+            if active_segment.initCache:
+                pending_init_cache = True
+
+            # Soft cut support (temporary bias override + restore).
+            if active_segment.softCut is not None:
+                sc = active_segment.softCut
+                temp_bias = max(0.01, min(1.0, float(sc.bias)))
+                chunks = max(1, min(10, int(sc.chunks)))
+
+                if not soft_active:
+                    soft_restore_bias = sc.restoreBias
+                    soft_restore_was_set = bool(sc.restoreWasSet)
+
+                soft_active = True
+                soft_chunks_remaining = chunks
+                parameters["kv_cache_attention_bias"] = temp_bias
+
+            last_seg_idx = seg_idx
+
+        if pending_init_cache:
+            parameters["init_cache"] = True
 
         output = pipeline(**parameters)
         outputs.append(output.detach().cpu())
         produced_frames += int(output.shape[0])
+        call_index += 1
+
+        if pending_init_cache:
+            parameters.pop("init_cache", None)
+            pending_init_cache = False
+
+        if soft_active:
+            soft_chunks_remaining -= 1
+            if soft_chunks_remaining <= 0:
+                if soft_restore_was_set and soft_restore_bias is not None:
+                    parameters["kv_cache_attention_bias"] = float(soft_restore_bias)
+                else:
+                    parameters.pop("kv_cache_attention_bias", None)
+                soft_active = False
+                soft_chunks_remaining = 0
+                soft_restore_bias = None
+                soft_restore_was_set = False
 
         # Keep sending transition until the pipeline signals it completed (like server FrameProcessor).
         if "transition" in parameters and hasattr(pipeline, "state"):
@@ -779,10 +878,12 @@ def render_timeline(argv: list[str] | None = None) -> int:
                 end_time,
             )
 
-    video = torch.cat(outputs, dim=0)[:target_frames]
+    video = torch.cat(outputs, dim=0)
+    if timebase != "chunk":
+        video = video[:target_frames]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     export_to_video(video.contiguous().numpy(), args.output, fps=fps)
-    logger.info("Wrote %s (%d frames @ %dfps)", args.output, target_frames, fps)
+    logger.info("Wrote %s (%d frames @ %dfps)", args.output, int(video.shape[0]), fps)
     return 0
 
 
